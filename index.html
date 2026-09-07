@@ -146,9 +146,9 @@ body{background:var(--bg);color:var(--ink);min-height:100vh;}
 .card h3{font-size:14.5px;margin-bottom:12px;color:var(--gold-2);}
 
 table{width:100%;border-collapse:collapse;font-size:13px;}
-th{text-align:right;padding:9px 8px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);font-size:12px;}
-th:first-child,td:first-child{text-align:right;}
-td{padding:9px 8px;border-bottom:1px solid var(--line);}
+th{text-align:left;padding:9px 8px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);font-size:12px;}
+td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);}
+th.num,td.num{text-align:right;}
 tr:hover td{background:var(--panel-2);}
 .tbl-wrap{overflow-x:auto;}
 .pill{padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;}
@@ -608,7 +608,7 @@ function renderStockTable(){
   const canEdit = hasAccess('manager');
   document.getElementById('stockTableWrap').innerHTML = `
     <table>
-      <tr><th>পণ্যের নাম / বিস্তারিত</th><th>শেলফ</th><th>একক</th><th>ক্রয়মূল্য</th><th>বিক্রয়মূল্য</th><th>স্টক</th><th>অবস্থা</th>${canEdit?'<th></th>':''}</tr>
+      <tr><th>পণ্যের নাম / বিস্তারিত</th><th>শেলফ</th><th>একক</th><th class="num">ক্রয়মূল্য</th><th class="num">বিক্রয়মূল্য</th><th class="num">স্টক</th><th>অবস্থা</th>${canEdit?'<th></th>':''}</tr>
       ${rows.map(p=>{
         const status = p.stock<=0?'<span class="pill bad">স্টক শেষ</span>':(p.stock<=p.lowStock?'<span class="pill warn">কম স্টক</span>':'<span class="pill ok">ঠিক আছে</span>');
         const detailBits = [p.brand, p.size, p.color].filter(Boolean).join(' • ');
@@ -618,8 +618,8 @@ function renderStockTable(){
             ${detailBits?`<div style="font-size:11px;color:var(--muted);margin-top:2px;">${esc(detailBits)}</div>`:''}
           </td>
           <td>${p.shelf?`<span class="pill" style="background:var(--panel-2);color:var(--gold-2);">${esc(p.shelf)}</span>`:'-'}</td>
-          <td>${esc(p.unit)}</td><td>${money(p.buyPrice)}</td><td>${money(p.sellPrice)}</td>
-          <td><b>${p.stock}</b></td><td>${status}</td>
+          <td>${esc(p.unit)}</td><td class="num">${money(p.buyPrice)}</td><td class="num">${money(p.sellPrice)}</td>
+          <td class="num"><b>${p.stock}</b></td><td>${status}</td>
           ${canEdit?`<td><button class="icon-btn" onclick="openProductModal(${p.id})">✏️</button><button class="icon-btn" onclick="deleteProduct(${p.id})">🗑️</button></td>`:''}
         </tr>`;
       }).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--muted);">কোনো পণ্য নেই</td></tr>`}
@@ -722,16 +722,16 @@ function renderSalesTable(){
   const totalAmt = rows.reduce((s,x)=>s+x.total,0);
   document.getElementById('salesTableWrap').innerHTML = `
     <table>
-      <tr><th>#</th><th>তারিখ</th><th>কাস্টমার</th><th>মোট</th><th>জমা</th><th>বাকি</th><th>স্ট্যাটাস</th><th></th></tr>
+      <tr><th>#</th><th>তারিখ</th><th>কাস্টমার</th><th class="num">মোট</th><th class="num">জমা</th><th class="num">বাকি</th><th>স্ট্যাটাস</th><th></th></tr>
       ${rows.map(s=>`
         <tr>
           <td>${refNo('INV', s.id)}</td><td>${fmtDate(s.date)}</td><td>${esc(s.customerName)}</td>
-          <td>${money(s.total)}</td><td>${money(s.paid)}</td><td>${money(s.due)}</td>
+          <td class="num">${money(s.total)}</td><td class="num">${money(s.paid)}</td><td class="num">${money(s.due)}</td>
           <td>${s.due<=0?'<span class="pill ok">পরিশোধিত</span>':'<span class="pill warn">বাকি আছে</span>'}</td>
           <td><button class="icon-btn" onclick="printInvoice(${s.id})" title="প্রিন্ট">🖨️</button>
               ${hasAccess('manager')?`<button class="icon-btn" onclick="deleteSale(${s.id})" title="মুছুন">🗑️</button>`:''}</td>
         </tr>`).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--muted);">কোনো বিক্রয় নেই</td></tr>`}
-      <tr><td colspan="3" class="foot-total">সর্বমোট</td><td class="foot-total">${money(totalAmt)}</td><td colspan="4"></td></tr>
+      <tr><td colspan="3" class="foot-total">সর্বমোট</td><td class="foot-total num">${money(totalAmt)}</td><td colspan="4"></td></tr>
     </table>
   `;
 }
@@ -866,11 +866,11 @@ function renderPurchaseTable(){
   const rows = [...DB.purchases].sort((a,b)=>b.id-a.id);
   document.getElementById('purchaseTableWrap').innerHTML = `
     <table>
-      <tr><th>#</th><th>তারিখ</th><th>সাপ্লায়ার</th><th>মোট</th><th>জমা</th><th>বাকি</th><th>স্ট্যাটাস</th><th></th></tr>
+      <tr><th>#</th><th>তারিখ</th><th>সাপ্লায়ার</th><th class="num">মোট</th><th class="num">জমা</th><th class="num">বাকি</th><th>স্ট্যাটাস</th><th></th></tr>
       ${rows.map(s=>`
         <tr>
           <td>${refNo('PUR', s.id)}</td><td>${fmtDate(s.date)}</td><td>${esc(s.supplierName)}</td>
-          <td>${money(s.total)}</td><td>${money(s.paid)}</td><td>${money(s.due)}</td>
+          <td class="num">${money(s.total)}</td><td class="num">${money(s.paid)}</td><td class="num">${money(s.due)}</td>
           <td>${s.due<=0?'<span class="pill ok">পরিশোধিত</span>':'<span class="pill warn">বাকি আছে</span>'}</td>
           <td>${hasAccess('manager')?`<button class="icon-btn" onclick="deletePurchase(${s.id})">🗑️</button>`:''}</td>
         </tr>`).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--muted);">কোনো ক্রয় নেই</td></tr>`}
@@ -1038,9 +1038,9 @@ function renderDues(){
         <h3>👤 কাস্টমার পাওনা (আপনি পাবেন)</h3>
         <div class="toolbar"><button class="btn btn-outline small-btn" onclick="openPartyModal('customer')">+ নতুন কাস্টমার</button></div>
         <div class="tbl-wrap"><table>
-          <tr><th>নাম</th><th>ফোন</th><th>বাকি</th><th></th></tr>
+          <tr><th>নাম</th><th>ফোন</th><th class="num">বাকি</th><th></th></tr>
           ${DB.customers.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(c.phone||'-')}</td>
-            <td style="color:${c.due>0?'#f0c869':'#5fd3a5'}">${money(c.due||0)}</td>
+            <td class="num" style="color:${c.due>0?'#f0c869':'#5fd3a5'}">${money(c.due||0)}</td>
             <td>${c.due>0?`<button class="btn btn-outline small-btn" onclick="openCollectDueModal('customer',${c.id})">জমা নিন</button>`:'<span class="pill ok">পরিশোধিত</span>'}</td></tr>`).join('')}
         </table></div>
       </div>
@@ -1048,9 +1048,9 @@ function renderDues(){
         <h3>🏭 সাপ্লায়ার দেনা (আপনি দেবেন)</h3>
         <div class="toolbar"><button class="btn btn-outline small-btn" onclick="openPartyModal('supplier')">+ নতুন সাপ্লায়ার</button></div>
         <div class="tbl-wrap"><table>
-          <tr><th>নাম</th><th>ফোন</th><th>বাকি</th><th></th></tr>
+          <tr><th>নাম</th><th>ফোন</th><th class="num">বাকি</th><th></th></tr>
           ${DB.suppliers.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(c.phone||'-')}</td>
-            <td style="color:${c.due>0?'#ff8a75':'#5fd3a5'}">${money(c.due||0)}</td>
+            <td class="num" style="color:${c.due>0?'#ff8a75':'#5fd3a5'}">${money(c.due||0)}</td>
             <td>${c.due>0?`<button class="btn btn-outline small-btn" onclick="openCollectDueModal('supplier',${c.id})">পরিশোধ করুন</button>`:'<span class="pill ok">পরিশোধিত</span>'}</td></tr>`).join('')}
         </table></div>
       </div>
@@ -1124,11 +1124,11 @@ function renderExpenseTable(){
   const total = rows.reduce((s,x)=>s+Number(x.amount),0);
   document.getElementById('expenseTableWrap').innerHTML = `
     <table>
-      <tr><th>তারিখ</th><th>খাত</th><th>বিবরণ</th><th>পরিমাণ</th><th></th></tr>
+      <tr><th>তারিখ</th><th>খাত</th><th>বিবরণ</th><th class="num">পরিমাণ</th><th></th></tr>
       ${rows.map(e=>`<tr><td>${fmtDate(e.date)}</td><td>${esc(e.category)}</td><td>${esc(e.note||'-')}</td>
-        <td>${money(e.amount)}</td><td>${hasAccess('manager')?`<button class="icon-btn" onclick="deleteExpense(${e.id})">🗑️</button>`:''}</td></tr>`).join('')
+        <td class="num">${money(e.amount)}</td><td>${hasAccess('manager')?`<button class="icon-btn" onclick="deleteExpense(${e.id})">🗑️</button>`:''}</td></tr>`).join('')
         || `<tr><td colspan="5" style="text-align:center;color:var(--muted);">কোনো খরচ নেই</td></tr>`}
-      <tr><td colspan="3" class="foot-total">সর্বমোট</td><td class="foot-total">${money(total)}</td><td></td></tr>
+      <tr><td colspan="3" class="foot-total">সর্বমোট</td><td class="foot-total num">${money(total)}</td><td></td></tr>
     </table>
   `;
 }
@@ -1220,8 +1220,8 @@ function renderReportBody(){
     <div class="card" style="margin-top:16px;">
       <h3>খাতভিত্তিক খরচ বিশ্লেষণ</h3>
       <table>
-        <tr><th>খাত</th><th>পরিমাণ</th></tr>
-        ${Object.keys(expByCat).map(c=>`<tr><td>${esc(c)}</td><td>${money(expByCat[c])}</td></tr>`).join('') || '<tr><td colspan="2" style="text-align:center;color:var(--muted);">কোনো খরচ নেই</td></tr>'}
+        <tr><th>খাত</th><th class="num">পরিমাণ</th></tr>
+        ${Object.keys(expByCat).map(c=>`<tr><td>${esc(c)}</td><td class="num">${money(expByCat[c])}</td></tr>`).join('') || '<tr><td colspan="2" style="text-align:center;color:var(--muted);">কোনো খরচ নেই</td></tr>'}
       </table>
     </div>
   `;
@@ -1354,7 +1354,7 @@ function printInvoice(saleId){
   const s = DB.sales.find(x=>x.id===saleId);
   const rows = s.items.map(it=>{
     const p = DB.products.find(pp=>pp.id===it.productId);
-    return `<tr><td>${esc(p?p.name:'—')}</td><td>${it.qty} ${esc(p?p.unit:'')}</td><td>${money(it.price)}</td><td>${money(it.price*it.qty)}</td></tr>`;
+    return `<tr><td>${esc(p?p.name:'—')}</td><td class="num">${it.qty} ${esc(p?p.unit:'')}</td><td class="num">${money(it.price)}</td><td class="num">${money(it.price*it.qty)}</td></tr>`;
   }).join('');
   document.getElementById('printArea').innerHTML = `
     <div class="inv-head">
@@ -1366,13 +1366,13 @@ function printInvoice(saleId){
       </div>
     </div>
     <table class="inv-table">
-      <tr><th>পণ্য</th><th>পরিমাণ</th><th>দর</th><th>সাবটোটাল</th></tr>
+      <tr><th>পণ্য</th><th class="num">পরিমাণ</th><th class="num">দর</th><th class="num">সাবটোটাল</th></tr>
       ${rows}
     </table>
     <table class="inv-table" style="width:300px;margin-inline-start:auto;">
-      <tr><td>সর্বমোট</td><td>${money(s.total)}</td></tr>
-      <tr><td>জমা</td><td>${money(s.paid)}</td></tr>
-      <tr><td><b>বাকি</b></td><td><b>${money(s.due)}</b></td></tr>
+      <tr><td>সর্বমোট</td><td class="num">${money(s.total)}</td></tr>
+      <tr><td>জমা</td><td class="num">${money(s.paid)}</td></tr>
+      <tr><td><b>বাকি</b></td><td class="num"><b>${money(s.due)}</b></td></tr>
     </table>
     <p style="margin-top:20px;font-size:12px;">ধন্যবাদান্তে, আপনার ব্যবসা প্রতিষ্ঠান।</p>
   `;
