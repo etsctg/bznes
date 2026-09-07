@@ -86,6 +86,26 @@ body{background:var(--bg);color:var(--ink);min-height:100vh;}
   background:var(--panel);border-right:1px solid var(--line);padding:20px 14px;
   display:flex;flex-direction:column;gap:4px;
 }
+.mobile-topbar{
+  display:none;position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line);
+  align-items:center;gap:12px;padding:12px 16px;
+}
+.hamburger-btn{
+  background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:8px;
+  width:38px;height:38px;font-size:18px;cursor:pointer;flex-shrink:0;
+}
+.sidebar-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:24;}
+.sidebar-backdrop.show{display:block;}
+@media(max-width:820px){
+  #appScreen.show{grid-template-columns:1fr;}
+  .sidebar{
+    position:fixed;top:0;left:0;height:100vh;width:250px;z-index:25;
+    transform:translateX(-105%);transition:transform .22s ease;
+  }
+  .sidebar.open{transform:translateX(0);box-shadow:8px 0 30px rgba(0,0,0,.4);}
+  .mobile-topbar{display:flex;}
+  .main{padding:16px;}
+}
 .sidebar .brand{padding:0 6px 18px;border-bottom:1px solid var(--line);margin-bottom:12px;}
 .nav-item{
   display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:var(--muted);
@@ -160,6 +180,9 @@ tr:hover td{background:var(--panel-2);}
 .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;}
 .items-box{border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:12px;}
 .item-line{display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:6px;margin-bottom:6px;align-items:center;}
+.item-line-purchase{display:grid;grid-template-columns:2fr 0.7fr 0.9fr 0.7fr 1fr auto;gap:6px;margin-bottom:6px;align-items:center;}
+.chart-wrap{position:relative;height:260px;}
+.chart-fallback{display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:12.5px;text-align:center;padding:20px;}
 .item-line select,.item-line input{padding:7px 8px;font-size:12.5px;}
 .small-btn{padding:6px 10px;font-size:12px;border-radius:6px;}
 .icon-btn{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:4px 6px;}
@@ -232,7 +255,8 @@ tr:hover td{background:var(--panel-2);}
 
 <!-- ================= APP ================= -->
 <div id="appScreen">
-  <div class="sidebar">
+  <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeSidebarMobile()"></div>
+  <div class="sidebar" id="sidebarEl">
     <div class="brand">
       <div class="brand-mark" style="width:34px;height:34px;font-size:17px;">৳</div>
       <div><h1 style="font-size:15px;">ব্যবসা ম্যানেজার</h1></div>
@@ -251,7 +275,14 @@ tr:hover td{background:var(--panel-2);}
     </div>
   </div>
 
-  <div class="main" id="mainArea"></div>
+  <div>
+    <div class="mobile-topbar">
+      <button class="hamburger-btn" onclick="toggleSidebarMobile()">☰</button>
+      <div class="brand-mark" style="width:28px;height:28px;font-size:13px;">৳</div>
+      <b style="font-size:14px;">ব্যবসা ম্যানেজার</b>
+    </div>
+    <div class="main" id="mainArea"></div>
+  </div>
 </div>
 
 <!-- generic modal -->
@@ -276,15 +307,10 @@ let fbApp, fbAuth, fsDB;
 let currentUser = null;
 let currentPage = 'dashboard';
 
-/* in-memory cache — Firestore লিসেনার প্রতিটা কালেকশনের সাথে সবসময় সিঙ্ক রাখে
-   (অনলাইন হোক বা অফলাইন — অফলাইনে লোকাল ক্যাশ থেকেই ডেটা আসে) */
 let DB = { products:[], customers:[], suppliers:[], sales:[], purchases:[], expenses:[], users:[] };
 
 function modalOpen(){ return document.getElementById('modalBg')?.classList.contains('show'); }
 
-/* মিলিসেকেন্ড-টাইমস্ট্যাম্প ভিত্তিক আইডি — সম্পূর্ণ লোকালি তৈরি হয়, নেটওয়ার্কের
-   দরকার নেই, তাই অফলাইনেও নতুন পণ্য/বিক্রয়/ইত্যাদির আইডি সাথে সাথে পাওয়া যায়।
-   একই মিলিসেকেন্ডে দুইবার কল হলেও কখনো ডুপ্লিকেট হবে না (মনোটনিক)। */
 let _lastGenId = 0;
 function genId(){
   let id = Date.now();
@@ -292,15 +318,12 @@ function genId(){
   _lastGenId = id;
   return id;
 }
-/* আইডি (টাইমস্ট্যাম্প) থেকে মানুষের পড়ার-উপযোগী রেফারেন্স নম্বর বানায় */
 function refNo(prefix, id){
   const d = new Date(id);
   const p2 = n=>String(n).padStart(2,'0');
   return `${prefix}-${String(d.getFullYear()).slice(-2)}${p2(d.getMonth()+1)}${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}`;
 }
 
-/* একটা Firestore write-promise "fire করে দেওয়া" — অপেক্ষা না করে সাথে সাথে UI
-   আপডেট করা যায় (optimistic)। ব্যর্থ হলে (যেমন কখনো সিঙ্ক না হলে) পরে জানানো হয়। */
 function fireWrite(promise, label){
   promise.catch(err=>{
     console.error(label, err);
@@ -404,7 +427,7 @@ function buildNav(){
     const div = document.createElement('div');
     div.className = 'nav-item' + (p.key===currentPage?' active':'');
     div.id = 'nav-'+p.key;
-    div.onclick = ()=>renderPage(p.key);
+    div.onclick = ()=>{ renderPage(p.key); closeSidebarMobile(); };
     div.innerHTML = `<span class="ic">${p.ic}</span><span>${p.label}</span>`;
     nav.appendChild(div);
   });
@@ -430,6 +453,16 @@ function renderPage(key){
   map[key]();
 }
 
+/* ================= MOBILE SIDEBAR ================= */
+function toggleSidebarMobile(){
+  document.getElementById('sidebarEl').classList.toggle('open');
+  document.getElementById('sidebarBackdrop').classList.toggle('show');
+}
+function closeSidebarMobile(){
+  document.getElementById('sidebarEl').classList.remove('open');
+  document.getElementById('sidebarBackdrop').classList.remove('show');
+}
+
 /* ================= CONNECTION STATUS ================= */
 function updateConnBadge(){
   const el = document.getElementById('connBadge');
@@ -453,7 +486,6 @@ function openModal(html){
 function closeModal(){ document.getElementById('modalBg').classList.remove('show'); }
 document.getElementById('modalBg').addEventListener('click', e=>{ if(e.target.id==='modalBg') closeModal(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && modalOpen()) closeModal(); });
-/* কিবোর্ড শর্টকাট: F2 = নতুন বিক্রয়, F3 = নতুন ক্রয় (মোডাল খোলা না থাকলে) */
 document.addEventListener('keydown', e=>{
   if(modalOpen() || !currentUser) return;
   if(e.key==='F2' && currentPage==='sales'){ e.preventDefault(); openSaleModal(); }
@@ -495,8 +527,8 @@ function renderDashboard(){
       <div class="stat-card"><div class="lbl">লো-স্টক এলার্ট</div><div class="val" style="color:${lowStockItems.length?'#ff8a75':'#5fd3a5'}">${lowStockItems.length}</div><div class="ic">⚠️</div></div>
     </div>
     <div class="grid g2">
-      <div class="card"><h3>বিক্রয় বনাম ক্রয় (সাম্প্রতিক)</h3><canvas id="chartSalesPurchase" height="110"></canvas></div>
-      <div class="card"><h3>খরচের বিভাজন</h3><canvas id="chartExpense" height="130"></canvas></div>
+      <div class="card"><h3>বিক্রয় বনাম ক্রয় (সাম্প্রতিক)</h3><div class="chart-wrap" id="chartWrapSP"><canvas id="chartSalesPurchase"></canvas></div></div>
+      <div class="card"><h3>খরচের বিভাজন</h3><div class="chart-wrap" id="chartWrapExp"><canvas id="chartExpense"></canvas></div></div>
     </div>
     <div class="card" style="margin-top:16px;" id="lowStockCard">
       <h3>⚠️ লো-স্টক পণ্য</h3>
@@ -506,36 +538,48 @@ function renderDashboard(){
     </div>
   `;
 
+  /* Chart.js একটা বাইরের CDN থেকে লোড হয় — যদি ইন্টারনেট সমস্যার কারণে সেটা লোড
+     হতে ব্যর্থ হয়, তাহলে খালি জায়গার বদলে একটা স্পষ্ট বার্তা দেখাবে। */
+  if(typeof Chart === 'undefined'){
+    document.getElementById('chartWrapSP').innerHTML = '<div class="chart-fallback">📉 চার্ট লোড করা যায়নি — ইন্টারনেট সংযোগ পরীক্ষা করুন এবং পেজ রিফ্রেশ করুন।</div>';
+    document.getElementById('chartWrapExp').innerHTML = '<div class="chart-fallback">📉 চার্ট লোড করা যায়নি — ইন্টারনেট সংযোগ পরীক্ষা করুন এবং পেজ রিফ্রেশ করুন।</div>';
+    return;
+  }
+
   const days = [...Array(7)].map((_,i)=>{ const d = new Date(); d.setDate(d.getDate()-(6-i)); return d.toISOString().slice(0,10); });
   const salesByDay = days.map(d=>DB.sales.filter(s=>s.date===d).reduce((s,x)=>s+x.total,0));
   const purchByDay = days.map(d=>DB.purchases.filter(s=>s.date===d).reduce((s,x)=>s+x.total,0));
 
-  if(chartRefs.sp) chartRefs.sp.destroy();
-  chartRefs.sp = new Chart(document.getElementById('chartSalesPurchase'), {
-    type:'bar',
-    data:{ labels: days.map(d=>fmtDate(d)),
-      datasets:[
-        {label:'বিক্রয়', data:salesByDay, backgroundColor:'#2f9c80'},
-        {label:'ক্রয়', data:purchByDay, backgroundColor:'#d4a441'}
-      ]},
-    options:{ plugins:{legend:{labels:{color:'#eef7f3'}}}, scales:{
-      x:{ticks:{color:'#9fc4b8'}, grid:{color:'#234840'}},
-      y:{ticks:{color:'#9fc4b8'}, grid:{color:'#234840'}}
-    }}
-  });
+  try{
+    if(chartRefs.sp) chartRefs.sp.destroy();
+    chartRefs.sp = new Chart(document.getElementById('chartSalesPurchase'), {
+      type:'bar',
+      data:{ labels: days.map(d=>fmtDate(d)),
+        datasets:[
+          {label:'বিক্রয়', data:salesByDay, backgroundColor:'#2f9c80'},
+          {label:'ক্রয়', data:purchByDay, backgroundColor:'#d4a441'}
+        ]},
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:'#eef7f3'}}}, scales:{
+        x:{ticks:{color:'#9fc4b8'}, grid:{color:'#234840'}},
+        y:{ticks:{color:'#9fc4b8'}, grid:{color:'#234840'}, beginAtZero:true}
+      }}
+    });
+  }catch(err){ console.error('Sales/Purchase chart error:', err); }
 
   const expenseCats = {};
   DB.expenses.forEach(e=>{ expenseCats[e.category] = (expenseCats[e.category]||0) + Number(e.amount); });
   const catLabels = Object.keys(expenseCats);
-  if(chartRefs.exp) chartRefs.exp.destroy();
-  chartRefs.exp = new Chart(document.getElementById('chartExpense'), {
-    type:'doughnut',
-    data:{ labels: catLabels.length?catLabels:['কোনো খরচ নেই'],
-      datasets:[{ data: catLabels.length?catLabels.map(c=>expenseCats[c]):[1],
-        backgroundColor:['#2f9c80','#d4a441','#c85a4a','#3d6ba8','#8a5fd3','#d35f9c','#5fd3a5']
-      }]},
-    options:{ plugins:{legend:{labels:{color:'#eef7f3'}}} }
-  });
+  try{
+    if(chartRefs.exp) chartRefs.exp.destroy();
+    chartRefs.exp = new Chart(document.getElementById('chartExpense'), {
+      type:'doughnut',
+      data:{ labels: catLabels.length?catLabels:['কোনো খরচ নেই'],
+        datasets:[{ data: catLabels.length?catLabels.map(c=>expenseCats[c]):[1],
+          backgroundColor:['#2f9c80','#d4a441','#c85a4a','#3d6ba8','#8a5fd3','#d35f9c','#5fd3a5']
+        }]},
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:'#eef7f3'}}} }
+    });
+  }catch(err){ console.error('Expense chart error:', err); }
 }
 
 /* ================= PRODUCTS / STOCK ================= */
@@ -595,6 +639,9 @@ function openProductModal(id){
       <div><label>কালার (ঐচ্ছিক)</label><input id="pf_color" value="${p?esc(p.color||''):''}" placeholder="যেমন: সাদা"></div>
       <div><label>শেলফ/তাক নম্বর</label><input id="pf_shelf" value="${p?esc(p.shelf||''):''}" placeholder="যেমন: A3"></div>
     </div>
+    <div style="font-size:11px;color:var(--muted);margin:-6px 0 12px;">
+      💡 রং অনুযায়ী স্টক আলাদা রাখতে চাইলে এখানে খালি রেখে <b>ক্রয় এন্ট্রির</b> সময় প্রতিটা রং আলাদা লাইনে যোগ করুন — সেখান থেকেই এই পণ্যের রং-ভিত্তিক আলাদা এন্ট্রি ও শেলফ স্বয়ংক্রিয়ভাবে তৈরি/আপডেট হবে।
+    </div>
     <div class="form-row">
       <div><label>একক (কেজি/পিস/বস্তা...)</label><input id="pf_unit" value="${p?esc(p.unit):'পিস'}"></div>
       <div><label>বর্তমান স্টক</label><input id="pf_stock" type="number" value="${p?p.stock:0}"></div>
@@ -639,13 +686,12 @@ function deleteProduct(id){
   fireWrite(fsDB.collection('erp_products').doc(String(id)).delete(), 'পণ্য মোছা');
 }
 
-/* পণ্য বাছাইয়ের জন্য একটা সংক্ষিপ্ত, সহজে টাইপ করে খোঁজার-উপযোগী লেবেল */
 function productLabel(p){
-  const bits = [p.brand, p.size].filter(Boolean).join(' ');
+  const bits = [p.brand, p.size, p.color].filter(Boolean).join(' ');
   return `${p.name}${bits?' — '+bits:''} (৳${p.sellPrice}, স্টক:${p.stock})`;
 }
 function purchaseProductLabel(p){
-  const bits = [p.brand, p.size].filter(Boolean).join(' ');
+  const bits = [p.brand, p.size, p.color].filter(Boolean).join(' ');
   return `${p.name}${bits?' — '+bits:''} (ক্রয়মূল্য:৳${p.buyPrice}, স্টক:${p.stock})`;
 }
 
@@ -760,8 +806,6 @@ function calcSaleTotal(){
   if(totalEl) totalEl.value = money(total);
   return total;
 }
-/* বিক্রয় সংরক্ষণ — লোকাল ক্যাশ থেকে স্টক-চেক করে সাথে সাথে UI বন্ধ করে দেয়
-   (অপেক্ষা করে না), ব্যাকগ্রাউন্ডে Firestore-এ (অনলাইন/অফলাইন যেভাবেই থাকুক) সেভ হয়। */
 function saveSale(){
   const items = saleCart.filter(l=>l.productId && l.qty>0).map(l=>{
     const p = DB.products.find(x=>x.id==l.productId);
@@ -833,9 +877,11 @@ function renderPurchaseTable(){
     </table>
   `;
 }
+/* প্রতিটা ক্রয়-লাইনে এখন রং ও শেলফ (দুটোই ঐচ্ছিক) দেওয়া যায় — একই পণ্যের ভিন্ন
+   রং ভিন্ন স্টক-লাইন হিসেবে স্বয়ংক্রিয়ভাবে তৈরি/আপডেট হয়ে যায় (নিচে savePurchase দেখুন) */
 let purchaseCart = [];
 function openPurchaseModal(){
-  purchaseCart = [{productId:'', qty:1}];
+  purchaseCart = [{productId:'', qty:1, color:'', shelf:''}];
   openModal(`
     <h3>নতুন ক্রয় এন্ট্রি</h3>
     <div class="form-row">
@@ -847,7 +893,11 @@ function openPurchaseModal(){
     <datalist id="purchaseProductOptions">
       ${DB.products.map(p=>`<option value="${esc(purchaseProductLabel(p))}">`).join('')}
     </datalist>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">💡 পণ্যের নাম টাইপ করুন, বাছাই করলেই পরিমাণে কার্সর চলে যাবে। Enter চাপলে পরের লাইন যোগ হবে।</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">
+      💡 পণ্যের নাম টাইপ করে বাছাই করুন। একই পণ্যের ভিন্ন রং থাকলে <b>রং</b> ঘরে লিখুন —
+      একই রং আগে থেকে থাকলে সেটার স্টক বাড়বে, না থাকলে নতুন রং-লাইন নিজে থেকে তৈরি হবে।
+      একাধিক রং হলে একই পণ্যের জন্য একাধিক লাইন যোগ করুন।
+    </div>
     <div class="items-box" id="purchaseItemsBox"></div>
     <button class="btn btn-outline small-btn" onclick="addPurchaseLine()">+ পণ্য যোগ করুন</button>
     <div class="form-row" style="margin-top:14px;">
@@ -866,14 +916,15 @@ function renderPurchaseLines(){
   document.getElementById('purchaseItemsBox').innerHTML = purchaseCart.map((line,i)=>{
     const p = line.productId ? DB.products.find(x=>x.id==line.productId) : null;
     return `
-    <div class="item-line">
+    <div class="item-line-purchase">
       <input type="text" list="purchaseProductOptions" id="purchProd_${i}" placeholder="পণ্য টাইপ করুন..."
         value="${p?esc(purchaseProductLabel(p)):''}" oninput="onPurchaseProductInput(${i},this.value)">
       <input type="number" min="1" id="purchQty_${i}" value="${line.qty}" placeholder="পরিমাণ"
         oninput="purchaseCart[${i}].qty=Number(this.value);calcPurchaseTotal();"
         onkeydown="if(event.key==='Enter'){event.preventDefault();handlePurchQtyEnter(${i});}"
         onfocus="this.select()">
-      <input type="text" readonly value="${p?money(p.buyPrice):''}" placeholder="দর">
+      <input type="text" placeholder="রং (ঐচ্ছিক)" value="${esc(line.color||'')}" oninput="purchaseCart[${i}].color=this.value;">
+      <input type="text" placeholder="শেলফ (ঐচ্ছিক)" value="${esc(line.shelf||'')}" oninput="purchaseCart[${i}].shelf=this.value;">
       <input type="text" readonly value="${p?money(p.buyPrice*line.qty):''}" placeholder="সাবটোটাল">
       <button class="icon-btn" onclick="removePurchaseLine(${i})">✖</button>
     </div>`;
@@ -895,7 +946,7 @@ function handlePurchQtyEnter(i){
   const el = document.getElementById('purchProd_'+(i+1));
   if(el) el.focus();
 }
-function addPurchaseLine(){ purchaseCart.push({productId:'', qty:1}); renderPurchaseLines(); }
+function addPurchaseLine(){ purchaseCart.push({productId:'', qty:1, color:'', shelf:''}); renderPurchaseLines(); }
 function removePurchaseLine(i){ purchaseCart.splice(i,1); renderPurchaseLines(); calcPurchaseTotal(); }
 function calcPurchaseTotal(){
   let total = 0;
@@ -904,29 +955,61 @@ function calcPurchaseTotal(){
   if(totalEl) totalEl.value = money(total);
   return total;
 }
+/* প্রতিটা লাইনের জন্য: রং খালি থাকলে সরাসরি বাছাই করা পণ্যেরই স্টক বাড়ে (আগের মতো সহজ)।
+   রং দেওয়া থাকলে — একই নাম+ব্র্যান্ড+সাইজ+রং মিলে এমন পণ্য খোঁজা হয়; পেলে তার স্টক বাড়ে,
+   না পেলে বাছাই করা পণ্যের তথ্য কপি করে নতুন রং-ভিত্তিক পণ্য-লাইন তৈরি হয়। */
 function savePurchase(){
-  const items = purchaseCart.filter(l=>l.productId && l.qty>0).map(l=>{
-    const p = DB.products.find(x=>x.id==l.productId);
-    return {productId:p.id, qty:Number(l.qty), price:p.buyPrice, _stock:p.stock};
-  });
-  if(!items.length){ alert('অন্তত একটি পণ্য যোগ করুন'); return; }
+  const rawLines = purchaseCart.filter(l=>l.productId && l.qty>0);
+  if(!rawLines.length){ alert('অন্তত একটি পণ্য যোগ করুন'); return; }
   const supId = Number(document.getElementById('pf2_supplier').value);
   const sup = DB.suppliers.find(c=>c.id===supId);
   if(!sup){ alert('সাপ্লায়ার খুঁজে পাওয়া যায়নি'); return; }
   const date = document.getElementById('pf2_date').value || todayStr();
   const paid = Number(document.getElementById('pf2_paid').value)||0;
-  const total = items.reduce((s,it)=>s+it.price*it.qty,0);
+
+  const resolvedItems = []; // {productId, qty, price}
+  const batch = fsDB.batch();
+
+  for(const line of rawLines){
+    const base = DB.products.find(x=>x.id===line.productId);
+    const color = (line.color||'').trim();
+    const shelf = (line.shelf||'').trim();
+
+    if(!color && !shelf){
+      // সহজ পথ: সরাসরি বাছাই করা পণ্যের স্টক বাড়াও
+      batch.update(fsDB.collection('erp_products').doc(String(base.id)), {stock: base.stock + line.qty});
+      resolvedItems.push({productId: base.id, qty: line.qty, price: base.buyPrice});
+      continue;
+    }
+
+    const existingVariant = color
+      ? DB.products.find(x=>
+          x.name===base.name && (x.brand||'')===(base.brand||'') && (x.size||'')===(base.size||'') && (x.color||'')===color)
+      : base;
+
+    if(existingVariant){
+      const upd = {stock: existingVariant.stock + line.qty};
+      if(shelf) upd.shelf = shelf;
+      batch.update(fsDB.collection('erp_products').doc(String(existingVariant.id)), upd);
+      resolvedItems.push({productId: existingVariant.id, qty: line.qty, price: base.buyPrice});
+    } else {
+      const newId = genId();
+      batch.set(fsDB.collection('erp_products').doc(String(newId)), {
+        id:newId, name:base.name, brand:base.brand||'', size:base.size||'', unit:base.unit,
+        buyPrice:base.buyPrice, sellPrice:base.sellPrice, lowStock:base.lowStock,
+        color, shelf, stock: line.qty
+      });
+      resolvedItems.push({productId: newId, qty: line.qty, price: base.buyPrice});
+    }
+  }
+
+  const total = resolvedItems.reduce((s,it)=>s+it.price*it.qty,0);
   const due = total - paid;
   const purId = genId();
 
-  const batch = fsDB.batch();
-  items.forEach(it=>{
-    batch.update(fsDB.collection('erp_products').doc(String(it.productId)), {stock: it._stock + it.qty});
-  });
   batch.update(fsDB.collection('erp_suppliers').doc(String(supId)), {due: (sup.due||0) + due});
   batch.set(fsDB.collection('erp_purchases').doc(String(purId)), {
-    id:purId, date, supplierId:supId, supplierName: sup.name,
-    items: items.map(({productId,qty,price})=>({productId,qty,price})), total, paid, due
+    id:purId, date, supplierId:supId, supplierName: sup.name, items: resolvedItems, total, paid, due
   });
   closeModal();
   fireWrite(batch.commit(), 'ক্রয় এন্ট্রি');
@@ -958,7 +1041,7 @@ function renderDues(){
           <tr><th>নাম</th><th>ফোন</th><th>বাকি</th><th></th></tr>
           ${DB.customers.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(c.phone||'-')}</td>
             <td style="color:${c.due>0?'#f0c869':'#5fd3a5'}">${money(c.due||0)}</td>
-            <td>${c.due>0?`<button class="btn btn-outline small-btn" onclick="collectDue('customer',${c.id})">জমা নিন</button>`:''}</td></tr>`).join('')}
+            <td>${c.due>0?`<button class="btn btn-outline small-btn" onclick="openCollectDueModal('customer',${c.id})">জমা নিন</button>`:'<span class="pill ok">পরিশোধিত</span>'}</td></tr>`).join('')}
         </table></div>
       </div>
       <div class="card">
@@ -968,7 +1051,7 @@ function renderDues(){
           <tr><th>নাম</th><th>ফোন</th><th>বাকি</th><th></th></tr>
           ${DB.suppliers.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(c.phone||'-')}</td>
             <td style="color:${c.due>0?'#ff8a75':'#5fd3a5'}">${money(c.due||0)}</td>
-            <td>${c.due>0?`<button class="btn btn-outline small-btn" onclick="collectDue('supplier',${c.id})">পরিশোধ করুন</button>`:''}</td></tr>`).join('')}
+            <td>${c.due>0?`<button class="btn btn-outline small-btn" onclick="openCollectDueModal('supplier',${c.id})">পরিশোধ করুন</button>`:'<span class="pill ok">পরিশোধিত</span>'}</td></tr>`).join('')}
         </table></div>
       </div>
     </div>
@@ -995,15 +1078,34 @@ function saveParty(type){
   fireWrite(fsDB.collection(coll).doc(String(newId)).set({id:newId, name, phone, due:0}), 'নতুন '+(type==='customer'?'কাস্টমার':'সাপ্লায়ার'));
   closeModal();
 }
-function collectDue(type, id){
+/* বাকি জমা/পরিশোধ — একটা ছোট মোডাল, ডিফল্টভাবে পুরো বাকিটাই ভরা থাকে (চাইলে কমিয়ে
+   আংশিক জমাও দেওয়া যায়)। সেভ করলেই বাকির অংক কমে যায় — পুরোটা দিলে ০ হয়ে যাবে। */
+function openCollectDueModal(type, id){
   const list = type==='customer'?DB.customers:DB.suppliers;
   const p = list.find(x=>x.id===id);
-  const amt = prompt(`কত টাকা ${type==='customer'?'জমা নিচ্ছেন':'পরিশোধ করছেন'}? (সর্বোচ্চ ${money(p.due)})`);
-  if(amt===null) return;
-  const val = Number(amt);
-  if(!val || val<=0 || val>p.due){ alert('সঠিক পরিমাণ দিন'); return; }
+  if(!p) return;
+  openModal(`
+    <h3>${esc(p.name)} — ${type==='customer'?'জমা নিন':'পরিশোধ করুন'}</h3>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:14px;">বর্তমান বাকি: <b style="color:var(--gold-2);">${money(p.due)}</b></div>
+    <div class="form-row full">
+      <label>কত টাকা ${type==='customer'?'জমা নিচ্ছেন':'পরিশোধ করছেন'}</label>
+      <input id="due_amt" type="number" value="${p.due}" max="${p.due}" onkeydown="if(event.key==='Enter'){event.preventDefault();saveCollectDue('${type}',${id});}">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">বাতিল</button>
+      <button class="btn btn-gold" id="modalSaveBtn" onclick="saveCollectDue('${type}',${id})">সংরক্ষণ করুন</button>
+    </div>
+  `);
+  setTimeout(()=>{ const el=document.getElementById('due_amt'); el?.focus(); el?.select(); }, 0);
+}
+function saveCollectDue(type, id){
+  const list = type==='customer'?DB.customers:DB.suppliers;
+  const p = list.find(x=>x.id===id);
+  const val = Number(document.getElementById('due_amt').value);
+  if(!val || val<=0 || val>p.due){ alert('সঠিক পরিমাণ দিন (০ থেকে '+money(p.due)+' এর মধ্যে)'); return; }
   const coll = type==='customer'?'erp_customers':'erp_suppliers';
   fireWrite(fsDB.collection(coll).doc(String(id)).update({due: p.due - val}), 'বাকি আপডেট');
+  closeModal();
 }
 
 /* ================= EXPENSES ================= */
@@ -1279,21 +1381,6 @@ function printInvoice(saleId){
 
 /* =====================================================================
    CONFIG — এখানে আপনার Firebase তথ্য বসান
-   =====================================================================
-   ১) https://console.firebase.google.com -এ প্রজেক্ট বানান
-   ২) Build > Firestore Database > Create database ("Start in test mode")
-   ৩) Build > Authentication > Sign-in method > Anonymous চালু করুন
-   ৪) Project settings > Your apps > Web app যোগ করে firebaseConfig কপি করুন
-   ৫) Firestore > Rules-এ নিচের rules বসিয়ে Publish করুন:
-
-      rules_version = '2';
-      service cloud.firestore {
-        match /databases/{database}/documents {
-          match /{document=**} {
-            allow read, write: if request.auth != null;
-          }
-        }
-      }
    ===================================================================== */
 const firebaseConfig = {
   apiKey: "AIzaSyDrFR9Ycw4xpeaueNn92wWrT3c2diD1cLM",
@@ -1320,19 +1407,13 @@ async function bootApp(){
     fbAuth = firebase.auth();
     fsDB = firebase.firestore();
 
-    /* অফলাইন-ফার্স্ট: ডেটা ডিভাইসের IndexedDB-তে ক্যাশ থাকবে।
-       এটা প্রথম Firestore-কল করার আগেই বসাতে হয়। */
     try{
       await fsDB.enablePersistence({synchronizeTabs:true});
     }catch(persErr){
       console.warn('Offline persistence চালু করা যায়নি:', persErr.code);
-      /* 'failed-precondition' = একাধিক ট্যাব একসাথে খোলা, 'unimplemented' = ব্রাউজার সাপোর্ট করে না —
-         দুটোই non-fatal, অ্যাপ অনলাইনে স্বাভাবিকভাবে চলবে, শুধু অফলাইন-ক্যাশ কাজ নাও করতে পারে। */
     }
 
     statusEl.textContent = '🔐 প্রমাণীকরণ করা হচ্ছে...';
-    /* আগে থেকে সাইন-ইন করা থাকলে (আগের সেশন) অফলাইনেও তা লোকালি রিস্টোর হয়ে যায়,
-       নতুন করে নেটওয়ার্ক কল লাগে না। একদম প্রথমবার হলে ইন্টারনেট লাগবেই। */
     await new Promise(resolve=>{
       const unsub = fbAuth.onAuthStateChanged(user=>{ unsub(); resolve(user); });
     });
