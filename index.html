@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ব্যবসা ম্যানেজার — Business ERP</title>
+<!-- PWA — এই অ্যাপকে ইনস্টলযোগ্য করে (ডেস্কটপ/মোবাইলে আইকন হিসেবে বসে) -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#122924">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ব্যবসা ম্যানেজার">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<!-- Firebase (free tier) — powers real multi-user shared data. See CONFIG section in <script> below. -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<style>
+:root{
+  --bg:#0e1f1c;
+  --panel:#122924;
+  --panel-2:#163a32;
+  --ink:#eef7f3;
+  --muted:#9fc4b8;
+  --gold:#d4a441;
+  --gold-2:#f0c869;
+  --teal:#1f6f5c;
+  --teal-2:#2f9c80;
+  --danger:#c85a4a;
+  --line:#234840;
+  --radius:10px;
+  font-family:'Segoe UI',Tahoma,Arial,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--ink);min-height:100vh;}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-thumb{background:var(--teal);border-radius:8px;}
+
+/* ---------- LOGIN ---------- */
+#loginScreen{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 20% 20%, #163a32 0%, #0e1f1c 60%);
+  padding:20px;
+}
+.login-box{
+  background:var(--panel);border:1px solid var(--line);border-radius:16px;
+  padding:36px 32px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.4);
+}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.brand-mark{
+  width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,var(--gold),var(--gold-2));
+  display:flex;align-items:center;justify-content:center;font-size:22px;color:#1a1a1a;font-weight:900;
+}
+.brand h1{font-size:20px;letter-spacing:.3px;}
+.brand p{font-size:12px;color:var(--muted);margin-top:2px;}
+.login-box h2{margin:22px 0 4px;font-size:15px;color:var(--gold-2);font-weight:600;}
+.field{margin-top:14px;}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px;}
+.field input,.field select{
+  width:100%;padding:11px 12px;background:var(--panel-2);border:1px solid var(--line);
+  border-radius:8px;color:var(--ink);font-size:14px;outline:none;
+}
+.field input:focus,.field select:focus{border-color:var(--teal-2);}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:11px 18px;border-radius:8px;border:none;cursor:pointer;font-size:14px;font-weight:600;
+  transition:.15s;
+}
+.btn-primary{background:linear-gradient(135deg,var(--teal-2),var(--teal));color:#fff;width:100%;margin-top:20px;}
+.btn-primary:hover{filter:brightness(1.1);}
+.btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold-2));color:#1a1a1a;}
+.btn-gold:hover{filter:brightness(1.06);}
+.btn-outline{background:transparent;border:1px solid var(--line);color:var(--ink);}
+.btn-outline:hover{border-color:var(--teal-2);}
+.btn-danger{background:var(--danger);color:#fff;}
+.login-err{color:#ff8a75;font-size:12.5px;margin-top:10px;min-height:14px;}
+.login-hint{margin-top:18px;font-size:11.5px;color:var(--muted);line-height:1.6;background:var(--panel-2);
+  border:1px dashed var(--line);border-radius:8px;padding:10px 12px;}
+
+/* ---------- APP SHELL ---------- */
+#appScreen{display:none;min-height:100vh;grid-template-columns:230px 1fr;}
+#appScreen.show{display:grid;}
+.sidebar{
+  background:var(--panel);border-right:1px solid var(--line);padding:20px 14px;
+  display:flex;flex-direction:column;gap:4px;
+}
+.sidebar .brand{padding:0 6px 18px;border-bottom:1px solid var(--line);margin-bottom:12px;}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:var(--muted);
+  cursor:pointer;font-size:13.5px;font-weight:500;
+}
+.nav-item:hover{background:var(--panel-2);color:var(--ink);}
+.nav-item.active{background:linear-gradient(135deg,var(--teal-2),var(--teal));color:#fff;}
+.nav-item .ic{width:18px;text-align:center;}
+.sidebar-foot{margin-top:auto;padding-top:14px;border-top:1px solid var(--line);}
+.user-chip{display:flex;align-items:center;gap:10px;padding:8px 6px;font-size:12.5px;color:var(--muted);}
+.user-chip b{color:var(--ink);display:block;font-size:13px;}
+.role-badge{
+  display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:20px;margin-top:3px;
+  background:var(--panel-2);color:var(--gold-2);border:1px solid var(--line);
+}
+
+.main{padding:22px 26px;overflow-x:hidden;}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;}
+.topbar h2{font-size:19px;}
+.topbar .sub{font-size:12.5px;color:var(--muted);margin-top:2px;}
+
+.grid{display:grid;gap:16px;}
+.g4{grid-template-columns:repeat(4,1fr);}
+.g3{grid-template-columns:repeat(3,1fr);}
+.g2{grid-template-columns:2fr 1fr;}
+@media(max-width:900px){.g4{grid-template-columns:repeat(2,1fr);}.g3{grid-template-columns:1fr;}.g2{grid-template-columns:1fr;}}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;}
+.stat-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden;}
+.stat-card .lbl{font-size:12px;color:var(--muted);}
+.stat-card .val{font-size:22px;font-weight:800;margin-top:6px;}
+.stat-card .ic{position:absolute;right:14px;top:14px;font-size:26px;opacity:.25;}
+.stat-card.gold{border-color:#4a3d1c;}
+.stat-card.gold .val{color:var(--gold-2);}
+.stat-card.danger .val{color:#ff8a75;}
+.stat-card.teal .val{color:var(--teal-2);}
+
+.card h3{font-size:14.5px;margin-bottom:12px;color:var(--gold-2);}
+
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:right;padding:9px 8px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);font-size:12px;}
+th:first-child,td:first-child{text-align:right;}
+td{padding:9px 8px;border-bottom:1px solid var(--line);}
+tr:hover td{background:var(--panel-2);}
+.tbl-wrap{overflow-x:auto;}
+.pill{padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.pill.ok{background:#1c4a3a;color:#5fd3a5;}
+.pill.warn{background:#4a3a1c;color:#f0c869;}
+.pill.bad{background:#4a1c1c;color:#ff8a75;}
+
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;}
+.toolbar input,.toolbar select{
+  padding:9px 11px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;color:var(--ink);font-size:13px;
+}
+.spacer{flex:1;}
+
+.modal-bg{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:50;align-items:center;justify-content:center;padding:16px;
+}
+.modal-bg.show{display:flex;}
+.modal{
+  background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:560px;width:100%;
+  max-height:88vh;overflow-y:auto;padding:22px;
+}
+.modal h3{font-size:16px;margin-bottom:16px;color:var(--gold-2);}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.form-row.full{grid-template-columns:1fr;}
+.form-row label{font-size:12px;color:var(--muted);display:block;margin-bottom:5px;}
+.form-row input,.form-row select,.form-row textarea{
+  width:100%;padding:9px 10px;background:var(--panel-2);border:1px solid var(--line);border-radius:7px;color:var(--ink);font-size:13.5px;
+}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;}
+.items-box{border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:12px;}
+.item-line{display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:6px;margin-bottom:6px;align-items:center;}
+.item-line select,.item-line input{padding:7px 8px;font-size:12.5px;}
+.small-btn{padding:6px 10px;font-size:12px;border-radius:6px;}
+.icon-btn{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:4px 6px;}
+.icon-btn:hover{color:var(--gold-2);}
+.hidden{display:none !important;}
+.access-denied{padding:60px 20px;text-align:center;color:var(--muted);}
+.access-denied .ic{font-size:44px;margin-bottom:10px;}
+.foot-total{font-weight:800;color:var(--gold-2);}
+.badge-count{background:var(--gold);color:#1a1a1a;font-size:10px;padding:1px 7px;border-radius:20px;margin-inline-start:auto;}
+
+/* print invoice */
+#printArea{display:none;}
+@media print{
+  body *{visibility:hidden;}
+  #printArea, #printArea *{visibility:visible;}
+  #printArea{display:block;position:absolute;top:0;left:0;width:100%;padding:20px;color:#000;background:#fff;}
+}
+.inv-head{display:flex;justify-content:space-between;border-bottom:2px solid #333;padding-bottom:10px;margin-bottom:14px;}
+.inv-table{width:100%;border-collapse:collapse;margin:14px 0;}
+.inv-table th,.inv-table td{border:1px solid #999;padding:7px 8px;font-size:13px;}
+.inv-table th{background:#eee;}
+</style>
+</head>
+<body>
+
+<!-- ================= CONNECTING / SETUP SCREEN ================= -->
+<div id="bootScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 20% 20%, #163a32 0%, #0e1f1c 60%);padding:20px;">
+  <div class="login-box" style="max-width:520px;">
+    <div class="brand"><div class="brand-mark">৳</div><div><h1>ব্যবসা ম্যানেজার</h1><p>Smart Business ERP — Cloud সংযোগ হচ্ছে...</p></div></div>
+    <div id="bootStatus" style="margin-top:18px;font-size:13.5px;color:var(--muted);">🔄 সার্ভারের সাথে সংযোগ করা হচ্ছে...</div>
+    <div id="bootSetup" class="hidden" style="margin-top:16px;">
+      <div class="login-hint" style="line-height:1.8;">
+        ❗ এই অ্যাপ এখনো কোনো ডেটাবেসের সাথে যুক্ত নেই।<br><br>
+        এটা ঠিক করতে ফাইলের একেবারে নিচের দিকে <b>"CONFIG — এখানে আপনার Firebase তথ্য বসান"</b> অংশে গিয়ে
+        নিজের Firebase প্রজেক্টের <b>firebaseConfig</b> বসিয়ে দিন।<br><br>
+        বিস্তারিত ধাপে ধাপে নির্দেশনা চ্যাটে দেওয়া আছে।
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= LOGIN ================= -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="brand">
+      <div class="brand-mark">৳</div>
+      <div>
+        <h1>ব্যবসা ম্যানেজার</h1>
+        <p>Smart Business ERP — Sales • Stock • Accounts</p>
+      </div>
+    </div>
+    <h2>লগইন করুন</h2>
+    <div class="field">
+      <label>ইউজারনেম</label>
+      <input id="loginUser" type="text" placeholder="username">
+    </div>
+    <div class="field">
+      <label>পাসওয়ার্ড</label>
+      <input id="loginPass" type="password" placeholder="••••••••">
+    </div>
+    <button class="btn btn-primary" onclick="doLogin()">প্রবেশ করুন</button>
+    <div class="login-err" id="loginErr"></div>
+    <div class="login-hint">
+      ডিফল্ট এডমিন লগইন: <b>admin</b> / <b>admin123</b><br>
+      ৪ স্তরের ইউজার: Admin, Director, Manager, User — লগইনের পর "HR/User Management" থেকে নতুন ইউজার যোগ করুন।
+    </div>
+    <button class="btn btn-outline hidden" id="installBtn" style="width:100%;margin-top:10px;" onclick="triggerInstall()">📲 অ্যাপ হিসেবে ইনস্টল করুন</button>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="appScreen">
+  <div class="sidebar">
+    <div class="brand">
+      <div class="brand-mark" style="width:34px;height:34px;font-size:17px;">৳</div>
+      <div><h1 style="font-size:15px;">ব্যবসা ম্যানেজার</h1></div>
+    </div>
+    <div id="navList"></div>
+    <div class="sidebar-foot">
+      <div id="connBadge" style="font-size:11.5px;padding:6px 6px;font-weight:600;"></div>
+      <div class="user-chip">
+        <div class="brand-mark" style="width:30px;height:30px;font-size:13px;" id="userInitial">A</div>
+        <div>
+          <b id="curUserName">-</b>
+          <span class="role-badge" id="curUserRole">-</span>
+        </div>
+      </div>
+      <button class="btn btn-outline" style="width:100%;margin-top:10px;font-size:12.5px;" onclick="logout()">🚪 লগআউট</button>
+    </div>
+  </div>
+
+  <div class="main" id="mainArea"></div>
+</div>
+
+<!-- generic modal -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal" id="modalBox"></div>
+</div>
+
+<!-- print area -->
+<div id="printArea"></div>
+
+<script>
+/* =====================================================================
+   DATA LAYER — অফলাইন-ফার্স্ট Firestore: ডেটা ডিভাইসেই ক্যাশ থাকে (IndexedDB),
+   তাই ইন্টারনেট না থাকলেও অ্যাপ পড়া ও নতুন এন্ট্রি দেওয়া — দুটোই করা যায়।
+   ইন্টারনেট ফিরলে যা যা এন্ট্রি দেওয়া হয়েছিল সব স্বয়ংক্রিয়ভাবে সিঙ্ক হয়ে যায়।
+   এই কারণে এখানে Firestore Transaction ব্যবহার করা হয়নি (transaction অফলাইনে
+   কাজ করে না) — বদলে সাধারণ write/batch ব্যবহার করা হয়েছে, যা লোকালি সাথে
+   সাথে প্রয়োগ হয় (UI তাৎক্ষণিক আপডেট হয়) এবং ব্যাকগ্রাউন্ডে সিঙ্ক হয়।
+   ===================================================================== */
+
+let fbApp, fbAuth, fsDB;
+let currentUser = null;
+let currentPage = 'dashboard';
+
+/* in-memory cache — Firestore লিসেনার প্রতিটা কালেকশনের সাথে সবসময় সিঙ্ক রাখে
+   (অনলাইন হোক বা অফলাইন — অফলাইনে লোকাল ক্যাশ থেকেই ডেটা আসে) */
+let DB = { products:[], customers:[], suppliers:[], sales:[], purchases:[], expenses:[], users:[] };
+
+function modalOpen(){ return document.getElementById('modalBg')?.classList.contains('show'); }
+
+/* মিলিসেকেন্ড-টাইমস্ট্যাম্প ভিত্তিক আইডি — সম্পূর্ণ লোকালি তৈরি হয়, নেটওয়ার্কের
+   দরকার নেই, তাই অফলাইনেও নতুন পণ্য/বিক্রয়/ইত্যাদির আইডি সাথে সাথে পাওয়া যায়।
+   একই মিলিসেকেন্ডে দুইবার কল হলেও কখনো ডুপ্লিকেট হবে না (মনোটনিক)। */
+let _lastGenId = 0;
+function genId(){
+  let id = Date.now();
+  if(id <= _lastGenId) id = _lastGenId + 1;
+  _lastGenId = id;
+  return id;
+}
+/* আইডি (টাইমস্ট্যাম্প) থেকে মানুষের পড়ার-উপযোগী রেফারেন্স নম্বর বানায় */
+function refNo(prefix, id){
+  const d = new Date(id);
+  const p2 = n=>String(n).padStart(2,'0');
+  return `${prefix}-${String(d.getFullYear()).slice(-2)}${p2(d.getMonth()+1)}${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}`;
+}
+
+/* একটা Firestore write-promise "fire করে দেওয়া" — অপেক্ষা না করে সাথে সাথে UI
+   আপডেট করা যায় (optimistic)। ব্যর্থ হলে (যেমন কখনো সিঙ্ক না হলে) পরে জানানো হয়। */
+function fireWrite(promise, label){
+  promise.catch(err=>{
+    console.error(label, err);
+    alert(`⚠️ "${label}" সিঙ্ক করতে সমস্যা হয়েছে: ${err.message}\nইন্টারনেট সংযোগ থাকলে এটা এমনিতেই আবার চেষ্টা করবে।`);
+  });
+}
+
+function listenCollection(collName, key){
+  return new Promise(resolve=>{
+    let firstLoad = true;
+    fsDB.collection(collName).onSnapshot(snap=>{
+      const arr = [];
+      snap.forEach(d=>arr.push(d.data()));
+      arr.sort((a,b)=>(a.id||0)-(b.id||0));
+      DB[key] = arr;
+      if(firstLoad){ firstLoad = false; resolve(); }
+      else if(currentUser && !modalOpen()){ renderPage(currentPage); }
+    }, err=>{
+      console.error('Listen error on '+collName, err);
+      if(firstLoad){ firstLoad = false; resolve(); }
+    });
+  });
+}
+
+async function seedDefaults(){
+  const batch = fsDB.batch();
+  batch.set(fsDB.collection('erp_users').doc('1'),
+    {id:1, username:'admin', password:'admin123', role:'admin', name:'প্রধান এডমিন'});
+  batch.set(fsDB.collection('erp_products').doc('1'),
+    {id:1, name:'চাল (৫০ কেজি বস্তা)', unit:'বস্তা', buyPrice:2500, sellPrice:2700, stock:20, lowStock:5,
+     brand:'নমুনা কোম্পানি', size:'৫০ কেজি', color:'', shelf:'A1'});
+  batch.set(fsDB.collection('erp_products').doc('2'),
+    {id:2, name:'সয়াবিন তেল (৫ লিটার)', unit:'ক্যান', buyPrice:750, sellPrice:820, stock:30, lowStock:8,
+     brand:'নমুনা কোম্পানি', size:'৫ লিটার', color:'', shelf:'B2'});
+  batch.set(fsDB.collection('erp_customers').doc('1'), {id:1, name:'সাধারণ কাস্টমার', phone:'', due:0});
+  batch.set(fsDB.collection('erp_suppliers').doc('1'), {id:1, name:'সাধারণ সাপ্লায়ার', phone:'', due:0});
+  await batch.commit();
+}
+
+/* ================= AUTH ================= */
+function doLogin(){
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  const found = DB.users.find(x=>x.username===u && x.password===p);
+  if(!found){
+    document.getElementById('loginErr').textContent = 'ভুল ইউজারনেম বা পাসওয়ার্ড!';
+    return;
+  }
+  currentUser = found;
+  sessionStorage.setItem('erp_session_user', String(found.id));
+  enterApp();
+}
+function logout(){
+  currentUser = null;
+  sessionStorage.removeItem('erp_session_user');
+  document.getElementById('appScreen').classList.remove('show');
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('loginUser').value='';
+  document.getElementById('loginPass').value='';
+  document.getElementById('loginErr').textContent='';
+}
+function tryAutoLogin(){
+  const id = sessionStorage.getItem('erp_session_user');
+  if(id){
+    const u = DB.users.find(x=>x.id==id);
+    if(u){ currentUser = u; enterApp(); return; }
+  }
+}
+
+const ROLE_LEVEL = {user:1, manager:2, director:3, admin:4};
+function hasAccess(minRole){ return ROLE_LEVEL[currentUser.role] >= ROLE_LEVEL[minRole]; }
+
+const PAGES = [
+  {key:'dashboard', label:'ড্যাশবোর্ড', ic:'📊', minView:'user'},
+  {key:'sales', label:'বিক্রয় হিসাব', ic:'🧾', minView:'user'},
+  {key:'purchase', label:'ক্রয় হিসাব', ic:'🛒', minView:'manager'},
+  {key:'stock', label:'স্টক ম্যানেজমেন্ট', ic:'📦', minView:'user'},
+  {key:'dues', label:'বাকি/দেনা-পাওনা', ic:'💰', minView:'manager'},
+  {key:'expenses', label:'খরচের হিসাব', ic:'💵', minView:'manager'},
+  {key:'reports', label:'লাভ-ক্ষতির রিপোর্ট', ic:'📈', minView:'director'},
+  {key:'users', label:'ইউজার ম্যানেজমেন্ট', ic:'🔐', minView:'admin'},
+  {key:'backup', label:'ব্যাকআপ / রিস্টোর', ic:'♻️', minView:'director'},
+];
+const ROLE_NAME_BN = {user:'ইউজার', manager:'ম্যানেজার', director:'ডাইরেক্টর', admin:'এডমিন'};
+
+function enterApp(){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('appScreen').classList.add('show');
+  document.getElementById('curUserName').textContent = currentUser.name;
+  document.getElementById('curUserRole').textContent = ROLE_NAME_BN[currentUser.role];
+  document.getElementById('userInitial').textContent = currentUser.name.charAt(0);
+  buildNav();
+  updateConnBadge();
+  renderPage('dashboard');
+}
+function buildNav(){
+  const nav = document.getElementById('navList');
+  nav.innerHTML = '';
+  PAGES.forEach(p=>{
+    if(!hasAccess(p.minView)) return;
+    const div = document.createElement('div');
+    div.className = 'nav-item' + (p.key===currentPage?' active':'');
+    div.id = 'nav-'+p.key;
+    div.onclick = ()=>renderPage(p.key);
+    div.innerHTML = `<span class="ic">${p.ic}</span><span>${p.label}</span>`;
+    nav.appendChild(div);
+  });
+}
+function setActiveNav(key){
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  const el = document.getElementById('nav-'+key);
+  if(el) el.classList.add('active');
+}
+function renderPage(key){
+  const page = PAGES.find(p=>p.key===key);
+  if(!page || !hasAccess(page.minView)){
+    document.getElementById('mainArea').innerHTML = `<div class="access-denied"><div class="ic">🔒</div><h3>এই সেকশনে প্রবেশের অনুমতি নেই</h3><p>আপনার রোল: ${ROLE_NAME_BN[currentUser.role]}</p></div>`;
+    return;
+  }
+  currentPage = key;
+  setActiveNav(key);
+  const map = {
+    dashboard: renderDashboard, sales: renderSales, purchase: renderPurchase,
+    stock: renderStock, dues: renderDues, expenses: renderExpenses,
+    reports: renderReports, users: renderUsers, backup: renderBackup
+  };
+  map[key]();
+}
+
+/* ================= CONNECTION STATUS ================= */
+function updateConnBadge(){
+  const el = document.getElementById('connBadge');
+  if(!el) return;
+  if(navigator.onLine){ el.innerHTML = '🟢 অনলাইন — সব সিঙ্ক আছে'; el.style.color = 'var(--teal-2)'; }
+  else { el.innerHTML = '🟠 অফলাইন — এন্ট্রি লোকালি সেভ হচ্ছে'; el.style.color = 'var(--gold-2)'; }
+}
+window.addEventListener('online', updateConnBadge);
+window.addEventListener('offline', updateConnBadge);
+
+/* ================= HELPERS ================= */
+function money(n){ n = Number(n)||0; return '৳' + n.toLocaleString('en-BD', {maximumFractionDigits:2}); }
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function fmtDate(d){ const dt = new Date(d); return dt.toLocaleDateString('bn-BD', {year:'numeric',month:'short',day:'numeric'}); }
+function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function openModal(html){
+  document.getElementById('modalBox').innerHTML = html;
+  document.getElementById('modalBg').classList.add('show');
+}
+function closeModal(){ document.getElementById('modalBg').classList.remove('show'); }
+document.getElementById('modalBg').addEventListener('click', e=>{ if(e.target.id==='modalBg') closeModal(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && modalOpen()) closeModal(); });
+/* কিবোর্ড শর্টকাট: F2 = নতুন বিক্রয়, F3 = নতুন ক্রয় (মোডাল খোলা না থাকলে) */
+document.addEventListener('keydown', e=>{
+  if(modalOpen() || !currentUser) return;
+  if(e.key==='F2' && currentPage==='sales'){ e.preventDefault(); openSaleModal(); }
+  if(e.key==='F3' && currentPage==='purchase' && hasAccess('manager')){ e.preventDefault(); openPurchaseModal(); }
+});
+
+/* ================= DASHBOARD ================= */
+let chartRefs = {};
+function renderDashboard(){
+  const totalSales = DB.sales.reduce((s,x)=>s+x.total,0);
+  const totalPurchase = DB.purchases.reduce((s,x)=>s+x.total,0);
+  const totalExpense = DB.expenses.reduce((s,x)=>s+Number(x.amount),0);
+  const totalDueFromCustomers = DB.sales.reduce((s,x)=>s+(x.due||0),0);
+  const totalDueToSuppliers = DB.purchases.reduce((s,x)=>s+(x.due||0),0);
+  const costOfGoods = DB.sales.reduce((sum,sale)=>{
+    return sum + sale.items.reduce((s2,it)=>{
+      const p = DB.products.find(pp=>pp.id===it.productId);
+      return s2 + ((p?p.buyPrice:0) * it.qty);
+    },0);
+  },0);
+  const grossProfit = totalSales - costOfGoods;
+  const netProfit = grossProfit - totalExpense;
+  const lowStockItems = DB.products.filter(p=>p.stock<=p.lowStock);
+
+  document.getElementById('mainArea').innerHTML = `
+    <div class="topbar">
+      <div><h2>ড্যাশবোর্ড</h2><div class="sub">সামগ্রিক ব্যবসার সারসংক্ষেপ — ${fmtDate(new Date())}</div></div>
+    </div>
+    <div class="grid g4" style="margin-bottom:16px;">
+      <div class="stat-card teal"><div class="lbl">মোট বিক্রয়</div><div class="val">${money(totalSales)}</div><div class="ic">🧾</div></div>
+      <div class="stat-card"><div class="lbl">মোট ক্রয়</div><div class="val">${money(totalPurchase)}</div><div class="ic">🛒</div></div>
+      <div class="stat-card gold"><div class="lbl">নীট লাভ/ক্ষতি</div><div class="val" style="color:${netProfit>=0?'#5fd3a5':'#ff8a75'}">${money(netProfit)}</div><div class="ic">📈</div></div>
+      <div class="stat-card danger"><div class="lbl">মোট খরচ</div><div class="val">${money(totalExpense)}</div><div class="ic">💵</div></div>
+    </div>
+    <div class="grid g4" style="margin-bottom:16px;">
+      <div class="stat-card"><div class="lbl">কাস্টমার বাকি (পাওনা)</div><div class="val" style="color:#f0c869">${money(totalDueFromCustomers)}</div><div class="ic">💰</div></div>
+      <div class="stat-card"><div class="lbl">সাপ্লায়ার বাকি (দেনা)</div><div class="val" style="color:#ff8a75">${money(totalDueToSuppliers)}</div><div class="ic">💰</div></div>
+      <div class="stat-card"><div class="lbl">মোট পণ্য</div><div class="val">${DB.products.length}</div><div class="ic">📦</div></div>
+      <div class="stat-card"><div class="lbl">লো-স্টক এলার্ট</div><div class="val" style="color:${lowStockItems.length?'#ff8a75':'#5fd3a5'}">${lowStockItems.length}</div><div class="ic">⚠️</div></div>
+    </div>
+    <div class="grid g2">
+      <div class="card"><h3>বিক্রয় বনাম ক্রয় (সাম্প্রতিক)</h3><canvas id="chartSalesPurchase" height="110"></canvas></div>
+      <div class="card"><h3>খরচের বিভাজন</h3><canvas id="chartExpense" height="130"></canvas></div>
+    </div>
+    <div class="card" style="margin-top:16px;" id="lowStockCard">
+      <h3>⚠️ লো-স্টক পণ্য</h3>
+      ${lowStockItems.length ? `<div class="tbl-wrap"><table><tr><th>পণ্য</th><th>বর্তমান স্টক</th><th>মিনিমাম লিমিট</th></tr>
+        ${lowStockItems.map(p=>`<tr><td>${esc(p.name)}</td><td>${p.stock} ${esc(p.unit)}</td><td>${p.lowStock}</td></tr>`).join('')}
+      </table></div>` : `<div style="color:var(--muted);font-size:13px;">সব পণ্যের স্টক পর্যাপ্ত আছে ✅</div>`}
+    </div>
+  `;
+
+  const days = [...Array(7)].map((_,i)=>{ const d = new Date(); d.setDate(d.getDate()-(6-i)); return d.toISOString().slice(0,10); });
+  const salesByDay = days.map(d=>DB.sales.filter(s=>s.date===d).reduce((s,x)=>s+x.total,0));
+  const purchByDay = days.map(d=>DB.purchases.filter(s=>s.date===d).reduce((s,x)=>s+x.total,0));
+
+  if(chartRefs.sp) chartRefs.sp.destroy();
+  chartRefs.sp = new Chart(document.getElementById('chartSalesPurchase'), {
+    type:'bar',
+    data:{ labels: days.map(d=>fmtDate(d)),
+      datasets:[
+        {label:'বিক্রয়', data:salesByDay, backgroundColor:'#2f9c80'},
+        {label:'ক্রয়', data:purchByDay, backgroundColor:'#d4a441'}
+      ]},
+    options:{ plugins:{legend:{labels:{color:'#eef7f3'}}}, scales:{
+      x:{ticks:{color:'#9fc4b8'}, grid:{color:'#234840'}},
+      y:{ticks:{color:'#9fc4b8'}, grid:{color:'#234840'}}
+    }}
+  });
+
+  const expenseCats = {};
+  DB.expenses.forEach(e=>{ expenseCats[e.category] = (expenseCats[e.category]||0) + Number(e.amount); });
+  const catLabels = Object.keys(expenseCats);
+  if(chartRefs.exp) chartRefs.exp.destroy();
+  chartRefs.exp = new Chart(document.getElementById('chartExpense'), {
+    type:'doughnut',
+    data:{ labels: catLabels.length?catLabels:['কোনো খরচ নেই'],
+      datasets:[{ data: catLabels.length?catLabels.map(c=>expenseCats[c]):[1],
+        backgroundColor:['#2f9c80','#d4a441','#c85a4a','#3d6ba8','#8a5fd3','#d35f9c','#5fd3a5']
+      }]},
+    options:{ plugins:{legend:{labels:{color:'#eef7f3'}}} }
+  });
+}
+
+/* ================= PRODUCTS / STOCK ================= */
+function renderStock(){
+  const canEdit = hasAccess('manager');
+  document.getElementById('mainArea').innerHTML = `
+    <div class="topbar">
+      <div><h2>স্টক ম্যানেজমেন্ট</h2><div class="sub">পণ্যের তালিকা ও ইনভেন্টরি নিয়ন্ত্রণ</div></div>
+      ${canEdit?`<button class="btn btn-gold" onclick="openProductModal()">+ নতুন পণ্য যোগ করুন</button>`:''}
+    </div>
+    <div class="toolbar">
+      <input type="text" id="stockSearch" placeholder="🔍 নাম/ব্র্যান্ড/শেলফ দিয়ে খুঁজুন..." oninput="renderStockTable()">
+      <div class="spacer"></div>
+      <span style="color:var(--muted);font-size:12.5px;">মোট পণ্য: ${DB.products.length}</span>
+    </div>
+    <div class="card"><div class="tbl-wrap" id="stockTableWrap"></div></div>
+  `;
+  renderStockTable();
+}
+function renderStockTable(){
+  const q = (document.getElementById('stockSearch')?.value||'').toLowerCase();
+  const rows = DB.products.filter(p=>
+    p.name.toLowerCase().includes(q) || (p.brand||'').toLowerCase().includes(q) ||
+    (p.shelf||'').toLowerCase().includes(q) || (p.color||'').toLowerCase().includes(q)
+  );
+  const canEdit = hasAccess('manager');
+  document.getElementById('stockTableWrap').innerHTML = `
+    <table>
+      <tr><th>পণ্যের নাম / বিস্তারিত</th><th>শেলফ</th><th>একক</th><th>ক্রয়মূল্য</th><th>বিক্রয়মূল্য</th><th>স্টক</th><th>অবস্থা</th>${canEdit?'<th></th>':''}</tr>
+      ${rows.map(p=>{
+        const status = p.stock<=0?'<span class="pill bad">স্টক শেষ</span>':(p.stock<=p.lowStock?'<span class="pill warn">কম স্টক</span>':'<span class="pill ok">ঠিক আছে</span>');
+        const detailBits = [p.brand, p.size, p.color].filter(Boolean).join(' • ');
+        return `<tr>
+          <td>
+            <div>${esc(p.name)}</div>
+            ${detailBits?`<div style="font-size:11px;color:var(--muted);margin-top:2px;">${esc(detailBits)}</div>`:''}
+          </td>
+          <td>${p.shelf?`<span class="pill" style="background:var(--panel-2);color:var(--gold-2);">${esc(p.shelf)}</span>`:'-'}</td>
+          <td>${esc(p.unit)}</td><td>${money(p.buyPrice)}</td><td>${money(p.sellPrice)}</td>
+          <td><b>${p.stock}</b></td><td>${status}</td>
+          ${canEdit?`<td><button class="icon-btn" onclick="openProductModal(${p.id})">✏️</button><button class="icon-btn" onclick="deleteProduct(${p.id})">🗑️</button></td>`:''}
+        </tr>`;
+      }).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--muted);">কোনো পণ্য নেই</td></tr>`}
+    </table>
+  `;
+}
+function openProductModal(id){
+  const p = id ? DB.products.find(x=>x.id===id) : null;
+  openModal(`
+    <h3>${p?'পণ্য এডিট করুন':'নতুন পণ্য যোগ করুন'}</h3>
+    <div class="form-row full"><label>পণ্যের নাম</label><input id="pf_name" value="${p?esc(p.name):''}" placeholder="যেমন: সাবান"></div>
+    <div class="form-row">
+      <div><label>কোম্পানি/ব্র্যান্ড</label><input id="pf_brand" value="${p?esc(p.brand||''):''}" placeholder="যেমন: লাক্স"></div>
+      <div><label>সাইজ/ওজন</label><input id="pf_size" value="${p?esc(p.size||''):''}" placeholder="যেমন: ৭৫ গ্রাম"></div>
+    </div>
+    <div class="form-row">
+      <div><label>কালার (ঐচ্ছিক)</label><input id="pf_color" value="${p?esc(p.color||''):''}" placeholder="যেমন: সাদা"></div>
+      <div><label>শেলফ/তাক নম্বর</label><input id="pf_shelf" value="${p?esc(p.shelf||''):''}" placeholder="যেমন: A3"></div>
+    </div>
+    <div class="form-row">
+      <div><label>একক (কেজি/পিস/বস্তা...)</label><input id="pf_unit" value="${p?esc(p.unit):'পিস'}"></div>
+      <div><label>বর্তমান স্টক</label><input id="pf_stock" type="number" value="${p?p.stock:0}"></div>
+    </div>
+    <div class="form-row">
+      <div><label>ক্রয়মূল্য</label><input id="pf_buy" type="number" value="${p?p.buyPrice:''}"></div>
+      <div><label>বিক্রয়মূল্য</label><input id="pf_sell" type="number" value="${p?p.sellPrice:''}"></div>
+    </div>
+    <div class="form-row full"><label>লো-স্টক এলার্ট লিমিট</label><input id="pf_low" type="number" value="${p?p.lowStock:5}"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">বাতিল</button>
+      <button class="btn btn-gold" id="modalSaveBtn" onclick="saveProduct(${p?p.id:'null'})">সংরক্ষণ করুন</button>
+    </div>
+  `);
+  setTimeout(()=>document.getElementById('pf_name')?.focus(), 0);
+}
+function saveProduct(id){
+  const name = document.getElementById('pf_name').value.trim();
+  if(!name){ alert('পণ্যের নাম দিন'); return; }
+  const data = {
+    name,
+    brand: document.getElementById('pf_brand').value.trim(),
+    size: document.getElementById('pf_size').value.trim(),
+    color: document.getElementById('pf_color').value.trim(),
+    shelf: document.getElementById('pf_shelf').value.trim(),
+    unit: document.getElementById('pf_unit').value.trim()||'পিস',
+    stock: Number(document.getElementById('pf_stock').value)||0,
+    buyPrice: Number(document.getElementById('pf_buy').value)||0,
+    sellPrice: Number(document.getElementById('pf_sell').value)||0,
+    lowStock: Number(document.getElementById('pf_low').value)||5
+  };
+  if(id){
+    fireWrite(fsDB.collection('erp_products').doc(String(id)).update(data), 'পণ্য আপডেট');
+  } else {
+    const newId = genId();
+    fireWrite(fsDB.collection('erp_products').doc(String(newId)).set({id:newId, ...data}), 'নতুন পণ্য');
+  }
+  closeModal();
+}
+function deleteProduct(id){
+  if(!confirm('এই পণ্যটি মুছে ফেলতে চান?')) return;
+  fireWrite(fsDB.collection('erp_products').doc(String(id)).delete(), 'পণ্য মোছা');
+}
+
+/* পণ্য বাছাইয়ের জন্য একটা সংক্ষিপ্ত, সহজে টাইপ করে খোঁজার-উপযোগী লেবেল */
+function productLabel(p){
+  const bits = [p.brand, p.size].filter(Boolean).join(' ');
+  return `${p.name}${bits?' — '+bits:''} (৳${p.sellPrice}, স্টক:${p.stock})`;
+}
+function purchaseProductLabel(p){
+  const bits = [p.brand, p.size].filter(Boolean).join(' ');
+  return `${p.name}${bits?' — '+bits:''} (ক্রয়মূল্য:৳${p.buyPrice}, স্টক:${p.stock})`;
+}
+
+/* ================= SALES ================= */
+function renderSales(){
+  document.getElementById('mainArea').innerHTML = `
+    <div class="topbar">
+      <div><h2>বিক্রয় হিসাব</h2><div class="sub">সকল বিক্রয় এন্ট্রি ও ইনভয়েস — নতুন এন্ট্রির শর্টকাট: F2</div></div>
+      <button class="btn btn-gold" onclick="openSaleModal()">+ নতুন বিক্রয় যোগ করুন (F2)</button>
+    </div>
+    <div class="toolbar">
+      <input type="date" id="saleFrom" onchange="renderSalesTable()">
+      <span style="color:var(--muted);font-size:12px;">থেকে</span>
+      <input type="date" id="saleTo" onchange="renderSalesTable()">
+      <div class="spacer"></div>
+      <span style="color:var(--muted);font-size:12.5px;">মোট বিক্রয় এন্ট্রি: ${DB.sales.length}</span>
+    </div>
+    <div class="card"><div class="tbl-wrap" id="salesTableWrap"></div></div>
+  `;
+  renderSalesTable();
+}
+function renderSalesTable(){
+  const from = document.getElementById('saleFrom')?.value;
+  const to = document.getElementById('saleTo')?.value;
+  let rows = [...DB.sales].sort((a,b)=>b.id-a.id);
+  if(from) rows = rows.filter(s=>s.date>=from);
+  if(to) rows = rows.filter(s=>s.date<=to);
+  const totalAmt = rows.reduce((s,x)=>s+x.total,0);
+  document.getElementById('salesTableWrap').innerHTML = `
+    <table>
+      <tr><th>#</th><th>তারিখ</th><th>কাস্টমার</th><th>মোট</th><th>জমা</th><th>বাকি</th><th>স্ট্যাটাস</th><th></th></tr>
+      ${rows.map(s=>`
+        <tr>
+          <td>${refNo('INV', s.id)}</td><td>${fmtDate(s.date)}</td><td>${esc(s.customerName)}</td>
+          <td>${money(s.total)}</td><td>${money(s.paid)}</td><td>${money(s.due)}</td>
+          <td>${s.due<=0?'<span class="pill ok">পরিশোধিত</span>':'<span class="pill warn">বাকি আছে</span>'}</td>
+          <td><button class="icon-btn" onclick="printInvoice(${s.id})" title="প্রিন্ট">🖨️</button>
+              ${hasAccess('manager')?`<button class="icon-btn" onclick="deleteSale(${s.id})" title="মুছুন">🗑️</button>`:''}</td>
+        </tr>`).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--muted);">কোনো বিক্রয় নেই</td></tr>`}
+      <tr><td colspan="3" class="foot-total">সর্বমোট</td><td class="foot-total">${money(totalAmt)}</td><td colspan="4"></td></tr>
+    </table>
+  `;
+}
+let saleCart = [];
+function openSaleModal(){
+  saleCart = [{productId:'', qty:1}];
+  openModal(`
+    <h3>নতুন বিক্রয় এন্ট্রি</h3>
+    <div class="form-row">
+      <div><label>তারিখ</label><input id="sf_date" type="date" value="${todayStr()}"></div>
+      <div><label>কাস্টমার</label>
+        <select id="sf_customer">${DB.customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select>
+      </div>
+    </div>
+    <datalist id="saleProductOptions">
+      ${DB.products.map(p=>`<option value="${esc(productLabel(p))}">`).join('')}
+    </datalist>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">💡 পণ্যের নাম টাইপ করুন, তালিকা থেকে বাছাই করলেই পরিমাণে কার্সর চলে যাবে। Enter চাপলে পরের লাইন যোগ হবে।</div>
+    <div class="items-box" id="saleItemsBox"></div>
+    <button class="btn btn-outline small-btn" onclick="addSaleLine()">+ পণ্য যোগ করুন</button>
+    <div class="form-row" style="margin-top:14px;">
+      <div><label>সর্বমোট</label><input id="sf_total" readonly></div>
+      <div><label>জমা/পরিশোধিত (Enter = সংরক্ষণ)</label><input id="sf_paid" type="number" value="0" oninput="calcSaleTotal()" onkeydown="if(event.key==='Enter'){event.preventDefault();saveSale();}"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">বাতিল</button>
+      <button class="btn btn-gold" id="modalSaveBtn" onclick="saveSale()">বিক্রয় সংরক্ষণ করুন</button>
+    </div>
+  `);
+  renderSaleLines();
+  setTimeout(()=>document.getElementById('saleProd_0')?.focus(), 0);
+}
+function renderSaleLines(){
+  document.getElementById('saleItemsBox').innerHTML = saleCart.map((line,i)=>{
+    const p = line.productId ? DB.products.find(x=>x.id==line.productId) : null;
+    return `
+    <div class="item-line">
+      <input type="text" list="saleProductOptions" id="saleProd_${i}" placeholder="পণ্য টাইপ করুন..."
+        value="${p?esc(productLabel(p)):''}" oninput="onSaleProductInput(${i},this.value)">
+      <input type="number" min="1" id="saleQty_${i}" value="${line.qty}" placeholder="পরিমাণ"
+        oninput="saleCart[${i}].qty=Number(this.value);calcSaleTotal();"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();handleSaleQtyEnter(${i});}"
+        onfocus="this.select()">
+      <input type="text" readonly value="${p?money(p.sellPrice):''}" placeholder="দর">
+      <input type="text" readonly value="${p?money(p.sellPrice*line.qty):''}" placeholder="সাবটোটাল">
+      <button class="icon-btn" onclick="removeSaleLine(${i})">✖</button>
+    </div>`;
+  }).join('');
+}
+function onSaleProductInput(i, val){
+  const match = DB.products.find(p=>productLabel(p)===val);
+  if(match){
+    saleCart[i].productId = match.id;
+    calcSaleTotal();
+    const qtyEl = document.getElementById('saleQty_'+i);
+    if(qtyEl){ qtyEl.focus(); qtyEl.select(); }
+  } else {
+    saleCart[i].productId = '';
+  }
+}
+function handleSaleQtyEnter(i){
+  if(i === saleCart.length-1) addSaleLine();
+  const el = document.getElementById('saleProd_'+(i+1));
+  if(el) el.focus();
+}
+function addSaleLine(){ saleCart.push({productId:'', qty:1}); renderSaleLines(); }
+function removeSaleLine(i){ saleCart.splice(i,1); renderSaleLines(); calcSaleTotal(); }
+function calcSaleTotal(){
+  let total = 0;
+  saleCart.forEach(l=>{ if(l.productId){ const p = DB.products.find(x=>x.id==l.productId); if(p) total += p.sellPrice * (l.qty||0); } });
+  const totalEl = document.getElementById('sf_total');
+  if(totalEl) totalEl.value = money(total);
+  return total;
+}
+/* বিক্রয় সংরক্ষণ — লোকাল ক্যাশ থেকে স্টক-চেক করে সাথে সাথে UI বন্ধ করে দেয়
+   (অপেক্ষা করে না), ব্যাকগ্রাউন্ডে Firestore-এ (অনলাইন/অফলাইন যেভাবেই থাকুক) সেভ হয়। */
+function saveSale(){
+  const items = saleCart.filter(l=>l.productId && l.qty>0).map(l=>{
+    const p = DB.products.find(x=>x.id==l.productId);
+    return {productId:p.id, qty:Number(l.qty), price:p.sellPrice, _stock:p.stock, _name:p.name};
+  });
+  if(!items.length){ alert('অন্তত একটি পণ্য যোগ করুন'); return; }
+  for(const it of items){
+    if(it.qty > it._stock){ alert(`"${it._name}" এর স্টক অপর্যাপ্ত! বর্তমান স্টক: ${it._stock}`); return; }
+  }
+  const custId = Number(document.getElementById('sf_customer').value);
+  const cust = DB.customers.find(c=>c.id===custId);
+  if(!cust){ alert('কাস্টমার খুঁজে পাওয়া যায়নি'); return; }
+  const date = document.getElementById('sf_date').value || todayStr();
+  const paid = Number(document.getElementById('sf_paid').value)||0;
+  const total = items.reduce((s,it)=>s+it.price*it.qty,0);
+  const due = total - paid;
+  const saleId = genId();
+
+  const batch = fsDB.batch();
+  items.forEach(it=>{
+    batch.update(fsDB.collection('erp_products').doc(String(it.productId)), {stock: it._stock - it.qty});
+  });
+  batch.update(fsDB.collection('erp_customers').doc(String(custId)), {due: (cust.due||0) + due});
+  batch.set(fsDB.collection('erp_sales').doc(String(saleId)), {
+    id:saleId, date, customerId:custId, customerName: cust.name,
+    items: items.map(({productId,qty,price})=>({productId,qty,price})), total, paid, due
+  });
+  closeModal();
+  fireWrite(batch.commit(), 'বিক্রয় এন্ট্রি');
+}
+function deleteSale(id){
+  if(!confirm('এই বিক্রয় এন্ট্রি মুছে ফেলতে চান? (স্টক ফেরত যাবে)')) return;
+  const s = DB.sales.find(x=>x.id===id);
+  if(!s) return;
+  const batch = fsDB.batch();
+  s.items.forEach(it=>{
+    const p = DB.products.find(x=>x.id===it.productId);
+    if(p) batch.update(fsDB.collection('erp_products').doc(String(it.productId)), {stock: p.stock + it.qty});
+  });
+  const cust = DB.customers.find(c=>c.id===s.customerId);
+  if(cust) batch.update(fsDB.collection('erp_customers').doc(String(s.customerId)), {due: (cust.due||0) - s.due});
+  batch.delete(fsDB.collection('erp_sales').doc(String(id)));
+  fireWrite(batch.commit(), 'বিক্রয় মোছা');
+}
+
+/* ================= PURCHASE ================= */
+function renderPurchase(){
+  document.getElementById('mainArea').innerHTML = `
+    <div class="topbar">
+      <div><h2>ক্রয় হিসাব</h2><div class="sub">সাপ্লায়ারদের কাছ থেকে ক্রয় এন্ট্রি — নতুন এন্ট্রির শর্টকাট: F3</div></div>
+      <button class="btn btn-gold" onclick="openPurchaseModal()">+ নতুন ক্রয় যোগ করুন (F3)</button>
+    </div>
+    <div class="card"><div class="tbl-wrap" id="purchaseTableWrap"></div></div>
+  `;
+  renderPurchaseTable();
+}
+function renderPurchaseTable(){
+  const rows = [...DB.purchases].sort((a,b)=>b.id-a.id);
+  document.getElementById('purchaseTableWrap').innerHTML = `
+    <table>
+      <tr><th>#</th><th>তারিখ</th><th>সাপ্লায়ার</th><th>মোট</th><th>জমা</th><th>বাকি</th><th>স্ট্যাটাস</th><th></th></tr>
+      ${rows.map(s=>`
+        <tr>
+          <td>${refNo('PUR', s.id)}</td><td>${fmtDate(s.date)}</td><td>${esc(s.supplierName)}</td>
+          <td>${money(s.total)}</td><td>${money(s.paid)}</td><td>${money(s.due)}</td>
+          <td>${s.due<=0?'<span class="pill ok">পরিশোধিত</span>':'<span class="pill warn">বাকি আছে</span>'}</td>
+          <td>${hasAccess('manager')?`<button class="icon-btn" onclick="deletePurchase(${s.id})">🗑️</button>`:''}</td>
+        </tr>`).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--muted);">কোনো ক্রয় নেই</td></tr>`}
+    </table>
+  `;
+}
+let purchaseCart = [];
+function openPurchaseModal(){
+  purchaseCart = [{productId:'', qty:1}];
+  openModal(`
+    <h3>নতুন ক্রয় এন্ট্রি</h3>
+    <div class="form-row">
+      <div><label>তারিখ</label><input id="pf2_date" type="date" value="${todayStr()}"></div>
+      <div><label>সাপ্লায়ার</label>
+        <select id="pf2_supplier">${DB.suppliers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select>
+      </div>
+    </div>
+    <datalist id="purchaseProductOptions">
+      ${DB.products.map(p=>`<option value="${esc(purchaseProductLabel(p))}">`).join('')}
+    </datalist>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">💡 পণ্যের নাম টাইপ করুন, বাছাই করলেই পরিমাণে কার্সর চলে যাবে। Enter চাপলে পরের লাইন যোগ হবে।</div>
+    <div class="items-box" id="purchaseItemsBox"></div>
+    <button class="btn btn-outline small-btn" onclick="addPurchaseLine()">+ পণ্য যোগ করুন</button>
+    <div class="form-row" style="margin-top:14px;">
+      <div><label>সর্বমোট</label><input id="pf2_total" readonly></div>
+      <div><label>জমা/পরিশোধিত (Enter = সংরক্ষণ)</label><input id="pf2_paid" type="number" value="0" oninput="calcPurchaseTotal()" onkeydown="if(event.key==='Enter'){event.preventDefault();savePurchase();}"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">বাতিল</button>
+      <button class="btn btn-gold" id="modalSaveBtn" onclick="savePurchase()">ক্রয় সংরক্ষণ করুন</button>
+    </div>
+  `);
+  renderPurchaseLines();
+  setTimeout(()=>document.getElementById('purchProd_0')?.focus(), 0);
+}
+function renderPurchaseLines(){
+  document.getElementById('purchaseItemsBox').innerHTML = purchaseCart.map((line,i)=>{
+    const p = line.productId ? DB.products.find(x=>x.id==line.productId) : null;
+    return `
+    <div class="item-line">
+      <input type="text" list="purchaseProductOptions" id="purchProd_${i}" placeholder="পণ্য টাইপ করুন..."
+        value="${p?esc(purchaseProductLabel(p)):''}" oninput="onPurchaseProductInput(${i},this.value)">
+      <input type="number" min="1" id="purchQty_${i}" value="${line.qty}" placeholder="পরিমাণ"
+        oninput="purchaseCart[${i}].qty=Number(this.value);calcPurchaseTotal();"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();handlePurchQtyEnter(${i});}"
+        onfocus="this.select()">
+      <input type="text" readonly value="${p?money(p.buyPrice):''}" placeholder="দর">
+      <input type="text" readonly value="${p?money(p.buyPrice*line.qty):''}" placeholder="সাবটোটাল">
+      <button class="icon-btn" onclick="removePurchaseLine(${i})">✖</button>
+    </div>`;
+  }).join('');
+}
+function onPurchaseProductInput(i, val){
+  const match = DB.products.find(p=>purchaseProductLabel(p)===val);
+  if(match){
+    purchaseCart[i].productId = match.id;
+    calcPurchaseTotal();
+    const qtyEl = document.getElementById('purchQty_'+i);
+    if(qtyEl){ qtyEl.focus(); qtyEl.select(); }
+  } else {
+    purchaseCart[i].productId = '';
+  }
+}
+function handlePurchQtyEnter(i){
+  if(i === purchaseCart.length-1) addPurchaseLine();
+  const el = document.getElementById('purchProd_'+(i+1));
+  if(el) el.focus();
+}
+function addPurchaseLine(){ purchaseCart.push({productId:'', qty:1}); renderPurchaseLines(); }
+function removePurchaseLine(i){ purchaseCart.splice(i,1); renderPurchaseLines(); calcPurchaseTotal(); }
+function calcPurchaseTotal(){
+  let total = 0;
+  purchaseCart.forEach(l=>{ if(l.productId){ const p = DB.products.find(x=>x.id==l.productId); if(p) total += p.buyPrice*(l.qty||0); } });
+  const totalEl = document.getElementById('pf2_total');
+  if(totalEl) totalEl.value = money(total);
+  return total;
+}
+function savePurchase(){
+  const items = purchaseCart.filter(l=>l.productId && l.qty>0).map(l=>{
+    const p = DB.products.find(x=>x.id==l.productId);
+    return {productId:p.id, qty:Number(l.qty), price:p.buyPrice, _stock:p.stock};
+  });
+  if(!items.length){ alert('অন্তত একটি পণ্য যোগ করুন'); return; }
+  const supId = Number(document.getElementById('pf2_supplier').value);
+  const sup = DB.suppliers.find(c=>c.id===supId);
+  if(!sup){ alert('সাপ্লায়ার খুঁজে পাওয়া যায়নি'); return; }
+  const date = document.getElementById('pf2_date').value || todayStr();
+  const paid = Number(document.getElementById('pf2_paid').value)||0;
+  const total = items.reduce((s,it)=>s+it.price*it.qty,0);
+  const due = total - paid;
+  const purId = genId();
+
+  const batch = fsDB.batch();
+  items.forEach(it=>{
+    batch.update(fsDB.collection('erp_products').doc(String(it.productId)), {stock: it._stock + it.qty});
+  });
+  batch.update(fsDB.collection('erp_suppliers').doc(String(supId)), {due: (sup.due||0) + due});
+  batch.set(fsDB.collection('erp_purchases').doc(String(purId)), {
+    id:purId, date, supplierId:supId, supplierName: sup.name,
+    items: items.map(({productId,qty,price})=>({productId,qty,price})), total, paid, due
+  });
+  closeModal();
+  fireWrite(batch.commit(), 'ক্রয় এন্ট্রি');
+}
+function deletePurchase(id){
+  if(!confirm('এই ক্রয় এন্ট্রি মুছে ফেলতে চান? (স্টক থেকে বাদ যাবে)')) return;
+  const pur = DB.purchases.find(x=>x.id===id);
+  if(!pur) return;
+  const batch = fsDB.batch();
+  pur.items.forEach(it=>{
+    const p = DB.products.find(x=>x.id===it.productId);
+    if(p) batch.update(fsDB.collection('erp_products').doc(String(it.productId)), {stock: p.stock - it.qty});
+  });
+  const sup = DB.suppliers.find(c=>c.id===pur.supplierId);
+  if(sup) batch.update(fsDB.collection('erp_suppliers').doc(String(pur.supplierId)), {due: (sup.due||0) - pur.due});
+  batch.delete(fsDB.collection('erp_purchases').doc(String(id)));
+  fireWrite(batch.commit(), 'ক্রয় মোছা');
+}
+
+/* ================= DUES ================= */
+function renderDues(){
+  document.getElementById('mainArea').innerHTML = `
+    <div class="topbar"><div><h2>বাকি / দেনা-পাওনা হিসাব</h2><div class="sub">কাস্টমার পাওনা ও সাপ্লায়ার দেনা</div></div></div>
+    <div class="grid g2">
+      <div class="card">
+        <h3>👤 কাস্টমার পাওনা (আপনি পাবেন)</h3>
+        <div class="toolbar"><button class="btn btn-outline small-btn" onclick="openPartyModal('customer')">+ নতুন কাস্টমার</button></div>
+        <div class="tbl-wrap"><table>
+          <tr><th>নাম</th><th>ফোন</th><th>বাকি</th><th></th></tr>
+          ${DB.customers.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(c.phone||'-')}</td>
+            <td style="color:${c.due>0?'#f0c869':'#5fd3a5'}">${money(c.due||0)}</td>
+            <td>${c.due>0?`<button class="btn btn-outline small-btn" onclick="collectDue('customer',${c.id})">জমা নিন</button>`:''}</td></tr>`).join('')}
+        </table></div>
+      </div>
+      <div class="card">
+        <h3>🏭 সাপ্লায়ার দেনা (আপনি দেবেন)</h3>
+        <div class="toolbar"><button class="btn btn-outline small-btn" onclick="openPartyModal('supplier')">+ নতুন সাপ্লায়ার</button></div>
+        <div class="tbl-wrap"><table>
+          <tr><th>নাম</th><th>ফোন</th><th>বাকি</th><th></th></tr>
+          ${DB.suppliers.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(c.phone||'-')}</td>
+            <td style="color:${c.due>0?'#ff8a75':'#5fd3a5'}">${money(c.due||0)}</td>
+            <td>${c.due>0?`<button class="btn btn-outline small-btn" onclick="collectDue('supplier',${c.id})">পরিশোধ করুন</button>`:''}</td></tr>`).join('')}
+        </table></div>
+      </div>
+    </div>
+  `;
+}
+function openPartyModal(type){
+  openModal(`
+    <h3>${type==='customer'?'নতুন কাস্টমার':'নতুন সাপ্লায়ার'} যোগ করুন</h3>
+    <div class="form-row full"><label>নাম</label><input id="party_name"></div>
+    <div class="form-row full"><label>ফোন নম্বর</label><input id="party_phone"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">বাতিল</button>
+      <button class="btn btn-gold" id="modalSaveBtn" onclick="saveParty('${type}')">সংরক্ষণ করুন</button>
+    </div>
+  `);
+  setTimeout(()=>document.getElementById('party_name')?.focus(), 0);
+}
+function saveParty(type){
+  const name = document.getElementById('party_name').value.trim();
+  if(!name){ alert('নাম দিন'); return; }
+  const phone = document.getElementById('party_phone').value.trim();
+  const coll = type==='customer' ? 'erp_customers' : 'erp_suppliers';
+  const newId = genId();
+  fireWrite(fsDB.collection(coll).doc(String(newId)).set({id:newId, name, phone, due:0}), 'নতুন '+(type==='customer'?'কাস্টমার':'সাপ্লায়ার'));
+  closeModal();
+}
+function collectDue(type, id){
+  const list = type==='customer'?DB.customers:DB.suppliers;
+  const p = list.find(x=>x.id===id);
+  const amt = prompt(`কত টাকা ${type==='customer'?'জমা নিচ্ছেন':'পরিশোধ করছেন'}? (সর্বোচ্চ ${money(p.due)})`);
+  if(amt===null) return;
+  const val = Number(amt);
+  if(!val || val<=0 || val>p.due){ alert('সঠিক পরিমাণ দিন'); return; }
+  const coll = type==='customer'?'erp_customers':'erp_suppliers';
+  fireWrite(fsDB.collection(coll).doc(String(id)).update({due: p.due - val}), 'বাকি আপডেট');
+}
+
+/* ================= EXPENSES ================= */
+function renderExpenses(){
+  document.getElementById('mainArea').innerHTML = `
+    <div class="topbar">
+      <div><h2>খরচের হিসাব</h2><div class="sub">দৈনন্দিন ব্যবসায়িক খরচ ব্যবস্থাপনা</div></div>
+      <button class="btn btn-gold" onclick="openExpenseModal()">+ নতুন খরচ যোগ করুন</button>
+    </div>
+    <div class="card"><div class="tbl-wrap" id="expenseTableWrap"></div></div>
+  `;
+  renderExpenseTable();
+}
+function renderExpenseTable(){
+  const rows = [...DB.expenses].sort((a,b)=>b.id-a.id);
+  const total = rows.reduce((s,x)=>s+Number(x.amount),0);
+  document.getElementById('expenseTableWrap').innerHTML = `
+    <table>
+      <tr><th>তারিখ</th><th>খাত</th><th>বিবরণ</th><th>পরিমাণ</th><th></th></tr>
+      ${rows.map(e=>`<tr><td>${fmtDate(e.date)}</td><td>${esc(e.category)}</td><td>${esc(e.note||'-')}</td>
+        <td>${money(e.amount)}</td><td>${hasAccess('manager')?`<button class="icon-btn" onclick="deleteExpense(${e.id})">🗑️</button>`:''}</td></tr>`).join('')
+        || `<tr><td colspan="5" style="text-align:center;color:var(--muted);">কোনো খরচ নেই</td></tr>`}
+      <tr><td colspan="3" class="foot-total">সর্বমোট</td><td class="foot-total">${money(total)}</td><td></td></tr>
+    </table>
+  `;
+}
+function openExpenseModal(){
+  openModal(`
+    <h3>নতুন খরচ যোগ করুন</h3>
+    <div class="form-row">
+      <div><label>তারিখ</label><input id="ef_date" type="date" value="${todayStr()}"></div>
+      <div><label>খাত</label>
+        <select id="ef_cat">
+          <option>দোকান ভাড়া</option><option>বেতন</option><option>বিদ্যুৎ বিল</option><option>পরিবহন</option>
+          <option>মার্কেটিং</option><option>রক্ষণাবেক্ষণ</option><option>অন্যান্য</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row full"><label>পরিমাণ</label><input id="ef_amount" type="number" onkeydown="if(event.key==='Enter'){event.preventDefault();saveExpense();}"></div>
+    <div class="form-row full"><label>বিবরণ (ঐচ্ছিক)</label><input id="ef_note"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">বাতিল</button>
+      <button class="btn btn-gold" id="modalSaveBtn" onclick="saveExpense()">সংরক্ষণ করুন</button>
+    </div>
+  `);
+  setTimeout(()=>document.getElementById('ef_amount')?.focus(), 0);
+}
+function saveExpense(){
+  const amount = Number(document.getElementById('ef_amount').value);
+  if(!amount || amount<=0){ alert('সঠিক পরিমাণ দিন'); return; }
+  const newId = genId();
+  fireWrite(fsDB.collection('erp_expenses').doc(String(newId)).set({
+    id:newId, date: document.getElementById('ef_date').value||todayStr(),
+    category: document.getElementById('ef_cat').value, amount,
+    note: document.getElementById('ef_note').value.trim()
+  }), 'নতুন খরচ');
+  closeModal();
+}
+function deleteExpense(id){
+  if(!confirm('এই খরচ এন্ট্রি মুছে ফেলতে চান?')) return;
+  fireWrite(fsDB.collection('erp_expenses').doc(String(id)).delete(), 'খরচ মোছা');
+}
+
+/* ================= REPORTS (Profit/Loss) ================= */
+function renderReports(){
+  document.getElementById('mainArea').innerHTML = `
+    <div class="topbar">
+      <div><h2>লাভ-ক্ষতির রিপোর্ট</h2><div class="sub">সম্পূর্ণ ব্যবসার আর্থিক বিশ্লেষণ</div></div>
+      <button class="btn btn-outline" onclick="window.print()">🖨️ রিপোর্ট প্রিন্ট করুন</button>
+    </div>
+    <div class="toolbar">
+      <input type="date" id="repFrom" onchange="renderReportBody()"><span style="color:var(--muted);font-size:12px;">থেকে</span>
+      <input type="date" id="repTo" onchange="renderReportBody()">
+    </div>
+    <div id="reportBody"></div>
+  `;
+  renderReportBody();
+}
+function renderReportBody(){
+  const from = document.getElementById('repFrom')?.value;
+  const to = document.getElementById('repTo')?.value;
+  let sales = [...DB.sales]; let expenses = [...DB.expenses]; let purchases=[...DB.purchases];
+  if(from){ sales=sales.filter(s=>s.date>=from); expenses=expenses.filter(s=>s.date>=from); purchases=purchases.filter(s=>s.date>=from); }
+  if(to){ sales=sales.filter(s=>s.date<=to); expenses=expenses.filter(s=>s.date<=to); purchases=purchases.filter(s=>s.date<=to); }
+
+  const totalSales = sales.reduce((s,x)=>s+x.total,0);
+  const cogs = sales.reduce((sum,sale)=>sum + sale.items.reduce((s2,it)=>{
+    const p = DB.products.find(pp=>pp.id===it.productId);
+    return s2 + ((p?p.buyPrice:0)*it.qty);
+  },0),0);
+  const grossProfit = totalSales - cogs;
+  const totalExpense = expenses.reduce((s,x)=>s+Number(x.amount),0);
+  const netProfit = grossProfit - totalExpense;
+  const totalPurchase = purchases.reduce((s,x)=>s+x.total,0);
+
+  const expByCat = {};
+  expenses.forEach(e=>{ expByCat[e.category]=(expByCat[e.category]||0)+Number(e.amount); });
+
+  document.getElementById('reportBody').innerHTML = `
+    <div class="grid g3">
+      <div class="stat-card teal"><div class="lbl">মোট বিক্রয়</div><div class="val">${money(totalSales)}</div></div>
+      <div class="stat-card"><div class="lbl">বিক্রিত পণ্যের ক্রয়মূল্য (COGS)</div><div class="val">${money(cogs)}</div></div>
+      <div class="stat-card gold"><div class="lbl">গ্রস প্রফিট</div><div class="val">${money(grossProfit)}</div></div>
+    </div>
+    <div class="grid g3" style="margin-top:16px;">
+      <div class="stat-card danger"><div class="lbl">মোট খরচ</div><div class="val">${money(totalExpense)}</div></div>
+      <div class="stat-card"><div class="lbl">মোট ক্রয়</div><div class="val">${money(totalPurchase)}</div></div>
+      <div class="stat-card" style="border-color:${netProfit>=0?'#1c4a3a':'#4a1c1c'}">
+        <div class="lbl">নীট লাভ/ক্ষতি</div><div class="val" style="color:${netProfit>=0?'#5fd3a5':'#ff8a75'}">${money(netProfit)}</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <h3>খাতভিত্তিক খরচ বিশ্লেষণ</h3>
+      <table>
+        <tr><th>খাত</th><th>পরিমাণ</th></tr>
+        ${Object.keys(expByCat).map(c=>`<tr><td>${esc(c)}</td><td>${money(expByCat[c])}</td></tr>`).join('') || '<tr><td colspan="2" style="text-align:center;color:var(--muted);">কোনো খরচ নেই</td></tr>'}
+      </table>
+    </div>
+  `;
+}
+
+/* ================= USER MANAGEMENT (Admin only) ================= */
+function renderUsers(){
+  document.getElementById('mainArea').innerHTML = `
+    <div class="topbar">
+      <div><h2>ইউজার ম্যানেজমেন্ট</h2><div class="sub">৪ স্তরের সিকিউরিটি: User → Manager → Director → Admin</div></div>
+      <button class="btn btn-gold" onclick="openUserModal()">+ নতুন ইউজার যোগ করুন</button>
+    </div>
+    <div class="card"><div class="tbl-wrap">
+      <table>
+        <tr><th>নাম</th><th>ইউজারনেম</th><th>রোল</th><th></th></tr>
+        ${DB.users.map(u=>`<tr><td>${esc(u.name)}</td><td>${esc(u.username)}</td><td><span class="role-badge">${ROLE_NAME_BN[u.role]}</span></td>
+          <td>${u.id!==1?`<button class="icon-btn" onclick="deleteUser(${u.id})">🗑️</button>`:'<span style="color:var(--muted);font-size:11px;">প্রধান এডমিন</span>'}</td></tr>`).join('')}
+      </table>
+    </div></div>
+  `;
+}
+function openUserModal(){
+  openModal(`
+    <h3>নতুন ইউজার যোগ করুন</h3>
+    <div class="form-row full"><label>পূর্ণ নাম</label><input id="uf_name"></div>
+    <div class="form-row">
+      <div><label>ইউজারনেম</label><input id="uf_username"></div>
+      <div><label>পাসওয়ার্ড</label><input id="uf_password" type="text"></div>
+    </div>
+    <div class="form-row full"><label>রোল / এক্সেস লেভেল</label>
+      <select id="uf_role">
+        <option value="user">User (ইউজার — সীমিত অ্যাক্সেস)</option>
+        <option value="manager">Manager (ম্যানেজার)</option>
+        <option value="director">Director (ডাইরেক্টর)</option>
+        <option value="admin">Admin (সম্পূর্ণ অ্যাক্সেস)</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">বাতিল</button>
+      <button class="btn btn-gold" id="modalSaveBtn" onclick="saveUser()">সংরক্ষণ করুন</button>
+    </div>
+  `);
+  setTimeout(()=>document.getElementById('uf_name')?.focus(), 0);
+}
+function saveUser(){
+  const name = document.getElementById('uf_name').value.trim();
+  const username = document.getElementById('uf_username').value.trim();
+  const password = document.getElementById('uf_password').value;
+  if(!name||!username||!password){ alert('সব ঘর পূরণ করুন'); return; }
+  if(DB.users.find(u=>u.username===username)){ alert('এই ইউজারনেম আগে থেকেই আছে'); return; }
+  const newId = genId();
+  fireWrite(fsDB.collection('erp_users').doc(String(newId)).set({id:newId, name, username, password, role: document.getElementById('uf_role').value}), 'নতুন ইউজার');
+  closeModal();
+}
+function deleteUser(id){
+  if(!confirm('এই ইউজার মুছে ফেলতে চান?')) return;
+  fireWrite(fsDB.collection('erp_users').doc(String(id)).delete(), 'ইউজার মোছা');
+}
+
+/* ================= BACKUP / RESTORE ================= */
+function renderBackup(){
+  document.getElementById('mainArea').innerHTML = `
+    <div class="topbar"><div><h2>ব্যাকআপ / রিস্টোর</h2><div class="sub">আপনার সকল ডেটা নিরাপদে সংরক্ষণ করুন</div></div></div>
+    <div class="grid g2">
+      <div class="card">
+        <h3>⬇️ ব্যাকআপ ডাউনলোড করুন</h3>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:14px;">সমস্ত বিক্রয়, ক্রয়, স্টক, খরচ ও ইউজার তথ্য একটি JSON ফাইলে সংরক্ষণ হবে।</p>
+        <button class="btn btn-gold" onclick="downloadBackup()">ব্যাকআপ ডাউনলোড করুন</button>
+      </div>
+      <div class="card">
+        <h3>⬆️ ব্যাকআপ রিস্টোর করুন</h3>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:14px;">⚠️ রিস্টোর করলে বর্তমান সব ডেটা প্রতিস্থাপিত হবে। সতর্কতার সাথে ব্যবহার করুন। (এই কাজটার জন্য ইন্টারনেট লাগবে)</p>
+        <input type="file" id="restoreFile" accept=".json" style="margin-bottom:12px;color:var(--muted);">
+        <br><button class="btn btn-danger" id="restoreBtn" onclick="restoreBackup()">রিস্টোর করুন</button>
+      </div>
+    </div>
+  `;
+}
+function downloadBackup(){
+  const exportObj = {
+    products: DB.products, customers: DB.customers, suppliers: DB.suppliers,
+    sales: DB.sales, purchases: DB.purchases, expenses: DB.expenses, users: DB.users,
+    exportedAt: new Date().toISOString()
+  };
+  const blob = new Blob([JSON.stringify(exportObj,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `business-backup-${todayStr()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+async function restoreBackup(){
+  if(!navigator.onLine){ alert('রিস্টোর করতে ইন্টারনেট সংযোগ লাগবে।'); return; }
+  const file = document.getElementById('restoreFile').files[0];
+  if(!file){ alert('একটি ব্যাকআপ ফাইল নির্বাচন করুন'); return; }
+  if(!confirm('আপনি কি নিশ্চিত? বর্তমান সকল ডেটা প্রতিস্থাপিত হয়ে যাবে!')) return;
+  const btn = document.getElementById('restoreBtn');
+  const reader = new FileReader();
+  reader.onload = async e=>{
+    try{
+      btn.disabled = true; btn.textContent = 'রিস্টোর হচ্ছে...';
+      const data = JSON.parse(e.target.result);
+      const collections = {
+        erp_products: data.products||[], erp_customers: data.customers||[], erp_suppliers: data.suppliers||[],
+        erp_sales: data.sales||[], erp_purchases: data.purchases||[], erp_expenses: data.expenses||[], erp_users: data.users||[]
+      };
+      for(const [collName, items] of Object.entries(collections)){
+        const existing = await fsDB.collection(collName).get();
+        const ops = [];
+        existing.forEach(d=>ops.push({type:'delete', ref:d.ref}));
+        items.forEach(item=>ops.push({type:'set', ref:fsDB.collection(collName).doc(String(item.id)), data:item}));
+        for(let i=0;i<ops.length;i+=400){
+          const batch = fsDB.batch();
+          ops.slice(i,i+400).forEach(op=>{ op.type==='delete' ? batch.delete(op.ref) : batch.set(op.ref, op.data); });
+          await batch.commit();
+        }
+      }
+      alert('রিস্টোর সফল হয়েছে! পেজ রিলোড হচ্ছে...');
+      location.reload();
+    }catch(err){
+      alert('ব্যর্থ হয়েছে: ' + err.message);
+      btn.disabled = false; btn.textContent = 'রিস্টোর করুন';
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* ================= INVOICE PRINT ================= */
+function printInvoice(saleId){
+  const s = DB.sales.find(x=>x.id===saleId);
+  const rows = s.items.map(it=>{
+    const p = DB.products.find(pp=>pp.id===it.productId);
+    return `<tr><td>${esc(p?p.name:'—')}</td><td>${it.qty} ${esc(p?p.unit:'')}</td><td>${money(it.price)}</td><td>${money(it.price*it.qty)}</td></tr>`;
+  }).join('');
+  document.getElementById('printArea').innerHTML = `
+    <div class="inv-head">
+      <div><h2>ব্যবসা ম্যানেজার</h2><div>ইনভয়েস / রশিদ</div></div>
+      <div style="text-align:left;">
+        <div><b>ইনভয়েস #:</b> ${refNo('INV', s.id)}</div>
+        <div><b>তারিখ:</b> ${fmtDate(s.date)}</div>
+        <div><b>কাস্টমার:</b> ${esc(s.customerName)}</div>
+      </div>
+    </div>
+    <table class="inv-table">
+      <tr><th>পণ্য</th><th>পরিমাণ</th><th>দর</th><th>সাবটোটাল</th></tr>
+      ${rows}
+    </table>
+    <table class="inv-table" style="width:300px;margin-inline-start:auto;">
+      <tr><td>সর্বমোট</td><td>${money(s.total)}</td></tr>
+      <tr><td>জমা</td><td>${money(s.paid)}</td></tr>
+      <tr><td><b>বাকি</b></td><td><b>${money(s.due)}</b></td></tr>
+    </table>
+    <p style="margin-top:20px;font-size:12px;">ধন্যবাদান্তে, আপনার ব্যবসা প্রতিষ্ঠান।</p>
+  `;
+  window.print();
+}
+
+/* =====================================================================
+   CONFIG — এখানে আপনার Firebase তথ্য বসান
+   =====================================================================
+   ১) https://console.firebase.google.com -এ প্রজেক্ট বানান
+   ২) Build > Firestore Database > Create database ("Start in test mode")
+   ৩) Build > Authentication > Sign-in method > Anonymous চালু করুন
+   ৪) Project settings > Your apps > Web app যোগ করে firebaseConfig কপি করুন
+   ৫) Firestore > Rules-এ নিচের rules বসিয়ে Publish করুন:
+
+      rules_version = '2';
+      service cloud.firestore {
+        match /databases/{database}/documents {
+          match /{document=**} {
+            allow read, write: if request.auth != null;
+          }
+        }
+      }
+   ===================================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyDrFR9Ycw4xpeaueNn92wWrT3c2diD1cLM",
+  authDomain: "bzneserp.firebaseapp.com",
+  projectId: "bzneserp",
+  storageBucket: "bzneserp.firebasestorage.app",
+  messagingSenderId: "412722396147",
+  appId: "1:412722396147:web:ddbf530520c5b662f67086"
+};
+
+/* ================= INIT / BOOT ================= */
+async function bootApp(){
+  const statusEl = document.getElementById('bootStatus');
+  const setupEl = document.getElementById('bootSetup');
+
+  if(!firebaseConfig.apiKey || firebaseConfig.apiKey === 'YOUR_API_KEY'){
+    statusEl.textContent = '';
+    setupEl.classList.remove('hidden');
+    return;
+  }
+
+  try{
+    fbApp = firebase.initializeApp(firebaseConfig);
+    fbAuth = firebase.auth();
+    fsDB = firebase.firestore();
+
+    /* অফলাইন-ফার্স্ট: ডেটা ডিভাইসের IndexedDB-তে ক্যাশ থাকবে।
+       এটা প্রথম Firestore-কল করার আগেই বসাতে হয়। */
+    try{
+      await fsDB.enablePersistence({synchronizeTabs:true});
+    }catch(persErr){
+      console.warn('Offline persistence চালু করা যায়নি:', persErr.code);
+      /* 'failed-precondition' = একাধিক ট্যাব একসাথে খোলা, 'unimplemented' = ব্রাউজার সাপোর্ট করে না —
+         দুটোই non-fatal, অ্যাপ অনলাইনে স্বাভাবিকভাবে চলবে, শুধু অফলাইন-ক্যাশ কাজ নাও করতে পারে। */
+    }
+
+    statusEl.textContent = '🔐 প্রমাণীকরণ করা হচ্ছে...';
+    /* আগে থেকে সাইন-ইন করা থাকলে (আগের সেশন) অফলাইনেও তা লোকালি রিস্টোর হয়ে যায়,
+       নতুন করে নেটওয়ার্ক কল লাগে না। একদম প্রথমবার হলে ইন্টারনেট লাগবেই। */
+    await new Promise(resolve=>{
+      const unsub = fbAuth.onAuthStateChanged(user=>{ unsub(); resolve(user); });
+    });
+    if(!fbAuth.currentUser){
+      await fbAuth.signInAnonymously();
+    }
+
+    statusEl.textContent = '📦 প্রথমবার সেটআপ পরীক্ষা করা হচ্ছে...';
+    const usersSnap = await fsDB.collection('erp_users').limit(1).get();
+    if(usersSnap.empty){
+      statusEl.textContent = '🌱 প্রাথমিক ডেটা তৈরি করা হচ্ছে...';
+      await seedDefaults();
+    }
+
+    statusEl.textContent = '📦 ডেটা লোড করা হচ্ছে...';
+    await Promise.all([
+      listenCollection('erp_products','products'),
+      listenCollection('erp_customers','customers'),
+      listenCollection('erp_suppliers','suppliers'),
+      listenCollection('erp_sales','sales'),
+      listenCollection('erp_purchases','purchases'),
+      listenCollection('erp_expenses','expenses'),
+      listenCollection('erp_users','users'),
+    ]);
+
+    document.getElementById('bootScreen').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'flex';
+    tryAutoLogin();
+    document.getElementById('loginPass').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+  }catch(err){
+    console.error(err);
+    if(!navigator.onLine){
+      statusEl.innerHTML = '📴 ইন্টারনেট সংযোগ নেই।<br><br>এই ডিভাইসে প্রথমবার চালু করতে অন্তত একবার ইন্টারনেট সংযোগ প্রয়োজন (এরপর থেকে অফলাইনেও কাজ করবে)।';
+    } else {
+      statusEl.innerHTML = '❌ সংযোগ ব্যর্থ হয়েছে: ' + esc(err.message) +
+        '<br><br>Firebase Authentication-এ "Anonymous" পদ্ধতি চালু আছে কিনা এবং Firestore rules ঠিক আছে কিনা যাচাই করুন।';
+    }
+  }
+}
+
+document.getElementById('loginScreen').style.display = 'none';
+bootApp();
+
+/* ================= PWA: INSTALLABLE APP ================= */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(err=>console.log('SW registration failed (হয়তো manifest/sw.js ফাইল একই ফোল্ডারে নেই):', err));
+  });
+}
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const btn = document.getElementById('installBtn');
+  if(btn) btn.classList.remove('hidden');
+});
+function triggerInstall(){
+  if(!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  deferredInstallPrompt.userChoice.finally(()=>{
+    deferredInstallPrompt = null;
+    document.getElementById('installBtn')?.classList.add('hidden');
+  });
+}
+window.addEventListener('appinstalled', ()=>{
+  document.getElementById('installBtn')?.classList.add('hidden');
+});
+
+</script>
+</body>
+</html>
