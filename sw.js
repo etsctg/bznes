@@ -1,10 +1,11 @@
 /* ব্যবসা ম্যানেজার — Service Worker
-   এটা শুধু অ্যাপ-শেল (HTML/CSS/JS/আইকন) ক্যাশ করে রাখে যাতে অ্যাপটা
-   দ্রুত খোলে এবং "ইনস্টলযোগ্য" হিসেবে ব্রাউজার শনাক্ত করে।
-   মনে রাখবেন: ডেটা (Firebase Firestore) এখনও ইন্টারনেটের উপর নির্ভরশীল —
-   এই সার্ভিস ওয়ার্কার অ্যাপকে সম্পূর্ণ অফলাইন করে না। */
+   এটা অ্যাপ-শেল (HTML/CSS/JS/আইকন) এবং বাইরের CDN থেকে লোড হওয়া জরুরি
+   স্ক্রিপ্ট (Chart.js, Firebase SDK) — দুটোই ক্যাশ করে রাখে, যাতে একবার
+   অনলাইনে চালানোর পর অ্যাপ সত্যিকার অর্থে অফলাইনেও (ড্যাশবোর্ডের চার্টসহ)
+   ঠিকভাবে খোলে। মনে রাখবেন: ডেটা (Firebase Firestore) সিঙ্ক করতে এখনও
+   ইন্টারনেট লাগে — শুধু নতুন এন্ট্রি অফলাইনে লোকালি জমা থাকে, পরে সিঙ্ক হয়। */
 
-const CACHE_NAME = 'business-erp-shell-v1';
+const CACHE_NAME = 'business-erp-shell-v2';
 const SHELL_FILES = [
   './business-erp.html',
   './manifest.json',
@@ -12,10 +13,22 @@ const SHELL_FILES = [
   './icon-512.png',
   './icon-512-maskable.png'
 ];
+/* বাইরের CDN স্ক্রিপ্ট — এগুলো ছাড়া ড্যাশবোর্ড চার্ট বা Firebase লোড হবে না */
+const CDN_FILES = [
+  'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js',
+  'https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js',
+  'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js',
+  'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js'
+];
 
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(SHELL_FILES)).catch(()=>{})
+    caches.open(CACHE_NAME).then(async cache => {
+      await cache.addAll(SHELL_FILES).catch(()=>{});
+      await Promise.all(CDN_FILES.map(url =>
+        cache.add(url).catch(err => console.warn('CDN cache করা যায়নি:', url, err))
+      ));
+    })
   );
   self.skipWaiting();
 });
@@ -29,13 +42,12 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-/* app-shell ফাইলগুলোর জন্য network-first (আপডেট থাকলে সেটাই দেখাবে),
-   ব্যর্থ হলে ক্যাশ থেকে দেখাবে। Firebase/Firestore-এর রিকোয়েস্ট এখানে ছোঁয়া হয় না —
-   সেগুলো স্বাভাবিকভাবে ইন্টারনেটে যাবে। */
+const ALL_CACHED_URLS = new Set([...SHELL_FILES.map(f => f.replace('./','')), ...CDN_FILES]);
+
 self.addEventListener('fetch', event => {
   const url = event.request.url;
-  const isShellFile = SHELL_FILES.some(f => url.includes(f.replace('./','')));
-  if(!isShellFile){ return; }
+  const isCached = [...ALL_CACHED_URLS].some(f => url.includes(f) || url === f);
+  if(!isCached){ return; }
 
   event.respondWith(
     fetch(event.request)
