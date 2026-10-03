@@ -5,17 +5,18 @@
    ঠিকভাবে খোলে। মনে রাখবেন: ডেটা (Firebase Firestore) সিঙ্ক করতে এখনও
    ইন্টারনেট লাগে — শুধু নতুন এন্ট্রি অফলাইনে লোকালি জমা থাকে, পরে সিঙ্ক হয়। */
 
-const CACHE_NAME = 'business-erp-shell-v2';
+const CACHE_NAME = 'business-erp-shell-v3';
 const SHELL_FILES = [
   './business-erp.html',
   './manifest.json',
+  './chart.umd.js',
   './icon-192.png',
   './icon-512.png',
   './icon-512-maskable.png'
 ];
-/* বাইরের CDN স্ক্রিপ্ট — এগুলো ছাড়া ড্যাশবোর্ড চার্ট বা Firebase লোড হবে না */
+/* Firebase SDK এখনও গুগলের CDN (gstatic.com) থেকে আসে — Chart.js এখন লোকাল ফাইল
+   হওয়ায় (chart.umd.js, উপরের SHELL_FILES-এ) সেটা নিয়ে আর কোনো CDN-নির্ভরতা নেই */
 const CDN_FILES = [
-  'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js',
   'https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js',
   'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js',
   'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js'
