@@ -276,6 +276,29 @@ tr:hover td{background:var(--panel-2);}
 .foot-total{font-weight:800;color:var(--gold-2);}
 .badge-count{background:var(--gold);color:#1a1a1a;font-size:10px;padding:1px 7px;border-radius:20px;margin-inline-start:auto;}
 
+/* ---------- সবসময় রেডি থাকা ক্রয়/বিক্রয় বাটন (ফ্লোটিং অ্যাকশন বাটন) ----------
+   যেকোনো পেজে থাকা অবস্থাতেই এই বাটন দুটো স্ক্রিনের নিচে-ডানে স্থির থাকবে,
+   পেজ পরিবর্তন হলেও হারাবে না — তাই দ্রুত নতুন এন্ট্রি দিতে পেজ পাল্টাতে হবে না। */
+.fab-group{
+  position:fixed;right:18px;bottom:18px;z-index:40;display:flex;flex-direction:column;gap:10px;align-items:flex-end;
+}
+.fab-btn{
+  display:inline-flex;align-items:center;gap:8px;padding:13px 18px;border-radius:30px;border:none;
+  cursor:pointer;font-size:13.5px;font-weight:700;box-shadow:var(--shadow-md);
+  transition:transform .12s ease, filter .15s ease;white-space:nowrap;
+}
+.fab-btn:hover{transform:translateY(-2px) scale(1.02);filter:brightness(1.07);}
+.fab-btn .fab-key{
+  background:rgba(0,0,0,.2);border-radius:5px;padding:1px 6px;font-size:10.5px;font-weight:800;letter-spacing:.3px;
+}
+.fab-btn.fab-sale{background:linear-gradient(135deg,var(--teal-2),var(--teal));color:#fff;}
+.fab-btn.fab-purchase{background:linear-gradient(135deg,var(--blue-2),var(--blue));color:#fff;}
+@media(max-width:820px){
+  .fab-group{right:14px;bottom:14px;}
+  .fab-btn{padding:13px 14px;border-radius:50%;}
+  .fab-btn span.fab-label,.fab-btn span.fab-key{display:none;}
+}
+
 /* print invoice */
 #printArea{display:none;}
 @media print{
@@ -372,6 +395,16 @@ tr:hover td{background:var(--panel-2);}
       <b style="font-size:14px;">ব্যবসা ম্যানেজার</b>
     </div>
     <div class="main" id="mainArea"></div>
+  </div>
+
+  <!-- এই বাটনগুলো যেকোনো পেজেই দেখা যাবে — renderPage() শুধু mainArea বদলায়, এটা বদলায় না -->
+  <div class="fab-group" id="fabGroup">
+    <button class="fab-btn fab-purchase hidden" id="fabPurchase" onclick="openPurchaseModal()" title="নতুন ক্রয় (F3)">
+      <span class="fab-ic">🛒</span><span class="fab-label">নতুন ক্রয়</span><span class="fab-key">F3</span>
+    </button>
+    <button class="fab-btn fab-sale hidden" id="fabSale" onclick="openSaleModal()" title="নতুন বিক্রয় (F2)">
+      <span class="fab-ic">🧾</span><span class="fab-label">নতুন বিক্রয়</span><span class="fab-key">F2</span>
+    </button>
   </div>
 </div>
 
@@ -753,6 +786,8 @@ function enterApp(){
   buildNav();
   updateConnBadge();
   resetInactivityTimer();
+  document.getElementById('fabSale').classList.remove('hidden');
+  document.getElementById('fabPurchase').classList.toggle('hidden', !hasAccess('manager'));
   renderPage('dashboard');
 }
 function buildNav(){
@@ -852,6 +887,9 @@ function todayStr(){ return new Date().toISOString().slice(0,10); }
 function daysAgoStr(n){ const d = new Date(); d.setDate(d.getDate()-n); return d.toISOString().slice(0,10); }
 function fmtDate(d){ const dt = new Date(d); return dt.toLocaleDateString('bn-BD', {year:'numeric',month:'short',day:'numeric'}); }
 function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+/* কোনো অবজেক্টকে JSON বানিয়ে HTML-এর সিঙ্গেল-কোট অ্যাট্রিবিউটের ভেতরে নিরাপদে
+   বসানোর জন্য — নাম/টেক্সটে ' (apostrophe) থাকলেও যেন ভেঙে না যায় */
+function attrJson(obj){ return JSON.stringify(obj).replace(/'/g, "&#39;"); }
 function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 
 function openModal(html){
@@ -861,10 +899,12 @@ function openModal(html){
 function closeModal(){ document.getElementById('modalBg').classList.remove('show'); }
 document.getElementById('modalBg').addEventListener('click', e=>{ if(e.target.id==='modalBg') closeModal(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && modalOpen()) closeModal(); });
+/* F2/F3 শর্টকাট এখন যেকোনো পেজেই কাজ করবে — শুধু বিক্রয়/ক্রয় পেজে আর সীমাবদ্ধ না,
+   যাতে দ্রুত এন্ট্রি দিতে আগে ওই পেজে যেতে না হয়। */
 document.addEventListener('keydown', e=>{
   if(modalOpen() || !currentUser) return;
-  if(e.key==='F2' && currentPage==='sales'){ e.preventDefault(); openSaleModal(); }
-  if(e.key==='F3' && currentPage==='purchase' && hasAccess('manager')){ e.preventDefault(); openPurchaseModal(); }
+  if(e.key==='F2'){ e.preventDefault(); openSaleModal(); }
+  if(e.key==='F3' && hasAccess('manager')){ e.preventDefault(); openPurchaseModal(); }
 });
 
 /* ================= DASHBOARD =================
@@ -1148,7 +1188,7 @@ function currentSalesRows(){ return rangeSalesRows || DB.sales; }
 function renderSales(){
   document.getElementById('mainArea').innerHTML = `
     <div class="topbar">
-      <div><h2>বিক্রয় হিসাব</h2><div class="sub">ডিফল্টভাবে আজকের বিক্রয় দেখাচ্ছে (রিয়েল-টাইম) — নতুন এন্ট্রির শর্টকাট: F2</div></div>
+      <div><h2>বিক্রয় হিসাব</h2><div class="sub">ডিফল্টভাবে আজকের বিক্রয় দেখাচ্ছে (রিয়েল-টাইম) — যেকোনো পেজ থেকে F2 চাপলেই নতুন বিক্রয় খুলবে</div></div>
       <button class="btn btn-gold" onclick="openSaleModal()">+ নতুন বিক্রয় যোগ করুন (F2)</button>
     </div>
     <div class="toolbar">
@@ -1160,9 +1200,31 @@ function renderSales(){
       <span style="color:var(--muted);font-size:12.5px;" id="saleCountLbl"></span>
     </div>
     <div class="card"><div class="tbl-wrap" id="salesTableWrap"></div></div>
+    <div class="card" style="margin-top:16px;" id="saleUserBreakdownCard"></div>
   `;
   rangeSalesRows = null;
   renderSalesTable();
+}
+/* কে কত টাকার বিক্রয়/ক্রয় করলো — বর্তমানে স্ক্রিনে দেখানো তারিখ-রেঞ্জ অনুযায়ী
+   (পুরো ইতিহাস স্ক্যান না করে, তাই পারফরম্যান্সে প্রভাব পড়ে না) */
+function renderUserBreakdownCard(rows, elId, label){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  const byUser = {};
+  rows.forEach(r=>{
+    const name = r.createdBy || 'অজানা';
+    if(!byUser[name]) byUser[name] = {count:0, total:0};
+    byUser[name].count++; byUser[name].total += r.total;
+  });
+  const names = Object.keys(byUser).sort((a,b)=>byUser[b].total-byUser[a].total);
+  el.innerHTML = `
+    <h3>👤 ইউজার-ভিত্তিক ${label} (এই তালিকায় দেখানো রেঞ্জ অনুযায়ী)</h3>
+    <div class="tbl-wrap"><table>
+      <tr><th>ইউজার</th><th class="num">এন্ট্রি সংখ্যা</th><th class="num">মোট টাকা</th></tr>
+      ${names.map(n=>`<tr><td>${esc(n)}</td><td class="num">${byUser[n].count}</td><td class="num">${money(byUser[n].total)}</td></tr>`).join('')
+        || `<tr><td colspan="3" style="text-align:center;color:var(--muted);">কোনো ডেটা নেই</td></tr>`}
+    </table></div>
+  `;
 }
 async function renderSalesTable(){
   const from = document.getElementById('saleFrom')?.value;
@@ -1196,6 +1258,7 @@ async function renderSalesTable(){
       <tr><td colspan="3" class="foot-total">সর্বমোট</td><td class="foot-total num">${money(totalAmt)}</td><td colspan="4"></td></tr>
     </table>
   `;
+  renderUserBreakdownCard(rows, 'saleUserBreakdownCard', 'বিক্রয়');
 }
 /* বিক্রয়ের বিস্তারিত (কোন পণ্য কত পরিমাণ, কত দরে বিক্রি হলো) — ক্লিয়ার দেখতে */
 function viewSaleDetail(id){
@@ -1211,6 +1274,8 @@ function viewSaleDetail(id){
     <div class="tbl-wrap"><table>
       <tr><th>পণ্য</th><th class="num">পরিমাণ</th><th class="num">দর</th><th class="num">সাবটোটাল</th></tr>
       ${rows}
+      ${s.discount ? `<tr><td colspan="3">সাবটোটাল</td><td class="num">${money(s.subtotal||(s.total+s.discount))}</td></tr>
+      <tr><td colspan="3" style="color:var(--danger-text);">ডিসকাউন্ট ${s.discountPercent?`(${s.discountPercent}%)`:''}</td><td class="num" style="color:var(--danger-text);">-${money(s.discount)}</td></tr>` : ''}
       <tr><td colspan="3" class="foot-total">সর্বমোট</td><td class="foot-total num">${money(s.total)}</td></tr>
       <tr><td colspan="3">জমা</td><td class="num">${money(s.paid)}</td></tr>
       <tr><td colspan="3"><b>বাকি</b></td><td class="num"><b>${money(s.due)}</b></td></tr>
@@ -1239,8 +1304,16 @@ function openSaleModal(){
     <div class="items-box" id="saleItemsBox"></div>
     <button class="btn btn-outline small-btn" onclick="addSaleLine()">+ পণ্য যোগ করুন</button>
     <div class="form-row" style="margin-top:14px;">
-      <div><label>সর্বমোট</label><input id="sf_total" readonly></div>
+      <div><label>সাবটোটাল</label><input id="sf_subtotal" readonly></div>
+      <div><label>সর্বমোট (ডিসকাউন্টের পর)</label><input id="sf_total" readonly style="font-weight:800;"></div>
+    </div>
+    <div class="form-row">
+      <div><label>ডিসকাউন্ট (%)</label><input id="sf_discPct" type="number" min="0" max="100" value="0" oninput="calcSaleTotal('pct')"></div>
+      <div><label>ডিসকাউন্ট (টাকা)</label><input id="sf_discAmt" type="number" min="0" value="0" oninput="calcSaleTotal('amt')"></div>
+    </div>
+    <div class="form-row">
       <div><label>জমা/পরিশোধিত (Enter = সংরক্ষণ)</label><input id="sf_paid" type="number" value="0" oninput="calcSaleTotal()" onkeydown="if(event.key==='Enter'){event.preventDefault();saveSale();}"></div>
+      <div><label>বাকি</label><input id="sf_due" readonly></div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal()">বাতিল</button>
@@ -1285,12 +1358,42 @@ function handleSaleQtyEnter(i){
 }
 function addSaleLine(){ saleCart.push({productId:'', qty:1}); renderSaleLines(); }
 function removeSaleLine(i){ saleCart.splice(i,1); renderSaleLines(); calcSaleTotal(); }
-function calcSaleTotal(){
-  let total = 0;
-  saleCart.forEach(l=>{ if(l.productId){ const p = DB.products.find(x=>x.id==l.productId); if(p) total += p.sellPrice * (l.qty||0); } });
+/* ডিসকাউন্ট % বা টাকা — দুটো ঘরই আছে, যেকোনো একটায় লিখলে অন্যটা
+   স্বয়ংক্রিয়ভাবে হিসাব হয়ে যায় (changedField বলে দেয় কোনটা এইমাত্র বদলালো) */
+function calcSaleTotal(changedField){
+  let subtotal = 0;
+  saleCart.forEach(l=>{ if(l.productId){ const p = DB.products.find(x=>x.id==l.productId); if(p) subtotal += p.sellPrice * (l.qty||0); } });
+  const subtotalEl = document.getElementById('sf_subtotal');
+  if(subtotalEl) subtotalEl.value = money(subtotal);
+
+  const pctEl = document.getElementById('sf_discPct');
+  const amtEl = document.getElementById('sf_discAmt');
+  let pct = Number(pctEl?.value)||0;
+  let amt = Number(amtEl?.value)||0;
+
+  if(changedField==='pct'){
+    pct = Math.max(0, Math.min(100, pct));
+    amt = Math.round(subtotal * pct / 100);
+    if(amtEl) amtEl.value = amt;
+  } else if(changedField==='amt'){
+    amt = Math.max(0, Math.min(subtotal, amt));
+    pct = subtotal>0 ? Math.round((amt/subtotal)*10000)/100 : 0;
+    if(pctEl) pctEl.value = pct;
+  } else {
+    // পণ্য/জমা পরিবর্তনের সময় — আগের % বজায় রেখে টাকা পুনঃগণনা
+    amt = Math.round(subtotal * pct / 100);
+    if(amtEl) amtEl.value = amt;
+  }
+
+  const grandTotal = Math.max(0, subtotal - amt);
   const totalEl = document.getElementById('sf_total');
-  if(totalEl) totalEl.value = money(total);
-  return total;
+  if(totalEl) totalEl.value = money(grandTotal);
+
+  const paid = Number(document.getElementById('sf_paid')?.value)||0;
+  const dueEl = document.getElementById('sf_due');
+  if(dueEl) dueEl.value = money(grandTotal - paid);
+
+  return grandTotal;
 }
 function saveSale(){
   const items = saleCart.filter(l=>l.productId && l.qty>0).map(l=>{
@@ -1306,7 +1409,10 @@ function saveSale(){
   if(!cust){ alert('কাস্টমার খুঁজে পাওয়া যায়নি'); return; }
   const date = document.getElementById('sf_date').value || todayStr();
   const paid = Number(document.getElementById('sf_paid').value)||0;
-  const total = items.reduce((s,it)=>s+it.price*it.qty,0);
+  const subtotal = items.reduce((s,it)=>s+it.price*it.qty,0);
+  const discountPercent = Math.max(0, Math.min(100, Number(document.getElementById('sf_discPct').value)||0));
+  const discount = Math.max(0, Math.min(subtotal, Number(document.getElementById('sf_discAmt').value)||0));
+  const total = subtotal - discount;
   const cogs = items.reduce((s,it)=>s+it.buyPrice*it.qty,0);
   const due = total - paid;
   const saleId = genId();
@@ -1319,8 +1425,9 @@ function saveSale(){
   batch.update(fsDB.collection('erp_customers').doc(String(custId)), {due: (cust.due||0) + due});
   batch.set(fsDB.collection('erp_sales').doc(String(saleId)), {
     id:saleId, date, customerId:custId, customerName: cust.name,
-    items: items.map(({productId,qty,price})=>({productId,qty,price})), total, paid, due, cogs,
-    createdBy: currentUser?currentUser.name:''
+    items: items.map(({productId,qty,price})=>({productId,qty,price})), subtotal, discount, discountPercent,
+    total, paid, due, cogs,
+    createdBy: currentUser?currentUser.name:'', createdByUsername: currentUser?currentUser.username:''
   });
   applyStatsDelta(batch, date, {totalSales: total, totalCogs: cogs, salesCount: 1});
   closeModal();
@@ -1350,7 +1457,7 @@ function currentPurchaseRows(){ return rangePurchaseRows || DB.purchases; }
 function renderPurchase(){
   document.getElementById('mainArea').innerHTML = `
     <div class="topbar">
-      <div><h2>ক্রয় হিসাব</h2><div class="sub">ডিফল্টভাবে আজকের ক্রয় দেখাচ্ছে (রিয়েল-টাইম) — নতুন এন্ট্রির শর্টকাট: F3</div></div>
+      <div><h2>ক্রয় হিসাব</h2><div class="sub">ডিফল্টভাবে আজকের ক্রয় দেখাচ্ছে (রিয়েল-টাইম) — যেকোনো পেজ থেকে F3 চাপলেই নতুন ক্রয় খুলবে</div></div>
       <button class="btn btn-gold" onclick="openPurchaseModal()">+ নতুন ক্রয় যোগ করুন (F3)</button>
     </div>
     <div class="toolbar">
@@ -1362,6 +1469,7 @@ function renderPurchase(){
       <span style="color:var(--muted);font-size:12.5px;" id="purCountLbl"></span>
     </div>
     <div class="card"><div class="tbl-wrap" id="purchaseTableWrap"></div></div>
+    <div class="card" style="margin-top:16px;" id="purUserBreakdownCard"></div>
   `;
   rangePurchaseRows = null;
   renderPurchaseTable();
@@ -1396,6 +1504,7 @@ async function renderPurchaseTable(){
         </tr>`).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--muted);">কোনো ক্রয় নেই</td></tr>`}
     </table>
   `;
+  renderUserBreakdownCard(rows, 'purUserBreakdownCard', 'ক্রয়');
 }
 /* ক্রয়ের বিস্তারিত — কোন পণ্য কত পরিমাণ কত দরে ক্রয় হলো, স্পষ্টভাবে দেখার জন্য।
    প্রতিটা পণ্যের পাশে "স্টক হিস্টোরি" বাটন আছে — স্টকে কোনো গরমিল মনে হলে
@@ -1560,7 +1669,7 @@ function savePurchase(){
   batch.update(fsDB.collection('erp_suppliers').doc(String(supId)), {due: (sup.due||0) + due});
   batch.set(fsDB.collection('erp_purchases').doc(String(purId)), {
     id:purId, date, supplierId:supId, supplierName: sup.name, items: resolvedItems, total, paid, due,
-    createdBy: currentUser?currentUser.name:''
+    createdBy: currentUser?currentUser.name:'', createdByUsername: currentUser?currentUser.username:''
   });
   applyStatsDelta(batch, date, {totalPurchase: total, purchaseCount: 1});
   closeModal();
@@ -1610,6 +1719,28 @@ function renderDues(){
         </table></div>
       </div>
     </div>
+    <div class="card" style="margin-top:16px;">
+      <h3>🧾 সাম্প্রতিক বাকি জমা/পরিশোধের রেকর্ড</h3>
+      <div class="tbl-wrap" id="duePaymentsWrap"><div style="color:var(--muted);padding:14px;text-align:center;">লোড হচ্ছে...</div></div>
+    </div>
+  `;
+  loadRecentDuePayments();
+}
+async function loadRecentDuePayments(){
+  let rows = [];
+  try{
+    const snap = await fsDB.collection('erp_due_payments').orderBy('at','desc').limit(25).get();
+    rows = snap.docs.map(d=>d.data());
+  }catch(e){ console.warn('due payments লোড ব্যর্থ:', e); }
+  if(currentPage!=='dues') return;
+  document.getElementById('duePaymentsWrap').innerHTML = `
+    <table>
+      <tr><th>তারিখ</th><th>ধরন</th><th>নাম</th><th class="num">পরিমাণ</th><th class="num">নতুন বাকি</th><th>গ্রহণকারী</th><th></th></tr>
+      ${rows.map(r=>`<tr><td>${fmtDate(r.date)}</td><td>${r.type==='customer'?'জমা নেওয়া':'পরিশোধ করা'}</td><td>${esc(r.partyName)}</td>
+        <td class="num">${money(r.amount)}</td><td class="num">${money(r.dueAfter)}</td><td>${esc(r.by||'-')}</td>
+        <td><button class="icon-btn" onclick='printDuePaymentReceipt(${attrJson(r)})' title="প্রিন্ট">🖨️</button></td></tr>`).join('')
+        || `<tr><td colspan="7" style="text-align:center;color:var(--muted);">এখনো কোনো রেকর্ড নেই</td></tr>`}
+    </table>
   `;
 }
 function openPartyModal(type){
@@ -1659,8 +1790,55 @@ function saveCollectDue(type, id){
   const val = Number(document.getElementById('due_amt').value);
   if(!val || val<=0 || val>p.due){ alert('সঠিক পরিমাণ দিন (০ থেকে '+money(p.due)+' এর মধ্যে)'); return; }
   const coll = type==='customer'?'erp_customers':'erp_suppliers';
-  fireWrite(fsDB.collection(coll).doc(String(id)).update({due: p.due - val}), 'বাকি আপডেট');
-  closeModal();
+  const dueBefore = p.due, dueAfter = p.due - val;
+  const payId = genId();
+  const paymentRec = {
+    id:payId, type, partyId:id, partyName:p.name, amount:val, dueBefore, dueAfter,
+    date: todayStr(), at: new Date().toISOString(), by: currentUser?currentUser.name:''
+  };
+  const batch = fsDB.batch();
+  batch.update(fsDB.collection(coll).doc(String(id)), {due: dueAfter});
+  batch.set(fsDB.collection('erp_due_payments').doc(String(payId)), paymentRec);
+  fireWrite(batch.commit(), 'বাকি আপডেট');
+  showDuePaymentReceiptOption(paymentRec);
+}
+/* বাকি জমা/পরিশোধের পর — চাইলে সাথে সাথেই একটা রশিদ প্রিন্ট করা যায় (বাধ্যতামূলক না,
+   "প্রয়োজনে" প্রিন্ট করার অপশন)। পেমেন্টটা erp_due_payments এ রেকর্ড থাকে বলে
+   ভবিষ্যতেও দরকার হলে হিসাব যাচাই করা সম্ভব। */
+function showDuePaymentReceiptOption(rec){
+  openModal(`
+    <h3>✅ ${rec.type==='customer'?'জমা নেওয়া হয়েছে':'পরিশোধ করা হয়েছে'}</h3>
+    <div style="font-size:14px;line-height:1.9;margin-bottom:10px;">
+      <div><b>${esc(rec.partyName)}</b></div>
+      <div>পরিমাণ: <b style="color:var(--teal-2);">${money(rec.amount)}</b></div>
+      <div>আগের বাকি: ${money(rec.dueBefore)} → নতুন বাকি: <b>${money(rec.dueAfter)}</b></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">বন্ধ করুন</button>
+      <button class="btn btn-gold" onclick='printDuePaymentReceipt(${attrJson(rec)})'>🖨️ রশিদ প্রিন্ট করুন</button>
+    </div>
+  `);
+}
+function printDuePaymentReceipt(rec){
+  document.getElementById('printArea').className = (DB.settings?.paperSize==='thermal') ? 'thermal' : '';
+  document.getElementById('printArea').innerHTML = `
+    <div class="inv-head">
+      <div>${shopHeaderHtml()}<div>${rec.type==='customer'?'জমা রশিদ (Payment Receipt)':'পরিশোধ রশিদ (Payment Voucher)'}</div></div>
+      <div style="text-align:left;">
+        <div><b>রশিদ #:</b> ${refNo('PMT', rec.id)}</div>
+        <div><b>তারিখ:</b> ${fmtDate(rec.date)}</div>
+        <div><b>${rec.type==='customer'?'কাস্টমার':'সাপ্লায়ার'}:</b> ${esc(rec.partyName)}</div>
+      </div>
+    </div>
+    <table class="inv-table" style="width:320px;margin-inline-start:auto;">
+      <tr><td>আগের বাকি</td><td class="num">${money(rec.dueBefore)}</td></tr>
+      <tr><td>${rec.type==='customer'?'জমা নেওয়া হলো':'পরিশোধ করা হলো'}</td><td class="num">${money(rec.amount)}</td></tr>
+      <tr><td><b>নতুন বাকি</b></td><td class="num"><b>${money(rec.dueAfter)}</b></td></tr>
+    </table>
+    ${rec.by?`<p style="margin-top:10px;font-size:11px;">গ্রহণ করেছেন: ${esc(rec.by)}</p>`:''}
+    <p style="margin-top:20px;font-size:12px;">${esc(DB.settings?.footer||'ধন্যবাদান্তে, আপনার ব্যবসা প্রতিষ্ঠান।')}</p>
+  `;
+  window.print();
 }
 
 /* ================= EXPENSES ================= */
@@ -2124,6 +2302,8 @@ function printInvoice(saleId){
       ${rows}
     </table>
     <table class="inv-table" style="width:300px;margin-inline-start:auto;">
+      ${s.discount ? `<tr><td>সাবটোটাল</td><td class="num">${money(s.subtotal||(s.total+s.discount))}</td></tr>
+      <tr><td>ডিসকাউন্ট ${s.discountPercent?`(${s.discountPercent}%)`:''}</td><td class="num">-${money(s.discount)}</td></tr>` : ''}
       <tr><td>সর্বমোট</td><td class="num">${money(s.total)}</td></tr>
       <tr><td>জমা</td><td class="num">${money(s.paid)}</td></tr>
       <tr><td><b>বাকি</b></td><td class="num"><b>${money(s.due)}</b></td></tr>
