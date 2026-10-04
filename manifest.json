@@ -2,7 +2,7 @@
   "name": "ব্যবসা ম্যানেজার — Business ERP",
   "short_name": "ব্যবসা ম্যানেজার",
   "description": "Smart Business ERP — বিক্রয়, ক্রয়, স্টক, বাকি, খরচ ও লাভ-ক্ষতির হিসাব",
-  "start_url": "./business-erp.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",

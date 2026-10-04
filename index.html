@@ -221,12 +221,6 @@ tr:hover td{background:var(--panel-2);}
 .items-box{border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:12px;}
 .item-line{display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:6px;margin-bottom:6px;align-items:center;}
 .item-line-purchase{display:grid;grid-template-columns:2fr 0.7fr 0.9fr 0.7fr 1fr auto;gap:6px;margin-bottom:6px;align-items:center;}
-.pl-card{border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px;background:var(--panel-2);}
-.pl-row{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-bottom:8px;}
-.pl-row:last-child{margin-bottom:0;grid-template-columns:1fr 1fr 1fr auto;align-items:end;}
-.pl-field label{display:block;font-size:10.5px;color:var(--muted);margin-bottom:3px;}
-.pl-field input{width:100%;padding:7px 8px;font-size:12.5px;background:var(--panel);border:1px solid var(--line);border-radius:6px;color:var(--ink);}
-.pl-remove-btn{background:var(--pill-bad-bg);color:var(--pill-bad-text);border:none;border-radius:6px;padding:7px 10px;font-size:12px;cursor:pointer;height:32px;}
 .chart-wrap{position:relative;height:260px;}
 .chart-fallback{display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:12.5px;text-align:center;padding:20px;}
 .item-line select,.item-line input{padding:7px 8px;font-size:12.5px;}
@@ -245,6 +239,10 @@ tr:hover td{background:var(--panel-2);}
   body *{visibility:hidden;}
   #printArea, #printArea *{visibility:visible;}
   #printArea{display:block;position:absolute;top:0;left:0;width:100%;padding:20px;color:#000;background:#fff;}
+  #printArea.thermal{width:80mm;padding:6px;font-size:11px;}
+  #printArea.thermal .inv-table th,#printArea.thermal .inv-table td{padding:3px 4px;font-size:10.5px;}
+  #printArea.thermal .inv-head{flex-direction:column;gap:4px;}
+  @page{margin:8mm;}
 }
 .inv-head{display:flex;justify-content:space-between;border-bottom:2px solid #333;padding-bottom:10px;margin-bottom:14px;}
 .inv-table{width:100%;border-collapse:collapse;margin:14px 0;}
@@ -319,7 +317,8 @@ tr:hover td{background:var(--panel-2);}
           <span class="role-badge" id="curUserRole">-</span>
         </div>
       </div>
-      <button class="btn btn-outline" style="width:100%;margin-top:10px;font-size:12.5px;" onclick="logout()">🚪 লগআউট</button>
+      <button class="btn btn-outline" style="width:100%;margin-top:8px;font-size:12.5px;" onclick="openChangePasswordModal()">🔑 পাসওয়ার্ড পরিবর্তন</button>
+      <button class="btn btn-outline" style="width:100%;margin-top:8px;font-size:12.5px;" onclick="logout()">🚪 লগআউট</button>
     </div>
   </div>
 
@@ -346,33 +345,39 @@ tr:hover td{background:var(--panel-2);}
    DATA LAYER — অফলাইন-ফার্স্ট Firestore: ডেটা ডিভাইসেই ক্যাশ থাকে (IndexedDB),
    তাই ইন্টারনেট না থাকলেও অ্যাপ পড়া ও নতুন এন্ট্রি দেওয়া — দুটোই করা যায়।
    ইন্টারনেট ফিরলে যা যা এন্ট্রি দেওয়া হয়েছিল সব স্বয়ংক্রিয়ভাবে সিঙ্ক হয়ে যায়।
-
-   ================= স্কেল/পারফরম্যান্স নিয়ে একটা গুরুত্বপূর্ণ নোট =================
-   পণ্য/কাস্টমার/সাপ্লায়ার/ইউজার — এগুলো সবসময় সম্পূর্ণ লোড হয় (এগুলোর সংখ্যা
-   সাধারণত হাজারের মধ্যে থাকে, এত বেশি না যে সমস্যা হবে)।
-
-   কিন্তু বিক্রয় ও ক্রয় এন্ট্রি বছরে লাখের কাছাকাছি হতে পারে — তাই এগুলো আর
-   "সবসময় সম্পূর্ণ লোড" করা হয় না। বদলে:
-   - বিক্রয়/ক্রয় লিস্ট পেজ শুধু বাছাই করা তারিখ-রেঞ্জের ডেটা আনে (ডিফল্ট: আজ/৭ দিন)
-   - ড্যাশবোর্ডের সর্বমোট হিসাব (মোট বিক্রয়, লাভ-ক্ষতি ইত্যাদি) একটা ছোট্ট
-     "running counter" ডকুমেন্ট (erp_meta/stats) থেকে আসে, যেটা প্রতিটা এন্ট্রির
-     সাথে সাথে যোগ/বিয়োগ হয় — তাই লাখ লাখ এন্ট্রি থাকলেও ড্যাশবোর্ড লোড হতে
-     সময় লাগবে না, কারণ পুরনো সব এন্ট্রি স্ক্যান করতে হয় না।
-   - রিপোর্ট পেজও নির্দিষ্ট তারিখ-রেঞ্জের ডেটা আনে (ডিফল্ট: চলতি মাস)
+   এই কারণে এখানে Firestore Transaction ব্যবহার করা হয়নি (transaction অফলাইনে
+   কাজ করে না) — বদলে সাধারণ write/batch ব্যবহার করা হয়েছে, যা লোকালি সাথে
+   সাথে প্রয়োগ হয় (UI তাৎক্ষণিক আপডেট হয়) এবং ব্যাকগ্রাউন্ডে সিঙ্ক হয়।
    ===================================================================== */
 
 let fbApp, fbAuth, fsDB;
 let currentUser = null;
 let currentPage = 'dashboard';
 
-/* পণ্য/কাস্টমার/সাপ্লায়ার/ইউজার — সবসময় পুরো সিঙ্ক থাকে (বাউন্ডেড সাইজ)।
-   sales/purchases এখন "যা বর্তমানে স্ক্রিনে দেখানো হচ্ছে" তার সাথে সীমাবদ্ধ। */
-let DB = { products:[], customers:[], suppliers:[], sales:[], purchases:[], expenses:[], users:[] };
-let statsData = {}; // erp_meta/stats — running totals
+let DB = {
+  products:[], customers:[], suppliers:[], sales:[], purchases:[], expenses:[], users:[],
+  settings:{shopName:'ব্যবসা ম্যানেজার',address:'',phone:'',footer:'ধন্যবাদান্তে, আপনার ব্যবসা প্রতিষ্ঠান।',paperSize:'a4'},
+  statsAlltime:{totalSales:0, totalPurchase:0, totalExpense:0, totalCogs:0, salesCount:0, purchaseCount:0},
+  dayStatsCache: {} // date(yyyy-mm-dd) -> {salesTotal,purchaseTotal,expenseTotal,cogs}
+};
+let salesRangeUnsub = null, purchaseRangeUnsub = null; // date-range লোডের জন্য বর্তমান লিসেনার আনসাবস্ক্রাইব ফাংশন
 
-const QUERY_LIMIT = 3000; // একবারে সর্বোচ্চ এত রেকর্ড আনা হয় (নিরাপত্তার সীমা)
-let salesTruncated = false;
-let purchTruncated = false;
+/* ================= পাসওয়ার্ড হ্যাশিং (নিরাপত্তা) =================
+   পাসওয়ার্ড আর প্লেইন-টেক্সটে জমা থাকে না — ব্রাউজারের বিল্ট-ইন Web Crypto API
+   দিয়ে SHA-256 হ্যাশ করে জমা রাখা হয়, সাথে ইউজারনেম "সল্ট" হিসেবে মেশানো হয়
+   (যাতে একই পাসওয়ার্ড হলেও হ্যাশ আলাদা হয়)। এতে করে Firestore console থেকে
+   কেউ ডেটা দেখলেও আসল পাসওয়ার্ড বুঝতে পারবে না।
+   ⚠️ মনে রাখবেন: এটি ক্লায়েন্ট-সাইড অ্যাপ, তাই প্রকৃত এক্সেস-কন্ট্রোল
+   Firestore Security Rules দিয়েও নিশ্চিত করা জরুরি (সাথে দেওয়া
+   firestore.rules.txt ফাইলটি দেখুন ও Firebase Console-এ বসান)। */
+async function sha256Hash(text){
+  const enc = new TextEncoder().encode(text);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function hashPassword(username, plain){
+  return sha256Hash('bzn-erp-salt::' + String(username).toLowerCase() + '::' + plain);
+}
 
 function modalOpen(){ return document.getElementById('modalBg')?.classList.contains('show'); }
 
@@ -389,11 +394,43 @@ function refNo(prefix, id){
   return `${prefix}-${String(d.getFullYear()).slice(-2)}${p2(d.getMonth()+1)}${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}`;
 }
 
+/* pendingWriteCount: অফলাইনে করা এন্ট্রি Firestore-এ প্রকৃত সিঙ্ক না হওয়া পর্যন্ত
+   promise resolve হয় না (offline persistence-এর স্বভাব) — তাই এই কাউন্টার দিয়ে
+   ঠিক বোঝা যায় কয়টা এন্ট্রি এখনো সার্ভারে সিঙ্ক হওয়ার অপেক্ষায় আছে, এবং
+   ইন্টারনেট ফিরলে সেগুলো স্বয়ংক্রিয়ভাবে সিঙ্ক হয়ে গেলে ব্যাজে তা দেখানো যায়। */
+let pendingWriteCount = 0;
 function fireWrite(promise, label){
-  promise.catch(err=>{
+  pendingWriteCount++;
+  updateConnBadge();
+  promise.then(()=>{
+    pendingWriteCount = Math.max(0, pendingWriteCount-1);
+    updateConnBadge();
+  }).catch(err=>{
+    pendingWriteCount = Math.max(0, pendingWriteCount-1);
+    updateConnBadge();
     console.error(label, err);
     alert(`⚠️ "${label}" সিঙ্ক করতে সমস্যা হয়েছে: ${err.message}\nইন্টারনেট সংযোগ থাকলে এটা এমনিতেই আবার চেষ্টা করবে।`);
   });
+}
+
+/* ================= AUDIT LOG (কে কখন কী মুছলো/পরিবর্তন করলো) =================
+   ডিলিট, ডেটা মোছা, রিস্টোর, লগইন/লগআউট-এর মতো স্পর্শকাতর কাজগুলো এখানে
+   লগ হয়ে থাকে যাতে পরে দরকার হলে যাচাই করা যায় কে কী করেছে। */
+function logAudit(action, detail){
+  if(!fsDB) return;
+  try{
+    fsDB.collection('erp_audit_log').add({
+      action, detail: detail||'', user: currentUser?currentUser.name:'—',
+      username: currentUser?currentUser.username:'—',
+      at: new Date().toISOString()
+    }).catch(e=>console.warn('audit log ব্যর্থ:', e));
+  }catch(e){ console.warn('audit log ব্যর্থ:', e); }
+}
+async function loadAuditLog(){
+  try{
+    const snap = await fsDB.collection('erp_audit_log').orderBy('at','desc').limit(100).get();
+    return snap.docs.map(d=>d.data());
+  }catch(e){ console.warn('audit log লোড ব্যর্থ:', e); return []; }
 }
 
 function listenCollection(collName, key){
@@ -412,24 +449,129 @@ function listenCollection(collName, key){
     });
   });
 }
-
-/* ছোট্ট running-stats ডকুমেন্ট — ড্যাশবোর্ডের সর্বমোট হিসাব এখান থেকেই আসে,
-   প্রতিবার সব বিক্রয়/ক্রয় স্ক্যান করতে হয় না */
-function listenStats(){
+function listenDoc(collName, docId, key){
   return new Promise(resolve=>{
     let firstLoad = true;
-    fsDB.collection('erp_meta').doc('stats').onSnapshot(snap=>{
-      statsData = snap.exists ? snap.data() : {};
+    fsDB.collection(collName).doc(docId).onSnapshot(snap=>{
+      if(snap.exists) DB[key] = {...DB[key], ...snap.data()};
       if(firstLoad){ firstLoad = false; resolve(); }
-      else if(currentUser && !modalOpen() && currentPage==='dashboard'){ renderDashboard(); }
-    }, err=>{ console.error('stats listen error', err); if(firstLoad){ firstLoad=false; resolve(); } });
+      else if(currentUser && !modalOpen()){ renderPage(currentPage); }
+    }, err=>{
+      console.error('Listen error on '+collName+'/'+docId, err);
+      if(firstLoad){ firstLoad = false; resolve(); }
+    });
   });
+}
+
+/* =====================================================================
+   স্কেল-বান্ধব লোডিং — বিক্রয়/ক্রয়
+   -----------------------------------------------------------------
+   হাজার হাজার পণ্য ঠিক আছে (ব্রাউজারের মেমরিতে থাকা যায়), কিন্তু বছরে
+   লাখ খানেক বিক্রয়/ক্রয় এন্ট্রি সারাজীবনের জন্য একসাথে মেমরিতে রাখলে
+   অ্যাপ ভারী ও স্লো হয়ে যাবে। তাই:
+   - "আজকের" এন্ট্রি সবসময় রিয়েল-টাইম শোনা হয় (তাৎক্ষণিক আপডেট দরকার)।
+   - নির্দিষ্ট তারিখ-রেঞ্জ (পুরনো রিপোর্ট ইত্যাদি) দেখতে চাইলে, ঠিক তখনই
+     শুধু সেই রেঞ্জটুকু Firestore থেকে কোয়েরি করে লোড করা হয় (limit সহ) —
+     পুরো কালেকশন কখনোই একসাথে ডাউনলোড হয় না।
+   - ড্যাশবোর্ড/রিপোর্টের সর্বমোট হিসাব রাখা হয় ছোট ছোট "aggregate" ডকুমেন্টে
+     (erp_stats/alltime এবং erp_daystats/<তারিখ>), যা প্রতিটা এন্ট্রির সাথে
+     সাথেই আপডেট হয় — ফলে লাখ লাখ পুরনো এন্ট্রি স্ক্যান না করেই
+     সর্বমোট/রিপোর্ট মুহূর্তেই দেখানো যায়।
+   ===================================================================== */
+function listenTodaySales(){
+  return new Promise(resolve=>{
+    let firstLoad = true;
+    fsDB.collection('erp_sales').where('date','==', todayStr())
+      .onSnapshot(snap=>{
+        const arr = []; snap.forEach(d=>arr.push(d.data()));
+        arr.sort((a,b)=>b.id-a.id);
+        DB.sales = arr;
+        if(firstLoad){ firstLoad=false; resolve(); }
+        else if(currentUser && !modalOpen() && currentPage==='sales' && rangeSalesRows===null) renderSalesTable();
+      }, err=>{ console.error('today sales listen', err); if(firstLoad){ firstLoad=false; resolve(); } });
+  });
+}
+function listenTodayPurchases(){
+  return new Promise(resolve=>{
+    let firstLoad = true;
+    fsDB.collection('erp_purchases').where('date','==', todayStr())
+      .onSnapshot(snap=>{
+        const arr = []; snap.forEach(d=>arr.push(d.data()));
+        arr.sort((a,b)=>b.id-a.id);
+        DB.purchases = arr;
+        if(firstLoad){ firstLoad=false; resolve(); }
+        else if(currentUser && !modalOpen() && currentPage==='purchase' && rangePurchaseRows===null) renderPurchaseTable();
+      }, err=>{ console.error('today purchases listen', err); if(firstLoad){ firstLoad=false; resolve(); } });
+  });
+}
+/* কাস্টম তারিখ-রেঞ্জ দেখতে চাইলে (আজকের বাইরে) — এককালীন কোয়েরি, limit সহ */
+const RANGE_LOAD_LIMIT = 500;
+async function loadSalesRange(from, to){
+  let q = fsDB.collection('erp_sales').orderBy('date','desc');
+  if(from) q = q.where('date','>=',from);
+  if(to) q = q.where('date','<=',to);
+  const snap = await q.limit(RANGE_LOAD_LIMIT).get();
+  const arr = []; snap.forEach(d=>arr.push(d.data()));
+  arr.sort((a,b)=>b.id-a.id);
+  return {rows: arr, truncated: snap.size>=RANGE_LOAD_LIMIT};
+}
+async function loadPurchaseRange(from, to){
+  let q = fsDB.collection('erp_purchases').orderBy('date','desc');
+  if(from) q = q.where('date','>=',from);
+  if(to) q = q.where('date','<=',to);
+  const snap = await q.limit(RANGE_LOAD_LIMIT).get();
+  const arr = []; snap.forEach(d=>arr.push(d.data()));
+  arr.sort((a,b)=>b.id-a.id);
+  return {rows: arr, truncated: snap.size>=RANGE_LOAD_LIMIT};
+}
+
+/* ---- এগ্রিগেট (দৈনিক + সর্বমোট) আপডেট করার হেল্পার — প্রতিটা ক্রয়/বিক্রয়/খরচ
+   এন্ট্রি সেভ/মোছার সাথেই একই ব্যাচে চলে, যাতে ড্যাশবোর্ড কখনো পুরো
+   কালেকশন স্ক্যান না করেই তাৎক্ষণিক সর্বমোট দেখাতে পারে। */
+function applyStatsDelta(batch, date, deltas){
+  const inc = firebase.firestore.FieldValue.increment;
+  const dayRef = fsDB.collection('erp_daystats').doc(date);
+  const allRef = fsDB.collection('erp_stats').doc('alltime');
+  const dayData = {}, allData = {};
+  Object.keys(deltas).forEach(k=>{ if(deltas[k]){ dayData[k]=inc(deltas[k]); allData[k]=inc(deltas[k]); } });
+  if(Object.keys(dayData).length) batch.set(dayRef, dayData, {merge:true});
+  if(Object.keys(allData).length) batch.set(allRef, allData, {merge:true});
+}
+/* ---- স্টক মুভমেন্ট লগ — প্রতিটা ক্রয়/বিক্রয়ে পণ্যের স্টক ঠিক কোন ভাউচারের
+   কারণে বাড়লো/কমলো তার ট্রেস রাখা হয়। স্টকে গরমিল দেখা দিলে "স্টক ম্যানেজমেন্ট"
+   পেজ থেকে যেকোনো পণ্যের 🕓 হিস্টোরি বাটনে চেপে পুরো লেনদেনের তালিকা
+   (কোন ক্রয়/বিক্রয় ভাউচার থেকে কত পরিমাণ যোগ/বিয়োগ হয়েছে) দেখা যায়। */
+function logStockMove(batch, {productId, qty, type, refType, refId, date}){
+  const ref = fsDB.collection('erp_stock_moves').doc();
+  batch.set(ref, {
+    productId, qty, type, refType, refId, date,
+    at: new Date().toISOString(), by: currentUser?currentUser.name:''
+  });
+}
+async function loadStockMoves(productId){
+  try{
+    const snap = await fsDB.collection('erp_stock_moves').where('productId','==',productId).orderBy('at','desc').limit(300).get();
+    return snap.docs.map(d=>d.data());
+  }catch(e){
+    console.warn('stock moves লোড ব্যর্থ (হয়তো ইনডেক্স তৈরি হচ্ছে):', e);
+    return null;
+  }
+}
+async function loadDayStatsRange(from, to){
+  let q = fsDB.collection('erp_daystats');
+  if(from) q = q.where(firebase.firestore.FieldPath.documentId(),'>=',from);
+  if(to) q = q.where(firebase.firestore.FieldPath.documentId(),'<=',to);
+  const snap = await q.get();
+  const rows = [];
+  snap.forEach(d=>rows.push({date:d.id, ...d.data()}));
+  return rows;
 }
 
 async function seedDefaults(){
   const batch = fsDB.batch();
+  const adminHash = await hashPassword('admin','admin123');
   batch.set(fsDB.collection('erp_users').doc('1'),
-    {id:1, username:'admin', password:'admin123', role:'admin', name:'প্রধান এডমিন'});
+    {id:1, username:'admin', password:adminHash, role:'admin', name:'প্রধান এডমিন'});
   batch.set(fsDB.collection('erp_products').doc('1'),
     {id:1, name:'চাল (৫০ কেজি বস্তা)', unit:'বস্তা', buyPrice:2500, sellPrice:2700, stock:20, lowStock:5,
      brand:'নমুনা কোম্পানি', size:'৫০ কেজি', color:'', shelf:'A1'});
@@ -438,25 +580,76 @@ async function seedDefaults(){
      brand:'নমুনা কোম্পানি', size:'৫ লিটার', color:'', shelf:'B2'});
   batch.set(fsDB.collection('erp_customers').doc('1'), {id:1, name:'সাধারণ কাস্টমার', phone:'', due:0});
   batch.set(fsDB.collection('erp_suppliers').doc('1'), {id:1, name:'সাধারণ সাপ্লায়ার', phone:'', due:0});
-  batch.set(fsDB.collection('erp_meta').doc('stats'),
-    {totalSales:0, totalCOGS:0, totalPurchase:0, totalExpense:0, salesCount:0, purchaseCount:0, expenseCount:0});
+  batch.set(fsDB.collection('erp_settings').doc('business'), {shopName:'ব্যবসা ম্যানেজার', address:'', phone:'', footer:'ধন্যবাদান্তে, আপনার ব্যবসা প্রতিষ্ঠান।', paperSize:'a4'});
+  batch.set(fsDB.collection('erp_stats').doc('alltime'), {totalSales:0, totalPurchase:0, totalExpense:0, totalCogs:0, salesCount:0, purchaseCount:0});
   await batch.commit();
 }
 
-/* ================= AUTH ================= */
-function doLogin(){
+/* ================= AUTH (লগইন লক-আউট সহ) =================
+   বারবার ভুল পাসওয়ার্ড দিলে (৫ বার) ইউজারনেমটি ৫ মিনিটের জন্য লক হয়ে যায় —
+   এতে করে কেউ পাসওয়ার্ড আন্দাজ করে বারবার চেষ্টা (brute-force) করতে পারবে না। */
+const LOGIN_LOCK_KEY = 'erp_login_lock';
+function getLoginLocks(){ try{ return JSON.parse(localStorage.getItem(LOGIN_LOCK_KEY)||'{}'); }catch(e){ return {}; } }
+function setLoginLocks(obj){ try{ localStorage.setItem(LOGIN_LOCK_KEY, JSON.stringify(obj)); }catch(e){} }
+function checkLoginLock(username){
+  const locks = getLoginLocks();
+  const rec = locks[username];
+  if(!rec) return 0;
+  const remainMs = (rec.until||0) - Date.now();
+  return remainMs > 0 ? Math.ceil(remainMs/1000) : 0;
+}
+function registerFailedLogin(username){
+  const locks = getLoginLocks();
+  const rec = locks[username] || {count:0, until:0};
+  rec.count = (rec.count||0) + 1;
+  if(rec.count >= 5){ rec.until = Date.now() + 5*60*1000; rec.count = 0; }
+  locks[username] = rec;
+  setLoginLocks(locks);
+}
+function clearLoginLock(username){
+  const locks = getLoginLocks();
+  delete locks[username];
+  setLoginLocks(locks);
+}
+async function doLogin(){
   const u = document.getElementById('loginUser').value.trim();
   const p = document.getElementById('loginPass').value;
-  const found = DB.users.find(x=>x.username===u && x.password===p);
-  if(!found){
-    document.getElementById('loginErr').textContent = 'ভুল ইউজারনেম বা পাসওয়ার্ড!';
+  const errEl = document.getElementById('loginErr');
+  const lockedFor = checkLoginLock(u);
+  if(lockedFor > 0){
+    errEl.textContent = `অনেকবার ভুল দেওয়া হয়েছে — ${Math.ceil(lockedFor/60)} মিনিট পর আবার চেষ্টা করুন।`;
     return;
   }
+  const hash = await hashPassword(u, p);
+  let found = DB.users.find(x=>x.username===u && x.password===hash);
+  /* ---- পুরনো প্লেইন-টেক্সট পাসওয়ার্ড থেকে মাইগ্রেশন ----
+     এই ফিচার আসার আগে যেসব ইউজার তৈরি হয়েছিল তাদের পাসওয়ার্ড এখনো
+     প্লেইন-টেক্সট থাকতে পারে (Firestore-এ সরাসরি "admin123" এর মতো)।
+     সেক্ষেত্রে সঠিক পুরনো পাসওয়ার্ড দিলে এখানে মিলে যাবে, লগইন হবে,
+     এবং সাথে সাথেই সেটা হ্যাশ করে Firestore-এ আপডেট করে দেওয়া হবে —
+     পরের বার থেকে হ্যাশ দিয়েই মিলবে। ইউজারকে আলাদা কিছু করতে হবে না। */
+  if(!found){
+    const legacyMatch = DB.users.find(x=>x.username===u && x.password===p);
+    if(legacyMatch){
+      found = legacyMatch;
+      fsDB.collection('erp_users').doc(String(legacyMatch.id)).update({password: hash})
+        .catch(e=>console.warn('পুরনো পাসওয়ার্ড হ্যাশে রূপান্তর ব্যর্থ:', e));
+      found.password = hash; // লোকাল কপিও আপডেট, যাতে সাথে সাথেই নতুন হ্যাশ ব্যবহার হয়
+    }
+  }
+  if(!found){
+    registerFailedLogin(u);
+    errEl.textContent = 'ভুল ইউজারনেম বা পাসওয়ার্ড!';
+    return;
+  }
+  clearLoginLock(u);
   currentUser = found;
   sessionStorage.setItem('erp_session_user', String(found.id));
+  logAudit('লগইন', found.name);
   enterApp();
 }
-function logout(){
+function logout(reason){
+  if(currentUser) logAudit('লগআউট' + (reason?` (${reason})`:''), currentUser.name);
   currentUser = null;
   sessionStorage.removeItem('erp_session_user');
   document.getElementById('appScreen').classList.remove('show');
@@ -464,7 +657,24 @@ function logout(){
   document.getElementById('loginUser').value='';
   document.getElementById('loginPass').value='';
   document.getElementById('loginErr').textContent='';
+  clearInactivityTimer();
 }
+
+/* ---- নিষ্ক্রিয় থাকলে অটো-লগআউট (২০ মিনিট) — সিকিউরিটির জন্য ---- */
+let inactivityTimer = null;
+const INACTIVITY_LIMIT_MS = 20*60*1000;
+function resetInactivityTimer(){
+  if(!currentUser) return;
+  clearTimeout(inactivityTimer);
+  inactivityTimer = setTimeout(()=>{
+    alert('নিষ্ক্রিয় থাকার কারণে স্বয়ংক্রিয়ভাবে লগআউট করা হলো — নিরাপত্তার স্বার্থে।');
+    logout('নিষ্ক্রিয়তা');
+  }, INACTIVITY_LIMIT_MS);
+}
+function clearInactivityTimer(){ clearTimeout(inactivityTimer); }
+['click','keydown','touchstart','mousemove'].forEach(evt=>{
+  document.addEventListener(evt, ()=>{ if(currentUser) resetInactivityTimer(); }, {passive:true});
+});
 function tryAutoLogin(){
   const id = sessionStorage.getItem('erp_session_user');
   if(id){
@@ -485,6 +695,8 @@ const PAGES = [
   {key:'expenses', label:'খরচের হিসাব', ic:'💵', minView:'manager'},
   {key:'reports', label:'লাভ-ক্ষতির রিপোর্ট', ic:'📈', minView:'director'},
   {key:'users', label:'ইউজার ম্যানেজমেন্ট', ic:'🔐', minView:'admin'},
+  {key:'settings', label:'দোকানের তথ্য / প্রিন্ট সেটিংস', ic:'⚙️', minView:'director'},
+  {key:'audit', label:'অ্যাক্টিভিটি লগ', ic:'📜', minView:'admin'},
   {key:'backup', label:'ব্যাকআপ / রিস্টোর', ic:'♻️', minView:'director'},
 ];
 const ROLE_NAME_BN = {user:'ইউজার', manager:'ম্যানেজার', director:'ডাইরেক্টর', admin:'এডমিন'};
@@ -497,6 +709,7 @@ function enterApp(){
   document.getElementById('userInitial').textContent = currentUser.name.charAt(0);
   buildNav();
   updateConnBadge();
+  resetInactivityTimer();
   renderPage('dashboard');
 }
 function buildNav(){
@@ -528,7 +741,8 @@ function renderPage(key){
   const map = {
     dashboard: renderDashboard, sales: renderSales, purchase: renderPurchase,
     stock: renderStock, dues: renderDues, expenses: renderExpenses,
-    reports: renderReports, users: renderUsers, backup: renderBackup
+    reports: renderReports, users: renderUsers, backup: renderBackup,
+    settings: renderSettings, audit: renderAuditLog
   };
   map[key]();
 }
@@ -547,35 +761,27 @@ function closeSidebarMobile(){
 function updateConnBadge(){
   const el = document.getElementById('connBadge');
   if(!el) return;
-  if(navigator.onLine){ el.innerHTML = '🟢 অনলাইন — সব সিঙ্ক আছে'; el.style.color = 'var(--teal-2)'; }
-  else { el.innerHTML = '🟠 অফলাইন — এন্ট্রি লোকালি সেভ হচ্ছে'; el.style.color = 'var(--gold-2)'; }
+  if(!navigator.onLine){
+    el.innerHTML = `🟠 অফলাইন — এন্ট্রি লোকালি সেভ হচ্ছে${pendingWriteCount>0?` (${pendingWriteCount}টি বাকি)`:''}`;
+    el.style.color = 'var(--gold-2)';
+  } else if(pendingWriteCount > 0){
+    el.innerHTML = `🔄 সিঙ্ক হচ্ছে... (${pendingWriteCount}টি বাকি)`;
+    el.style.color = 'var(--gold-2)';
+  } else {
+    el.innerHTML = '🟢 অনলাইন — সব সিঙ্ক আছে';
+    el.style.color = 'var(--teal-2)';
+  }
 }
-window.addEventListener('online', updateConnBadge);
-window.addEventListener('offline', updateConnBadge);
-
-/* ================= HELPERS ================= */
-function money(n){ n = Number(n)||0; return '৳' + n.toLocaleString('en-BD', {maximumFractionDigits:2}); }
-function todayStr(){ return new Date().toISOString().slice(0,10); }
-function daysAgoStr(n){ const d = new Date(); d.setDate(d.getDate()-n); return d.toISOString().slice(0,10); }
-function firstOfMonthStr(){ const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`; }
-function fmtDate(d){ const dt = new Date(d); return dt.toLocaleDateString('bn-BD', {year:'numeric',month:'short',day:'numeric'}); }
-function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
-/* সালারি increment/decrement এর জন্য — অফলাইনেও নিরাপদে কাজ করে (Firestore নিজে সামলায়) */
-function fbIncrement(n){ return firebase.firestore.FieldValue.increment(n); }
-
-function openModal(html){
-  document.getElementById('modalBox').innerHTML = html;
-  document.getElementById('modalBg').classList.add('show');
-}
-function closeModal(){ document.getElementById('modalBg').classList.remove('show'); }
-document.getElementById('modalBg').addEventListener('click', e=>{ if(e.target.id==='modalBg') closeModal(); });
-document.addEventListener('keydown', e=>{ if(e.key==='Escape' && modalOpen()) closeModal(); });
-document.addEventListener('keydown', e=>{
-  if(modalOpen() || !currentUser) return;
-  if(e.key==='F2' && currentPage==='sales'){ e.preventDefault(); openSaleModal(); }
-  if(e.key==='F3' && currentPage==='purchase' && hasAccess('manager')){ e.preventDefault(); openPurchaseModal(); }
+window.addEventListener('online', ()=>{
+  updateConnBadge();
+  setTimeout(()=>{
+    if(pendingWriteCount===0){
+      const el = document.getElementById('connBadge');
+      if(el && currentUser){ el.innerHTML = '✅ ইন্টারনেট ফিরেছে — সব এন্ট্রি সিঙ্ক হয়ে গেছে'; setTimeout(updateConnBadge, 3500); }
+    }
+  }, 1200);
 });
+window.addEventListener('offline', updateConnBadge);
 
 /* ================= THEME ================= */
 function applyThemeIcon(){
@@ -593,53 +799,59 @@ function toggleTheme(){
     try{ localStorage.setItem('erp_theme','light'); }catch(e){}
   }
   applyThemeIcon();
-  if(currentUser) renderPage(currentPage);
+  if(currentUser) renderPage(currentPage); // চার্টের রং রিফ্রেশ করতে পুনরায় আঁকা হয়
 }
 applyThemeIcon();
 
-/* ================= DASHBOARD =================
-   সর্বমোট হিসাব (statsData) থেকে আসে — O(1), যত এন্ট্রিই থাকুক না কেন দ্রুত।
-   শুধু ৭ দিনের বার-চার্টের জন্য আলাদা, ছোট, সবসময়-লাইভ ডেটাসেট (dashSales/dashPurchases) ব্যবহার হয়। */
-let dashSales = [], dashPurchases = [];
-let dashListenersReady = false;
-function setupDashboardListeners(){
-  if(dashListenersReady) return;
-  dashListenersReady = true;
-  const from = daysAgoStr(6);
-  fsDB.collection('erp_sales').where('date','>=',from).orderBy('date','desc').limit(1000)
-    .onSnapshot(snap=>{
-      const arr = []; snap.forEach(d=>arr.push(d.data())); dashSales = arr;
-      if(currentUser && !modalOpen() && currentPage==='dashboard') renderDashboard();
-    }, err=>console.error('dashSales error', err));
-  fsDB.collection('erp_purchases').where('date','>=',from).orderBy('date','desc').limit(1000)
-    .onSnapshot(snap=>{
-      const arr = []; snap.forEach(d=>arr.push(d.data())); dashPurchases = arr;
-      if(currentUser && !modalOpen() && currentPage==='dashboard') renderDashboard();
-    }, err=>console.error('dashPurchases error', err));
-}
+/* ================= HELPERS ================= */
+function money(n){ n = Number(n)||0; return '৳' + n.toLocaleString('en-BD', {maximumFractionDigits:2}); }
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function daysAgoStr(n){ const d = new Date(); d.setDate(d.getDate()-n); return d.toISOString().slice(0,10); }
+function fmtDate(d){ const dt = new Date(d); return dt.toLocaleDateString('bn-BD', {year:'numeric',month:'short',day:'numeric'}); }
+function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 
+function openModal(html){
+  document.getElementById('modalBox').innerHTML = html;
+  document.getElementById('modalBg').classList.add('show');
+}
+function closeModal(){ document.getElementById('modalBg').classList.remove('show'); }
+document.getElementById('modalBg').addEventListener('click', e=>{ if(e.target.id==='modalBg') closeModal(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && modalOpen()) closeModal(); });
+document.addEventListener('keydown', e=>{
+  if(modalOpen() || !currentUser) return;
+  if(e.key==='F2' && currentPage==='sales'){ e.preventDefault(); openSaleModal(); }
+  if(e.key==='F3' && currentPage==='purchase' && hasAccess('manager')){ e.preventDefault(); openPurchaseModal(); }
+});
+
+/* ================= DASHBOARD =================
+   এখন আর পুরো বিক্রয়/ক্রয় হিস্টোরি স্ক্যান করে যোগফল বের করা হয় না (লাখ খানেক
+   এন্ট্রি জমলে সেটা স্লো হয়ে যেত) — বরং এগ্রিগেট ডকুমেন্ট থেকে (erp_stats/alltime,
+   erp_daystats/<তারিখ>) সরাসরি যোগফল/চার্ট-ডেটা টেনে আনা হয়, যা প্রতিটা
+   এন্ট্রির সাথেই আপডেট থাকে। কাস্টমার/সাপ্লায়ার বাকিও তাদের নিজ নিজ due
+   ফিল্ড থেকে যোগ হয় (মোট কাস্টমার/সাপ্লায়ার সংখ্যা সীমিত, তাই এটা দ্রুত)। */
 let chartRefs = {};
-function renderDashboard(){
-  setupDashboardListeners();
-  const totalSales = statsData.totalSales||0;
-  const totalPurchase = statsData.totalPurchase||0;
-  const totalExpense = statsData.totalExpense||0;
-  const totalCOGS = statsData.totalCOGS||0;
-  const grossProfit = totalSales - totalCOGS;
-  const netProfit = grossProfit - totalExpense;
+async function renderDashboard(){
+  const st = DB.statsAlltime || {};
+  const totalSales = st.totalSales||0;
+  const totalPurchase = st.totalPurchase||0;
+  const totalExpense = st.totalExpense||0;
+  const costOfGoods = st.totalCogs||0;
   const totalDueFromCustomers = DB.customers.reduce((s,c)=>s+(c.due||0),0);
   const totalDueToSuppliers = DB.suppliers.reduce((s,c)=>s+(c.due||0),0);
+  const grossProfit = totalSales - costOfGoods;
+  const netProfit = grossProfit - totalExpense;
   const lowStockItems = DB.products.filter(p=>p.stock<=p.lowStock);
 
   document.getElementById('mainArea').innerHTML = `
     <div class="topbar">
-      <div><h2>ড্যাশবোর্ড</h2><div class="sub">সামগ্রিক ব্যবসার সারসংক্ষেপ (সর্বকালের হিসাব) — ${fmtDate(new Date())}</div></div>
+      <div><h2>ড্যাশবোর্ড</h2><div class="sub">সামগ্রিক ব্যবসার সারসংক্ষেপ — ${fmtDate(new Date())}</div></div>
     </div>
     <div class="grid g4" style="margin-bottom:16px;">
-      <div class="stat-card teal"><div class="lbl">মোট বিক্রয়</div><div class="val">${money(totalSales)}</div><div class="ic">🧾</div></div>
-      <div class="stat-card"><div class="lbl">মোট ক্রয়</div><div class="val">${money(totalPurchase)}</div><div class="ic">🛒</div></div>
-      <div class="stat-card gold"><div class="lbl">নীট লাভ/ক্ষতি</div><div class="val" style="color:${netProfit>=0?'var(--success)':'var(--danger-text)'}">${money(netProfit)}</div><div class="ic">📈</div></div>
-      <div class="stat-card danger"><div class="lbl">মোট খরচ</div><div class="val">${money(totalExpense)}</div><div class="ic">💵</div></div>
+      <div class="stat-card teal"><div class="lbl">মোট বিক্রয় (সর্বমোট)</div><div class="val">${money(totalSales)}</div><div class="ic">🧾</div></div>
+      <div class="stat-card"><div class="lbl">মোট ক্রয় (সর্বমোট)</div><div class="val">${money(totalPurchase)}</div><div class="ic">🛒</div></div>
+      <div class="stat-card gold"><div class="lbl">নীট লাভ/ক্ষতি (সর্বমোট)</div><div class="val" style="color:${netProfit>=0?'var(--success)':'var(--danger-text)'}">${money(netProfit)}</div><div class="ic">📈</div></div>
+      <div class="stat-card danger"><div class="lbl">মোট খরচ (সর্বমোট)</div><div class="val">${money(totalExpense)}</div><div class="ic">💵</div></div>
     </div>
     <div class="grid g4" style="margin-bottom:16px;">
       <div class="stat-card"><div class="lbl">কাস্টমার বাকি (পাওনা)</div><div class="val" style="color:var(--warn-text)">${money(totalDueFromCustomers)}</div><div class="ic">💰</div></div>
@@ -648,26 +860,31 @@ function renderDashboard(){
       <div class="stat-card"><div class="lbl">লো-স্টক এলার্ট</div><div class="val" style="color:${lowStockItems.length?'var(--danger-text)':'var(--success)'}">${lowStockItems.length}</div><div class="ic">⚠️</div></div>
     </div>
     <div class="grid g2">
-      <div class="card"><h3>বিক্রয় বনাম ক্রয় (সাম্প্রতিক ৭ দিন)</h3><div class="chart-wrap" id="chartWrapSP"><canvas id="chartSalesPurchase"></canvas></div></div>
-      <div class="card"><h3>খরচের বিভাজন (সাম্প্রতিক)</h3><div class="chart-wrap" id="chartWrapExp"><canvas id="chartExpense"></canvas></div></div>
+      <div class="card"><h3>বিক্রয় বনাম ক্রয় (বিগত ৭ দিন)</h3><div class="chart-wrap" id="chartWrapSP"><canvas id="chartSalesPurchase"></canvas></div></div>
+      <div class="card"><h3>খরচের বিভাজন (আজ)</h3><div class="chart-wrap" id="chartWrapExp"><canvas id="chartExpense"></canvas></div></div>
     </div>
     <div class="card" style="margin-top:16px;" id="lowStockCard">
       <h3>⚠️ লো-স্টক পণ্য</h3>
-      ${lowStockItems.length ? `<div class="tbl-wrap"><table><tr><th>পণ্য</th><th class="num">বর্তমান স্টক</th><th class="num">মিনিমাম লিমিট</th></tr>
-        ${lowStockItems.map(p=>`<tr><td>${esc(p.name)}</td><td class="num">${p.stock} ${esc(p.unit)}</td><td class="num">${p.lowStock}</td></tr>`).join('')}
+      ${lowStockItems.length ? `<div class="tbl-wrap"><table><tr><th>পণ্য</th><th>বর্তমান স্টক</th><th>মিনিমাম লিমিট</th></tr>
+        ${lowStockItems.map(p=>`<tr><td>${esc(p.name)}</td><td>${p.stock} ${esc(p.unit)}</td><td>${p.lowStock}</td></tr>`).join('')}
       </table></div>` : `<div style="color:var(--muted);font-size:13px;">সব পণ্যের স্টক পর্যাপ্ত আছে ✅</div>`}
     </div>
   `;
 
+  /* Chart.js একটা বাইরের CDN থেকে লোড হয় — যদি ইন্টারনেট সমস্যার কারণে সেটা লোড
+     হতে ব্যর্থ হয়, তাহলে খালি জায়গার বদলে একটা স্পষ্ট বার্তা দেখাবে। */
   if(typeof Chart === 'undefined'){
-    document.getElementById('chartWrapSP').innerHTML = '<div class="chart-fallback">📉 চার্ট লোড করা যায়নি — "chart.umd.js" ফাইলটা business-erp.html এর সাথে একই ফোল্ডারে আছে কিনা দেখুন, তারপর পেজ রিফ্রেশ করুন।</div>';
-    document.getElementById('chartWrapExp').innerHTML = '<div class="chart-fallback">📉 চার্ট লোড করা যায়নি — "chart.umd.js" ফাইলটা business-erp.html এর সাথে একই ফোল্ডারে আছে কিনা দেখুন, তারপর পেজ রিফ্রেশ করুন।</div>';
+    document.getElementById('chartWrapSP').innerHTML = '<div class="chart-fallback">📉 চার্ট লোড করা যায়নি — "chart.umd.js" ফাইলটা index.html এর সাথে একই ফোল্ডারে আছে কিনা দেখুন, তারপর পেজ রিফ্রেশ করুন।</div>';
+    document.getElementById('chartWrapExp').innerHTML = '<div class="chart-fallback">📉 চার্ট লোড করা যায়নি — "chart.umd.js" ফাইলটা index.html এর সাথে একই ফোল্ডারে আছে কিনা দেখুন, তারপর পেজ রিফ্রেশ করুন।</div>';
     return;
   }
 
   const days = [...Array(7)].map((_,i)=>{ const d = new Date(); d.setDate(d.getDate()-(6-i)); return d.toISOString().slice(0,10); });
-  const salesByDay = days.map(d=>dashSales.filter(s=>s.date===d).reduce((s,x)=>s+x.total,0));
-  const purchByDay = days.map(d=>dashPurchases.filter(s=>s.date===d).reduce((s,x)=>s+x.total,0));
+  const dayRows = await loadDayStatsRange(days[0], days[6]);
+  const byDate = {}; dayRows.forEach(r=>byDate[r.date]=r);
+  const salesByDay = days.map(d=>(byDate[d]?.totalSales)||0);
+  const purchByDay = days.map(d=>(byDate[d]?.totalPurchase)||0);
+  if(currentPage !== 'dashboard') return; // ততক্ষণে অন্য পেজে চলে গেলে চার্ট আঁকার দরকার নেই
 
   try{
     if(chartRefs.sp) chartRefs.sp.destroy();
@@ -687,13 +904,13 @@ function renderDashboard(){
   }catch(err){ console.error('Sales/Purchase chart error:', err); }
 
   const expenseCats = {};
-  DB.expenses.forEach(e=>{ expenseCats[e.category] = (expenseCats[e.category]||0) + Number(e.amount); });
+  DB.expenses.filter(e=>e.date===todayStr()).forEach(e=>{ expenseCats[e.category] = (expenseCats[e.category]||0) + Number(e.amount); });
   const catLabels = Object.keys(expenseCats);
   try{
     if(chartRefs.exp) chartRefs.exp.destroy();
     chartRefs.exp = new Chart(document.getElementById('chartExpense'), {
       type:'doughnut',
-      data:{ labels: catLabels.length?catLabels:['কোনো খরচ নেই'],
+      data:{ labels: catLabels.length?catLabels:['আজ কোনো খরচ নেই'],
         datasets:[{ data: catLabels.length?catLabels.map(c=>expenseCats[c]):[1],
           backgroundColor:['#2f9c80','#d4a441','#c85a4a','#3d6ba8','#8a5fd3','#d35f9c','#5fd3a5']
         }]},
@@ -707,7 +924,7 @@ function renderStock(){
   const canEdit = hasAccess('manager');
   document.getElementById('mainArea').innerHTML = `
     <div class="topbar">
-      <div><h2>স্টক ম্যানেজমেন্ট</h2><div class="sub">পণ্যের তালিকা ও ইনভেন্টরি নিয়ন্ত্রণ — 📜 আইকনে ক্লিক করে ক্রয়/বিক্রয় ইতিহাস দেখুন</div></div>
+      <div><h2>স্টক ম্যানেজমেন্ট</h2><div class="sub">পণ্যের তালিকা ও ইনভেন্টরি নিয়ন্ত্রণ</div></div>
       ${canEdit?`<button class="btn btn-gold" onclick="openProductModal()">+ নতুন পণ্য যোগ করুন</button>`:''}
     </div>
     <div class="toolbar">
@@ -740,14 +957,52 @@ function renderStockTable(){
           <td>${p.shelf?`<span class="pill" style="background:var(--panel-2);color:var(--gold-2);">${esc(p.shelf)}</span>`:'-'}</td>
           <td>${esc(p.unit)}</td><td class="num">${money(p.buyPrice)}</td><td class="num">${money(p.sellPrice)}</td>
           <td class="num"><b>${p.stock}</b></td><td>${status}</td>
-          <td>
-            <button class="icon-btn" onclick="openProductLedger(${p.id})" title="ক্রয়/বিক্রয় ইতিহাস (স্টক অডিট)">📜</button>
-            ${canEdit?`<button class="icon-btn" onclick="openProductModal(${p.id})">✏️</button><button class="icon-btn" onclick="deleteProduct(${p.id})">🗑️</button>`:''}
-          </td>
+          <td><button class="icon-btn" onclick="openStockLedger(${p.id})" title="ক্রয়/বিক্রয় হিস্টোরি (স্টক ট্রেস)">🕓</button>${canEdit?`<button class="icon-btn" onclick="openProductModal(${p.id})">✏️</button><button class="icon-btn" onclick="deleteProduct(${p.id})">🗑️</button>`:''}</td>
         </tr>`;
       }).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--muted);">কোনো পণ্য নেই</td></tr>`}
     </table>
   `;
+}
+/* ================= স্টক লেজার / মুভমেন্ট হিস্টোরি =================
+   "স্টকে গড়মিল হলে সেটা যাচাই করার জন্য ক্রয় ভাউচার দরকার" — এই ফিচারটা
+   ঠিক সেই সমাধান: যেকোনো পণ্যের 🕓 বাটনে চাপলে তার প্রতিটা স্টক-পরিবর্তনের
+   (ক্রয়ে যোগ হওয়া / বিক্রয়ে বিয়োগ হওয়া / এন্ট্রি মোছার কারণে ফেরত) সম্পূর্ণ
+   ইতিহাস এবং প্রতিটার সাথে সংশ্লিষ্ট ক্রয়/বিক্রয় ভাউচার নম্বর দেখা যায়। */
+async function openStockLedger(productId){
+  const p = DB.products.find(x=>x.id===productId);
+  if(!p) return;
+  openModal(`<h3>স্টক হিস্টোরি — ${esc(p.name)}${p.color?' ('+esc(p.color)+')':''}</h3>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">বর্তমান স্টক: <b>${p.stock} ${esc(p.unit)}</b></div>
+    <div id="stockLedgerBody" style="text-align:center;color:var(--muted);padding:20px;">লোড হচ্ছে...</div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">বন্ধ করুন</button></div>`);
+  const moves = await loadStockMoves(productId);
+  if(!modalOpen()) return;
+  const body = document.getElementById('stockLedgerBody');
+  if(moves===null){
+    body.innerHTML = `<div style="color:var(--danger-text);font-size:13px;">হিস্টোরি লোড করা যায়নি। প্রথমবার এই ফিচার ব্যবহারের সময় Firestore-এ ইনডেক্স তৈরি হতে কিছুক্ষণ সময় লাগতে পারে — একটু পর আবার চেষ্টা করুন। (কনসোলে বিস্তারিত এরর দেখুন)</div>`;
+    return;
+  }
+  if(!moves.length){ body.innerHTML = `<div style="color:var(--muted);font-size:13px;">এই পণ্যের জন্য এখনো কোনো লেনদেন রেকর্ড হয়নি (পুরনো এন্ট্রি এই ফিচার চালুর আগের হলে দেখা নাও যেতে পারে)।</div>`; return; }
+  // running balance পেছন থেকে সামনে হিসাব করে দেখানো (সবচেয়ে পুরনো থেকে শুরু করে)
+  const asc = [...moves].reverse();
+  let bal = p.stock - moves.reduce((s,m)=>s+m.qty,0); // সবচেয়ে পুরনো এন্ট্রির আগের স্টক
+  const rowsHtml = asc.map(m=>{
+    bal += m.qty;
+    const typeLabel = {
+      'purchase':'✅ ক্রয় (স্টক বৃদ্ধি)', 'sale':'🔻 বিক্রয় (স্টক হ্রাস)',
+      'purchase-void':'↩️ ক্রয় বাতিল/মোছা', 'sale-void':'↩️ বিক্রয় বাতিল/মোছা',
+      'adjustment':'🛠️ ম্যানুয়াল সমন্বয়'
+    }[m.type] || m.type;
+    const refLabel = m.refType==='purchase' ? refNo('PUR', m.refId) : (m.refType==='sale' ? refNo('INV', m.refId) : '-');
+    return `<tr><td>${fmtDate(m.date||m.at)}</td><td>${typeLabel}</td><td>${refLabel}</td>
+      <td class="num" style="color:${m.qty>=0?'var(--success)':'var(--danger-text)'}">${m.qty>=0?'+':''}${m.qty}</td>
+      <td class="num"><b>${bal}</b></td><td style="font-size:11px;color:var(--muted);">${esc(m.by||'-')}</td></tr>`;
+  }).reverse().join('');
+  body.innerHTML = `<div class="tbl-wrap"><table>
+    <tr><th>তারিখ</th><th>ধরন</th><th>ভাউচার #</th><th class="num">পরিমাণ</th><th class="num">স্টক ব্যালেন্স</th><th>করেছেন</th></tr>
+    ${rowsHtml}
+  </table></div>
+  <div style="font-size:11px;color:var(--muted);margin-top:8px;">💡 সাম্প্রতিক সর্বোচ্চ ৩০০টি লেনদেন দেখানো হচ্ছে। বর্তমান স্টকের সাথে এই হিসাব না মিললে বুঝতে হবে মাঝে ম্যানুয়ালি "পণ্য এডিট" থেকে স্টক সংখ্যা সরাসরি বদলানো হয়েছে (যা এই লগে ধরা পড়ে না)।</div>`;
 }
 function openProductModal(id){
   const p = id ? DB.products.find(x=>x.id===id) : null;
@@ -818,117 +1073,44 @@ function purchaseProductLabel(p){
   return `${p.name}${bits?' — '+bits:''} (ক্রয়মূল্য:৳${p.buyPrice}, স্টক:${p.stock})`;
 }
 
-/* একটা নির্দিষ্ট পণ্যের সমস্ত ক্রয়/বিক্রয় লেনদেন খুঁজে বের করে (স্টক-অডিট/গরমিল
-   খুঁজতে কাজে লাগে) — যত বড় ডেটাসেটই হোক, শুধু এই পণ্য সম্পর্কিত রেকর্ডই আনা হয় */
-async function openProductLedger(productId){
-  const p = DB.products.find(x=>x.id===productId);
-  if(!p) return;
-  openModal(`
-    <h3>${esc(p.name)} — ক্রয়/বিক্রয় ইতিহাস</h3>
-    <div style="font-size:12.5px;color:var(--muted);margin-bottom:10px;">বর্তমান স্টক: <b style="color:var(--gold-2);">${p.stock} ${esc(p.unit)}</b></div>
-    <div id="ledgerBody" style="text-align:center;padding:30px;color:var(--muted);">🔄 লোড হচ্ছে...</div>
-    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal()">বন্ধ করুন</button></div>
-  `);
-  try{
-    const [purSnap, saleSnap] = await Promise.all([
-      fsDB.collection('erp_purchases').where('productIds','array-contains',productId).get(),
-      fsDB.collection('erp_sales').where('productIds','array-contains',productId).get()
-    ]);
-    const purRows = [];
-    purSnap.forEach(d=>{
-      const pur = d.data();
-      const it = (pur.items||[]).find(x=>x.productId===productId);
-      if(it) purRows.push({date:pur.date, id:pur.id, type:'purchase', party:pur.supplierName, qty:it.qty, price:it.price, ref:refNo('PUR',pur.id)});
-    });
-    const saleRows = [];
-    saleSnap.forEach(d=>{
-      const s = d.data();
-      const it = (s.items||[]).find(x=>x.productId===productId);
-      if(it) saleRows.push({date:s.date, id:s.id, type:'sale', party:s.customerName, qty:it.qty, price:it.price, ref:refNo('INV',s.id)});
-    });
-    const allRows = [...purRows, ...saleRows].sort((a,b)=>a.id-b.id);
-    let running = 0;
-    const withRunning = allRows.map(r=>{ running += (r.type==='purchase' ? r.qty : -r.qty); return {...r, running}; }).reverse();
-
-    const body = document.getElementById('ledgerBody');
-    if(!body) return; // মোডাল ততক্ষণে বন্ধ হয়ে গেলে কিছু করার দরকার নেই
-    if(!withRunning.length){
-      body.innerHTML = '<div style="color:var(--muted);font-size:13px;">এই পণ্যের কোনো ক্রয়/বিক্রয় রেকর্ড পাওয়া যায়নি।<br><span style="font-size:11px;">(নোট: এই আপডেটের আগে তৈরি পুরনো এন্ট্রি এখানে দেখা নাও যেতে পারে)</span></div>';
-      return;
-    }
-    body.innerHTML = `
-      <div class="tbl-wrap" style="max-height:400px;overflow-y:auto;">
-      <table>
-        <tr><th>তারিখ</th><th>ধরন</th><th>ভাউচার#</th><th>পক্ষ</th><th class="num">পরিমাণ</th><th class="num">দর</th><th class="num">স্টক ব্যালেন্স</th></tr>
-        ${withRunning.map(r=>`
-          <tr>
-            <td>${fmtDate(r.date)}</td>
-            <td>${r.type==='purchase'?'<span class="pill ok">ক্রয়</span>':'<span class="pill warn">বিক্রয়</span>'}</td>
-            <td>${r.ref}</td>
-            <td>${esc(r.party)}</td>
-            <td class="num">${r.type==='purchase'?'+':'-'}${r.qty}</td>
-            <td class="num">${money(r.price)}</td>
-            <td class="num"><b>${r.running}</b></td>
-          </tr>`).join('')}
-      </table>
-      </div>
-      <div style="font-size:10.5px;color:var(--muted);margin-top:8px;">নোট: এই আপডেটের পর তৈরি এন্ট্রিই এখানে দেখা যাবে; পুরনো এন্ট্রি দেখা নাও যেতে পারে।</div>
-    `;
-  }catch(err){
-    const body = document.getElementById('ledgerBody');
-    if(body) body.innerHTML = `<div style="color:var(--danger-text);font-size:13px;">লোড করতে সমস্যা হয়েছে: ${esc(err.message)}</div>`;
-  }
-}
-
-/* ================= SALES =================
-   এখন তারিখ-রেঞ্জ অনুযায়ী সরাসরি Firestore থেকে আনা হয় (সব বিক্রয় একসাথে লোড হয় না) */
-let salesFetchToken = 0;
+/* ================= SALES ================= */
+let rangeSalesRows = null; // null মানে "আজকের" লাইভ ডেটা দেখানো হচ্ছে; অ্যারে থাকলে মানে কাস্টম তারিখ-রেঞ্জ লোড করা আছে
+function currentSalesRows(){ return rangeSalesRows || DB.sales; }
 function renderSales(){
   document.getElementById('mainArea').innerHTML = `
     <div class="topbar">
-      <div><h2>বিক্রয় হিসাব</h2><div class="sub">ডিফল্টভাবে আজকের বিক্রয় দেখাচ্ছে — নতুন এন্ট্রির শর্টকাট: F2</div></div>
+      <div><h2>বিক্রয় হিসাব</h2><div class="sub">ডিফল্টভাবে আজকের বিক্রয় দেখাচ্ছে (রিয়েল-টাইম) — নতুন এন্ট্রির শর্টকাট: F2</div></div>
       <button class="btn btn-gold" onclick="openSaleModal()">+ নতুন বিক্রয় যোগ করুন (F2)</button>
     </div>
     <div class="toolbar">
-      <input type="date" id="saleFrom" value="${todayStr()}" onchange="fetchSalesForFilter()">
+      <input type="date" id="saleFrom" value="${todayStr()}" onchange="renderSalesTable()">
       <span style="color:var(--muted);font-size:12px;">থেকে</span>
-      <input type="date" id="saleTo" value="${todayStr()}" onchange="fetchSalesForFilter()">
-      <button class="btn btn-outline small-btn" onclick="document.getElementById('saleFrom').value='';document.getElementById('saleTo').value='';fetchSalesForFilter();">সব সময়</button>
+      <input type="date" id="saleTo" value="${todayStr()}" onchange="renderSalesTable()">
+      <button class="btn btn-outline small-btn" onclick="document.getElementById('saleFrom').value='';document.getElementById('saleTo').value='';renderSalesTable();">সব সময়</button>
       <div class="spacer"></div>
       <span style="color:var(--muted);font-size:12.5px;" id="saleCountLbl"></span>
     </div>
-    <div class="card"><div class="tbl-wrap" id="salesTableWrap">🔄 লোড হচ্ছে...</div></div>
+    <div class="card"><div class="tbl-wrap" id="salesTableWrap"></div></div>
   `;
-  fetchSalesForFilter();
+  rangeSalesRows = null;
+  renderSalesTable();
 }
-async function fetchSalesForFilter(){
+async function renderSalesTable(){
   const from = document.getElementById('saleFrom')?.value;
   const to = document.getElementById('saleTo')?.value;
-  const myToken = ++salesFetchToken; // দ্রুত ফিল্টার বদলালে পুরনো রেজাল্ট যেন নতুনটাকে ওভাররাইট না করে
-  try{
-    let q = fsDB.collection('erp_sales');
-    if(from) q = q.where('date','>=',from);
-    if(to) q = q.where('date','<=',to);
-    q = q.orderBy('date','desc').limit(QUERY_LIMIT);
-    const snap = await q.get();
-    if(myToken !== salesFetchToken) return; // পুরনো রিকোয়েস্ট, বাতিল
-    const arr = []; snap.forEach(d=>arr.push(d.data()));
-    arr.sort((a,b)=>b.id-a.id);
-    DB.sales = arr;
-    salesTruncated = snap.size >= QUERY_LIMIT;
-  }catch(err){
-    console.error('fetchSalesForFilter error', err);
-    if(myToken === salesFetchToken){
-      document.getElementById('salesTableWrap').innerHTML = `<div style="padding:20px;color:var(--danger-text);text-align:center;">লোড করতে সমস্যা হয়েছে: ${esc(err.message)}</div>`;
-      return;
-    }
+  const isToday = from===todayStr() && to===todayStr();
+  let truncated = false;
+  if(isToday){
+    rangeSalesRows = null; // লাইভ আজকের ডেটা ব্যবহার হবে
+  } else {
+    document.getElementById('salesTableWrap').innerHTML = `<div style="padding:30px;text-align:center;color:var(--muted);">লোড হচ্ছে...</div>`;
+    const res = await loadSalesRange(from||null, to||null);
+    if(document.getElementById('saleFrom')===null) return; // ততক্ষণে অন্য পেজে চলে গেলে থামুন
+    rangeSalesRows = res.rows; truncated = res.truncated;
   }
-  if(myToken === salesFetchToken) renderSalesTable();
-}
-function renderSalesTable(){
-  const rows = DB.sales;
+  const rows = [...currentSalesRows()].sort((a,b)=>b.id-a.id);
   const countLbl = document.getElementById('saleCountLbl');
-  if(countLbl) countLbl.textContent = `দেখানো হচ্ছে: ${rows.length} টি${salesTruncated?' (সর্বোচ্চ '+QUERY_LIMIT+'টি — আরও দেখতে তারিখ-রেঞ্জ ছোট করুন)':''}`;
+  if(countLbl) countLbl.textContent = `দেখানো হচ্ছে: ${rows.length} টি` + (truncated?` (সাম্প্রতিক সর্বোচ্চ ${RANGE_LOAD_LIMIT}টি — তারিখ রেঞ্জ ছোট করে আরও নির্দিষ্টভাবে দেখুন)`:'');
   const totalAmt = rows.reduce((s,x)=>s+x.total,0);
   document.getElementById('salesTableWrap').innerHTML = `
     <table>
@@ -938,12 +1120,37 @@ function renderSalesTable(){
           <td>${refNo('INV', s.id)}</td><td>${fmtDate(s.date)}</td><td>${esc(s.customerName)}</td>
           <td class="num">${money(s.total)}</td><td class="num">${money(s.paid)}</td><td class="num">${money(s.due)}</td>
           <td>${s.due<=0?'<span class="pill ok">পরিশোধিত</span>':'<span class="pill warn">বাকি আছে</span>'}</td>
-          <td><button class="icon-btn" onclick="printInvoice(${s.id})" title="প্রিন্ট">🖨️</button>
+          <td><button class="icon-btn" onclick="viewSaleDetail(${s.id})" title="বিস্তারিত">👁️</button>
+              <button class="icon-btn" onclick="printInvoice(${s.id})" title="প্রিন্ট">🖨️</button>
               ${hasAccess('manager')?`<button class="icon-btn" onclick="deleteSale(${s.id})" title="মুছুন">🗑️</button>`:''}</td>
         </tr>`).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--muted);">কোনো বিক্রয় নেই</td></tr>`}
-      <tr><td colspan="3" class="foot-total">সর্বমোট (এই তালিকার)</td><td class="foot-total num">${money(totalAmt)}</td><td colspan="4"></td></tr>
+      <tr><td colspan="3" class="foot-total">সর্বমোট</td><td class="foot-total num">${money(totalAmt)}</td><td colspan="4"></td></tr>
     </table>
   `;
+}
+/* বিক্রয়ের বিস্তারিত (কোন পণ্য কত পরিমাণ, কত দরে বিক্রি হলো) — ক্লিয়ার দেখতে */
+function viewSaleDetail(id){
+  const s = currentSalesRows().find(x=>x.id===id);
+  if(!s) return;
+  const rows = s.items.map(it=>{
+    const p = DB.products.find(pp=>pp.id===it.productId);
+    return `<tr><td>${esc(p?p.name:'পণ্য মুছে ফেলা হয়েছে')}</td><td class="num">${it.qty} ${esc(p?p.unit:'')}</td><td class="num">${money(it.price)}</td><td class="num">${money(it.price*it.qty)}</td></tr>`;
+  }).join('');
+  openModal(`
+    <h3>বিক্রয় বিস্তারিত — ${refNo('INV', s.id)}</h3>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">তারিখ: ${fmtDate(s.date)} • কাস্টমার: ${esc(s.customerName)}${s.createdBy?' • এন্ট্রি করেছেন: '+esc(s.createdBy):''}</div>
+    <div class="tbl-wrap"><table>
+      <tr><th>পণ্য</th><th class="num">পরিমাণ</th><th class="num">দর</th><th class="num">সাবটোটাল</th></tr>
+      ${rows}
+      <tr><td colspan="3" class="foot-total">সর্বমোট</td><td class="foot-total num">${money(s.total)}</td></tr>
+      <tr><td colspan="3">জমা</td><td class="num">${money(s.paid)}</td></tr>
+      <tr><td colspan="3"><b>বাকি</b></td><td class="num"><b>${money(s.due)}</b></td></tr>
+    </table></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">বন্ধ করুন</button>
+      <button class="btn btn-gold" onclick="printInvoice(${s.id})">🖨️ প্রিন্ট করুন</button>
+    </div>
+  `);
 }
 let saleCart = [];
 function openSaleModal(){
@@ -1016,12 +1223,10 @@ function calcSaleTotal(){
   if(totalEl) totalEl.value = money(total);
   return total;
 }
-/* বিক্রয় সংরক্ষণ — স্টক-চেক লোকাল ক্যাশ থেকে, ব্যাচে সব লেখা একসাথে পাঠানো হয়
-   (স্টক কমানো, কাস্টমারের বাকি বাড়ানো, sales এন্ট্রি তৈরি, ও running-stats আপডেট) */
 function saveSale(){
   const items = saleCart.filter(l=>l.productId && l.qty>0).map(l=>{
     const p = DB.products.find(x=>x.id==l.productId);
-    return {productId:p.id, qty:Number(l.qty), price:p.sellPrice, cost:p.buyPrice, _stock:p.stock, _name:p.name};
+    return {productId:p.id, qty:Number(l.qty), price:p.sellPrice, buyPrice:p.buyPrice, _stock:p.stock, _name:p.name};
   });
   if(!items.length){ alert('অন্তত একটি পণ্য যোগ করুন'); return; }
   for(const it of items){
@@ -1033,96 +1238,81 @@ function saveSale(){
   const date = document.getElementById('sf_date').value || todayStr();
   const paid = Number(document.getElementById('sf_paid').value)||0;
   const total = items.reduce((s,it)=>s+it.price*it.qty,0);
-  const cogs = items.reduce((s,it)=>s+it.cost*it.qty,0);
+  const cogs = items.reduce((s,it)=>s+it.buyPrice*it.qty,0);
   const due = total - paid;
   const saleId = genId();
-  const productIds = [...new Set(items.map(it=>it.productId))];
 
   const batch = fsDB.batch();
   items.forEach(it=>{
     batch.update(fsDB.collection('erp_products').doc(String(it.productId)), {stock: it._stock - it.qty});
+    logStockMove(batch, {productId:it.productId, qty:-it.qty, type:'sale', refType:'sale', refId:saleId, date});
   });
   batch.update(fsDB.collection('erp_customers').doc(String(custId)), {due: (cust.due||0) + due});
   batch.set(fsDB.collection('erp_sales').doc(String(saleId)), {
-    id:saleId, date, customerId:custId, customerName: cust.name, productIds,
-    items: items.map(({productId,qty,price,cost})=>({productId,qty,price,cost})), total, paid, due
+    id:saleId, date, customerId:custId, customerName: cust.name,
+    items: items.map(({productId,qty,price})=>({productId,qty,price})), total, paid, due, cogs,
+    createdBy: currentUser?currentUser.name:''
   });
-  batch.set(fsDB.collection('erp_meta').doc('stats'), {
-    totalSales: fbIncrement(total), totalCOGS: fbIncrement(cogs), salesCount: fbIncrement(1)
-  }, {merge:true});
+  applyStatsDelta(batch, date, {totalSales: total, totalCogs: cogs, salesCount: 1});
   closeModal();
   fireWrite(batch.commit(), 'বিক্রয় এন্ট্রি');
-  // তাৎক্ষণিক প্রতিক্রিয়ার জন্য বর্তমান ফিল্টারের সাথে মিললে লিস্ট রিফ্রেশ করি
-  if(currentPage==='sales') setTimeout(fetchSalesForFilter, 250);
 }
 function deleteSale(id){
   if(!confirm('এই বিক্রয় এন্ট্রি মুছে ফেলতে চান? (স্টক ফেরত যাবে)')) return;
-  const s = DB.sales.find(x=>x.id===id);
+  const s = currentSalesRows().find(x=>x.id===id);
   if(!s) return;
   const batch = fsDB.batch();
   s.items.forEach(it=>{
     const p = DB.products.find(x=>x.id===it.productId);
     if(p) batch.update(fsDB.collection('erp_products').doc(String(it.productId)), {stock: p.stock + it.qty});
+    logStockMove(batch, {productId:it.productId, qty:it.qty, type:'sale-void', refType:'sale', refId:id, date: s.date});
   });
   const cust = DB.customers.find(c=>c.id===s.customerId);
   if(cust) batch.update(fsDB.collection('erp_customers').doc(String(s.customerId)), {due: (cust.due||0) - s.due});
-  const cogs = s.items.reduce((sum,it)=>sum + (it.cost!==undefined ? it.cost : (DB.products.find(p=>p.id===it.productId)?.buyPrice||0)) * it.qty, 0);
-  batch.set(fsDB.collection('erp_meta').doc('stats'), {
-    totalSales: fbIncrement(-s.total), totalCOGS: fbIncrement(-cogs), salesCount: fbIncrement(-1)
-  }, {merge:true});
   batch.delete(fsDB.collection('erp_sales').doc(String(id)));
+  applyStatsDelta(batch, s.date, {totalSales: -s.total, totalCogs: -(s.cogs||0), salesCount: -1});
+  logAudit('বিক্রয় এন্ট্রি মোছা', refNo('INV', id) + ' — ' + money(s.total));
   fireWrite(batch.commit(), 'বিক্রয় মোছা');
-  if(currentPage==='sales') setTimeout(fetchSalesForFilter, 250);
 }
 
 /* ================= PURCHASE ================= */
-let purchFetchToken = 0;
+let rangePurchaseRows = null;
+function currentPurchaseRows(){ return rangePurchaseRows || DB.purchases; }
 function renderPurchase(){
   document.getElementById('mainArea').innerHTML = `
     <div class="topbar">
-      <div><h2>ক্রয় হিসাব</h2><div class="sub">ডিফল্টভাবে বিগত ৭ দিনের ক্রয় দেখাচ্ছে — নতুন এন্ট্রির শর্টকাট: F3</div></div>
+      <div><h2>ক্রয় হিসাব</h2><div class="sub">ডিফল্টভাবে আজকের ক্রয় দেখাচ্ছে (রিয়েল-টাইম) — নতুন এন্ট্রির শর্টকাট: F3</div></div>
       <button class="btn btn-gold" onclick="openPurchaseModal()">+ নতুন ক্রয় যোগ করুন (F3)</button>
     </div>
     <div class="toolbar">
-      <input type="date" id="purFrom" value="${daysAgoStr(6)}" onchange="fetchPurchasesForFilter()">
+      <input type="date" id="purFrom" value="${todayStr()}" onchange="renderPurchaseTable()">
       <span style="color:var(--muted);font-size:12px;">থেকে</span>
-      <input type="date" id="purTo" value="${todayStr()}" onchange="fetchPurchasesForFilter()">
-      <button class="btn btn-outline small-btn" onclick="document.getElementById('purFrom').value='';document.getElementById('purTo').value='';fetchPurchasesForFilter();">সব সময়</button>
+      <input type="date" id="purTo" value="${todayStr()}" onchange="renderPurchaseTable()">
+      <button class="btn btn-outline small-btn" onclick="document.getElementById('purFrom').value='';document.getElementById('purTo').value='';renderPurchaseTable();">সব সময়</button>
       <div class="spacer"></div>
       <span style="color:var(--muted);font-size:12.5px;" id="purCountLbl"></span>
     </div>
-    <div class="card"><div class="tbl-wrap" id="purchaseTableWrap">🔄 লোড হচ্ছে...</div></div>
+    <div class="card"><div class="tbl-wrap" id="purchaseTableWrap"></div></div>
   `;
-  fetchPurchasesForFilter();
+  rangePurchaseRows = null;
+  renderPurchaseTable();
 }
-async function fetchPurchasesForFilter(){
+async function renderPurchaseTable(){
   const from = document.getElementById('purFrom')?.value;
   const to = document.getElementById('purTo')?.value;
-  const myToken = ++purchFetchToken;
-  try{
-    let q = fsDB.collection('erp_purchases');
-    if(from) q = q.where('date','>=',from);
-    if(to) q = q.where('date','<=',to);
-    q = q.orderBy('date','desc').limit(QUERY_LIMIT);
-    const snap = await q.get();
-    if(myToken !== purchFetchToken) return;
-    const arr = []; snap.forEach(d=>arr.push(d.data()));
-    arr.sort((a,b)=>b.id-a.id);
-    DB.purchases = arr;
-    purchTruncated = snap.size >= QUERY_LIMIT;
-  }catch(err){
-    console.error('fetchPurchasesForFilter error', err);
-    if(myToken === purchFetchToken){
-      document.getElementById('purchaseTableWrap').innerHTML = `<div style="padding:20px;color:var(--danger-text);text-align:center;">লোড করতে সমস্যা হয়েছে: ${esc(err.message)}</div>`;
-      return;
-    }
+  const isToday = from===todayStr() && to===todayStr();
+  let truncated = false;
+  if(isToday){
+    rangePurchaseRows = null;
+  } else {
+    document.getElementById('purchaseTableWrap').innerHTML = `<div style="padding:30px;text-align:center;color:var(--muted);">লোড হচ্ছে...</div>`;
+    const res = await loadPurchaseRange(from||null, to||null);
+    if(document.getElementById('purFrom')===null) return;
+    rangePurchaseRows = res.rows; truncated = res.truncated;
   }
-  if(myToken === purchFetchToken) renderPurchaseTable();
-}
-function renderPurchaseTable(){
-  const rows = DB.purchases;
+  const rows = [...currentPurchaseRows()].sort((a,b)=>b.id-a.id);
   const countLbl = document.getElementById('purCountLbl');
-  if(countLbl) countLbl.textContent = `দেখানো হচ্ছে: ${rows.length} টি${purchTruncated?' (সর্বোচ্চ '+QUERY_LIMIT+'টি — আরও দেখতে তারিখ-রেঞ্জ ছোট করুন)':''}`;
+  if(countLbl) countLbl.textContent = `দেখানো হচ্ছে: ${rows.length} টি` + (truncated?` (সাম্প্রতিক সর্বোচ্চ ${RANGE_LOAD_LIMIT}টি — তারিখ রেঞ্জ ছোট করে আরও নির্দিষ্টভাবে দেখুন)`:'');
   document.getElementById('purchaseTableWrap').innerHTML = `
     <table>
       <tr><th>#</th><th>তারিখ</th><th>সাপ্লায়ার</th><th class="num">মোট</th><th class="num">জমা</th><th class="num">বাকি</th><th>স্ট্যাটাস</th><th></th></tr>
@@ -1131,11 +1321,42 @@ function renderPurchaseTable(){
           <td>${refNo('PUR', s.id)}</td><td>${fmtDate(s.date)}</td><td>${esc(s.supplierName)}</td>
           <td class="num">${money(s.total)}</td><td class="num">${money(s.paid)}</td><td class="num">${money(s.due)}</td>
           <td>${s.due<=0?'<span class="pill ok">পরিশোধিত</span>':'<span class="pill warn">বাকি আছে</span>'}</td>
-          <td>${hasAccess('manager')?`<button class="icon-btn" onclick="deletePurchase(${s.id})">🗑️</button>`:''}</td>
+          <td><button class="icon-btn" onclick="viewPurchaseDetail(${s.id})" title="বিস্তারিত">👁️</button>
+              <button class="icon-btn" onclick="printPurchaseVoucher(${s.id})" title="প্রিন্ট">🖨️</button>
+              ${hasAccess('manager')?`<button class="icon-btn" onclick="deletePurchase(${s.id})" title="মুছুন">🗑️</button>`:''}</td>
         </tr>`).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--muted);">কোনো ক্রয় নেই</td></tr>`}
     </table>
   `;
 }
+/* ক্রয়ের বিস্তারিত — কোন পণ্য কত পরিমাণ কত দরে ক্রয় হলো, স্পষ্টভাবে দেখার জন্য।
+   প্রতিটা পণ্যের পাশে "স্টক হিস্টোরি" বাটন আছে — স্টকে কোনো গরমিল মনে হলে
+   এখান থেকেই সরাসরি সেই পণ্যের সম্পূর্ণ ক্রয়/বিক্রয় লেনদেনের ট্রেস দেখা যায়। */
+function viewPurchaseDetail(id){
+  const pur = currentPurchaseRows().find(x=>x.id===id);
+  if(!pur) return;
+  const rows = pur.items.map(it=>{
+    const p = DB.products.find(pp=>pp.id===it.productId);
+    return `<tr><td>${esc(p?p.name+(p.color?' ('+p.color+')':''):'পণ্য মুছে ফেলা হয়েছে')}</td><td class="num">${it.qty} ${esc(p?p.unit:'')}</td><td class="num">${money(it.price)}</td><td class="num">${money(it.price*it.qty)}</td>
+      <td>${p?`<button class="icon-btn" onclick="closeModal();openStockLedger(${p.id})" title="স্টক হিস্টোরি">🕓</button>`:''}</td></tr>`;
+  }).join('');
+  openModal(`
+    <h3>ক্রয় বিস্তারিত — ${refNo('PUR', pur.id)}</h3>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">তারিখ: ${fmtDate(pur.date)} • সাপ্লায়ার: ${esc(pur.supplierName)}${pur.createdBy?' • এন্ট্রি করেছেন: '+esc(pur.createdBy):''}</div>
+    <div class="tbl-wrap"><table>
+      <tr><th>পণ্য</th><th class="num">পরিমাণ</th><th class="num">ক্রয়মূল্য</th><th class="num">সাবটোটাল</th><th></th></tr>
+      ${rows}
+      <tr><td colspan="3" class="foot-total">সর্বমোট</td><td class="foot-total num">${money(pur.total)}</td><td></td></tr>
+      <tr><td colspan="3">জমা</td><td class="num">${money(pur.paid)}</td><td></td></tr>
+      <tr><td colspan="3"><b>বাকি</b></td><td class="num"><b>${money(pur.due)}</b></td><td></td></tr>
+    </table></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">বন্ধ করুন</button>
+      <button class="btn btn-gold" onclick="printPurchaseVoucher(${pur.id})">🖨️ প্রিন্ট করুন</button>
+    </div>
+  `);
+}
+/* প্রতিটা ক্রয়-লাইনে এখন রং ও শেলফ (দুটোই ঐচ্ছিক) দেওয়া যায় — একই পণ্যের ভিন্ন
+   রং ভিন্ন স্টক-লাইন হিসেবে স্বয়ংক্রিয়ভাবে তৈরি/আপডেট হয়ে যায় (নিচে savePurchase দেখুন) */
 let purchaseCart = [];
 function openPurchaseModal(){
   purchaseCart = [{productId:'', qty:1, color:'', shelf:''}];
@@ -1150,13 +1371,13 @@ function openPurchaseModal(){
     <datalist id="purchaseProductOptions">
       ${DB.products.map(p=>`<option value="${esc(purchaseProductLabel(p))}">`).join('')}
     </datalist>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">
-      💡 প্রতিটা পণ্যের জন্য একটা করে কার্ড — পণ্যের নাম টাইপ করে বাছাই করুন, পরিমাণ দিন।
-      একই পণ্যের ভিন্ন রং থাকলে <b>রং</b> ঘরে লিখুন (আগে থেকে থাকলে স্টক বাড়বে, না থাকলে নতুন
-      রং-লাইন নিজে থেকে তৈরি হবে) — ভিন্ন রং হলে একাধিক কার্ড যোগ করুন।
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">
+      💡 পণ্যের নাম টাইপ করে বাছাই করুন। একই পণ্যের ভিন্ন রং থাকলে <b>রং</b> ঘরে লিখুন —
+      একই রং আগে থেকে থাকলে সেটার স্টক বাড়বে, না থাকলে নতুন রং-লাইন নিজে থেকে তৈরি হবে।
+      একাধিক রং হলে একই পণ্যের জন্য একাধিক লাইন যোগ করুন।
     </div>
     <div class="items-box" id="purchaseItemsBox"></div>
-    <button class="btn btn-outline small-btn" onclick="addPurchaseLine()">+ আরেকটা পণ্য যোগ করুন</button>
+    <button class="btn btn-outline small-btn" onclick="addPurchaseLine()">+ পণ্য যোগ করুন</button>
     <div class="form-row" style="margin-top:14px;">
       <div><label>সর্বমোট</label><input id="pf2_total" readonly></div>
       <div><label>জমা/পরিশোধিত (Enter = সংরক্ষণ)</label><input id="pf2_paid" type="number" value="0" oninput="calcPurchaseTotal()" onkeydown="if(event.key==='Enter'){event.preventDefault();savePurchase();}"></div>
@@ -1169,45 +1390,21 @@ function openPurchaseModal(){
   renderPurchaseLines();
   setTimeout(()=>document.getElementById('purchProd_0')?.focus(), 0);
 }
-/* প্রতিটা পণ্যের জন্য একটা পরিষ্কার ২-সারির কার্ড: উপরে পণ্য/পরিমাণ/দর, নিচে রং/শেলফ/সাবটোটাল */
 function renderPurchaseLines(){
   document.getElementById('purchaseItemsBox').innerHTML = purchaseCart.map((line,i)=>{
     const p = line.productId ? DB.products.find(x=>x.id==line.productId) : null;
     return `
-    <div class="pl-card">
-      <div class="pl-row">
-        <div class="pl-field">
-          <label>পণ্য</label>
-          <input type="text" list="purchaseProductOptions" id="purchProd_${i}" placeholder="পণ্য টাইপ করুন..."
-            value="${p?esc(purchaseProductLabel(p)):''}" oninput="onPurchaseProductInput(${i},this.value)">
-        </div>
-        <div class="pl-field">
-          <label>পরিমাণ</label>
-          <input type="number" min="1" id="purchQty_${i}" value="${line.qty}" placeholder="যেমন: ৫"
-            oninput="purchaseCart[${i}].qty=Number(this.value);calcPurchaseTotal();"
-            onkeydown="if(event.key==='Enter'){event.preventDefault();handlePurchQtyEnter(${i});}"
-            onfocus="this.select()">
-        </div>
-        <div class="pl-field">
-          <label>একক ক্রয়মূল্য</label>
-          <input type="text" readonly value="${p?money(p.buyPrice):'—'}">
-        </div>
-      </div>
-      <div class="pl-row">
-        <div class="pl-field">
-          <label>রং (ঐচ্ছিক)</label>
-          <input type="text" placeholder="যেমন: সাদা" value="${esc(line.color||'')}" oninput="purchaseCart[${i}].color=this.value;">
-        </div>
-        <div class="pl-field">
-          <label>শেলফ (ঐচ্ছিক)</label>
-          <input type="text" placeholder="যেমন: A3" value="${esc(line.shelf||'')}" oninput="purchaseCart[${i}].shelf=this.value;">
-        </div>
-        <div class="pl-field">
-          <label>সাবটোটাল</label>
-          <input type="text" readonly value="${p?money(p.buyPrice*line.qty):'—'}">
-        </div>
-        <button class="pl-remove-btn" onclick="removePurchaseLine(${i})" title="এই লাইন মুছুন">✖ মুছুন</button>
-      </div>
+    <div class="item-line-purchase">
+      <input type="text" list="purchaseProductOptions" id="purchProd_${i}" placeholder="পণ্য টাইপ করুন..."
+        value="${p?esc(purchaseProductLabel(p)):''}" oninput="onPurchaseProductInput(${i},this.value)">
+      <input type="number" min="1" id="purchQty_${i}" value="${line.qty}" placeholder="পরিমাণ"
+        oninput="purchaseCart[${i}].qty=Number(this.value);calcPurchaseTotal();"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();handlePurchQtyEnter(${i});}"
+        onfocus="this.select()">
+      <input type="text" placeholder="রং (ঐচ্ছিক)" value="${esc(line.color||'')}" oninput="purchaseCart[${i}].color=this.value;">
+      <input type="text" placeholder="শেলফ (ঐচ্ছিক)" value="${esc(line.shelf||'')}" oninput="purchaseCart[${i}].shelf=this.value;">
+      <input type="text" readonly value="${p?money(p.buyPrice*line.qty):''}" placeholder="সাবটোটাল">
+      <button class="icon-btn" onclick="removePurchaseLine(${i})">✖</button>
     </div>`;
   }).join('');
 }
@@ -1236,6 +1433,9 @@ function calcPurchaseTotal(){
   if(totalEl) totalEl.value = money(total);
   return total;
 }
+/* প্রতিটা লাইনের জন্য: রং খালি থাকলে সরাসরি বাছাই করা পণ্যেরই স্টক বাড়ে (আগের মতো সহজ)।
+   রং দেওয়া থাকলে — একই নাম+ব্র্যান্ড+সাইজ+রং মিলে এমন পণ্য খোঁজা হয়; পেলে তার স্টক বাড়ে,
+   না পেলে বাছাই করা পণ্যের তথ্য কপি করে নতুন রং-ভিত্তিক পণ্য-লাইন তৈরি হয়। */
 function savePurchase(){
   const rawLines = purchaseCart.filter(l=>l.productId && l.qty>0);
   if(!rawLines.length){ alert('অন্তত একটি পণ্য যোগ করুন'); return; }
@@ -1244,8 +1444,9 @@ function savePurchase(){
   if(!sup){ alert('সাপ্লায়ার খুঁজে পাওয়া যায়নি'); return; }
   const date = document.getElementById('pf2_date').value || todayStr();
   const paid = Number(document.getElementById('pf2_paid').value)||0;
+  const purId = genId();
 
-  const resolvedItems = [];
+  const resolvedItems = []; // {productId, qty, price}
   const batch = fsDB.batch();
 
   for(const line of rawLines){
@@ -1254,7 +1455,9 @@ function savePurchase(){
     const shelf = (line.shelf||'').trim();
 
     if(!color && !shelf){
+      // সহজ পথ: সরাসরি বাছাই করা পণ্যের স্টক বাড়াও
       batch.update(fsDB.collection('erp_products').doc(String(base.id)), {stock: base.stock + line.qty});
+      logStockMove(batch, {productId: base.id, qty: line.qty, type:'purchase', refType:'purchase', refId: purId, date});
       resolvedItems.push({productId: base.id, qty: line.qty, price: base.buyPrice});
       continue;
     }
@@ -1268,6 +1471,7 @@ function savePurchase(){
       const upd = {stock: existingVariant.stock + line.qty};
       if(shelf) upd.shelf = shelf;
       batch.update(fsDB.collection('erp_products').doc(String(existingVariant.id)), upd);
+      logStockMove(batch, {productId: existingVariant.id, qty: line.qty, type:'purchase', refType:'purchase', refId: purId, date});
       resolvedItems.push({productId: existingVariant.id, qty: line.qty, price: base.buyPrice});
     } else {
       const newId = genId();
@@ -1276,43 +1480,39 @@ function savePurchase(){
         buyPrice:base.buyPrice, sellPrice:base.sellPrice, lowStock:base.lowStock,
         color, shelf, stock: line.qty
       });
+      logStockMove(batch, {productId: newId, qty: line.qty, type:'purchase', refType:'purchase', refId: purId, date});
       resolvedItems.push({productId: newId, qty: line.qty, price: base.buyPrice});
     }
   }
 
   const total = resolvedItems.reduce((s,it)=>s+it.price*it.qty,0);
   const due = total - paid;
-  const purId = genId();
-  const productIds = [...new Set(resolvedItems.map(it=>it.productId))];
 
   batch.update(fsDB.collection('erp_suppliers').doc(String(supId)), {due: (sup.due||0) + due});
   batch.set(fsDB.collection('erp_purchases').doc(String(purId)), {
-    id:purId, date, supplierId:supId, supplierName: sup.name, items: resolvedItems, total, paid, due, productIds
+    id:purId, date, supplierId:supId, supplierName: sup.name, items: resolvedItems, total, paid, due,
+    createdBy: currentUser?currentUser.name:''
   });
-  batch.set(fsDB.collection('erp_meta').doc('stats'), {
-    totalPurchase: fbIncrement(total), purchaseCount: fbIncrement(1)
-  }, {merge:true});
+  applyStatsDelta(batch, date, {totalPurchase: total, purchaseCount: 1});
   closeModal();
   fireWrite(batch.commit(), 'ক্রয় এন্ট্রি');
-  if(currentPage==='purchase') setTimeout(fetchPurchasesForFilter, 250);
 }
 function deletePurchase(id){
   if(!confirm('এই ক্রয় এন্ট্রি মুছে ফেলতে চান? (স্টক থেকে বাদ যাবে)')) return;
-  const pur = DB.purchases.find(x=>x.id===id);
+  const pur = currentPurchaseRows().find(x=>x.id===id);
   if(!pur) return;
   const batch = fsDB.batch();
   pur.items.forEach(it=>{
     const p = DB.products.find(x=>x.id===it.productId);
     if(p) batch.update(fsDB.collection('erp_products').doc(String(it.productId)), {stock: p.stock - it.qty});
+    logStockMove(batch, {productId: it.productId, qty: -it.qty, type:'purchase-void', refType:'purchase', refId: id, date: pur.date});
   });
   const sup = DB.suppliers.find(c=>c.id===pur.supplierId);
   if(sup) batch.update(fsDB.collection('erp_suppliers').doc(String(pur.supplierId)), {due: (sup.due||0) - pur.due});
-  batch.set(fsDB.collection('erp_meta').doc('stats'), {
-    totalPurchase: fbIncrement(-pur.total), purchaseCount: fbIncrement(-1)
-  }, {merge:true});
   batch.delete(fsDB.collection('erp_purchases').doc(String(id)));
+  applyStatsDelta(batch, pur.date, {totalPurchase: -pur.total, purchaseCount: -1});
+  logAudit('ক্রয় এন্ট্রি মোছা', refNo('PUR', id) + ' — ' + money(pur.total));
   fireWrite(batch.commit(), 'ক্রয় মোছা');
-  if(currentPage==='purchase') setTimeout(fetchPurchasesForFilter, 250);
 }
 
 /* ================= DUES ================= */
@@ -1364,6 +1564,8 @@ function saveParty(type){
   fireWrite(fsDB.collection(coll).doc(String(newId)).set({id:newId, name, phone, due:0}), 'নতুন '+(type==='customer'?'কাস্টমার':'সাপ্লায়ার'));
   closeModal();
 }
+/* বাকি জমা/পরিশোধ — একটা ছোট মোডাল, ডিফল্টভাবে পুরো বাকিটাই ভরা থাকে (চাইলে কমিয়ে
+   আংশিক জমাও দেওয়া যায়)। সেভ করলেই বাকির অংক কমে যায় — পুরোটা দিলে ০ হয়ে যাবে। */
 function openCollectDueModal(type, id){
   const list = type==='customer'?DB.customers:DB.suppliers;
   const p = list.find(x=>x.id===id);
@@ -1441,15 +1643,13 @@ function saveExpense(){
   const amount = Number(document.getElementById('ef_amount').value);
   if(!amount || amount<=0){ alert('সঠিক পরিমাণ দিন'); return; }
   const newId = genId();
+  const date = document.getElementById('ef_date').value||todayStr();
   const batch = fsDB.batch();
   batch.set(fsDB.collection('erp_expenses').doc(String(newId)), {
-    id:newId, date: document.getElementById('ef_date').value||todayStr(),
-    category: document.getElementById('ef_cat').value, amount,
+    id:newId, date, category: document.getElementById('ef_cat').value, amount,
     note: document.getElementById('ef_note').value.trim()
   });
-  batch.set(fsDB.collection('erp_meta').doc('stats'), {
-    totalExpense: fbIncrement(amount), expenseCount: fbIncrement(1)
-  }, {merge:true});
+  applyStatsDelta(batch, date, {totalExpense: amount});
   fireWrite(batch.commit(), 'নতুন খরচ');
   closeModal();
 }
@@ -1458,68 +1658,47 @@ function deleteExpense(id){
   const e = DB.expenses.find(x=>x.id===id);
   const batch = fsDB.batch();
   batch.delete(fsDB.collection('erp_expenses').doc(String(id)));
-  if(e){
-    batch.set(fsDB.collection('erp_meta').doc('stats'), {
-      totalExpense: fbIncrement(-Number(e.amount)), expenseCount: fbIncrement(-1)
-    }, {merge:true});
-  }
+  if(e) applyStatsDelta(batch, e.date, {totalExpense: -Number(e.amount)});
+  logAudit('খরচ মোছা', e?`${e.category} — ${money(e.amount)}`:String(id));
   fireWrite(batch.commit(), 'খরচ মোছা');
 }
 
-/* ================= REPORTS (Profit/Loss) =================
-   ডিফল্টভাবে চলতি মাস দেখায়, চাহিদামতো তারিখ বদলে অন্য যেকোনো রেঞ্জ দেখা যায়।
-   পুরনো সব ডেটা লোড না করে শুধু নির্বাচিত রেঞ্জটুকুই আনা হয়। */
+/* ================= REPORTS (Profit/Loss) ================= */
 function renderReports(){
   document.getElementById('mainArea').innerHTML = `
     <div class="topbar">
-      <div><h2>লাভ-ক্ষতির রিপোর্ট</h2><div class="sub">ডিফল্টভাবে চলতি মাস দেখাচ্ছে — তারিখ বদলে যেকোনো সময়ের রিপোর্ট দেখা যাবে</div></div>
+      <div><h2>লাভ-ক্ষতির রিপোর্ট</h2><div class="sub">সম্পূর্ণ ব্যবসার আর্থিক বিশ্লেষণ (দ্রুত — দৈনিক সারসংক্ষেপ থেকে হিসাব করা হয়)</div></div>
       <button class="btn btn-outline" onclick="window.print()">🖨️ রিপোর্ট প্রিন্ট করুন</button>
     </div>
     <div class="toolbar">
-      <input type="date" id="repFrom" value="${firstOfMonthStr()}" onchange="renderReportBody()"><span style="color:var(--muted);font-size:12px;">থেকে</span>
-      <input type="date" id="repTo" value="${todayStr()}" onchange="renderReportBody()">
+      <input type="date" id="repFrom" onchange="renderReportBody()"><span style="color:var(--muted);font-size:12px;">থেকে</span>
+      <input type="date" id="repTo" onchange="renderReportBody()">
+      <button class="btn btn-outline small-btn" onclick="document.getElementById('repFrom').value='';document.getElementById('repTo').value='';renderReportBody();">সব সময়</button>
     </div>
-    <div id="reportBody">🔄 লোড হচ্ছে...</div>
+    <div id="reportBody"><div style="color:var(--muted);padding:20px;text-align:center;">লোড হচ্ছে...</div></div>
   `;
   renderReportBody();
 }
-let reportsFetchToken = 0;
+/* এখানে প্রতিটা এন্ট্রি স্ক্যান করার বদলে erp_daystats কালেকশন থেকে হিসাব
+   করা হয় — এই কালেকশনে বছরে বড়জোর ৩৬৫টা ডকুমেন্ট থাকে (প্রতিদিনের জন্য
+   একটা), লেনদেনের সংখ্যা যতই লাখে পৌঁছাক না কেন রিপোর্ট সবসময় দ্রুত থাকবে। */
 async function renderReportBody(){
   const from = document.getElementById('repFrom')?.value;
   const to = document.getElementById('repTo')?.value;
-  const myToken = ++reportsFetchToken;
+  const dayRows = await loadDayStatsRange(from, to);
+  if(document.getElementById('repFrom') === null) return; // ইতিমধ্যে অন্য পেজে চলে গেলে থামুন
 
-  let salesQ = fsDB.collection('erp_sales'), purQ = fsDB.collection('erp_purchases'), expQ = fsDB.collection('erp_expenses');
-  if(from){ salesQ = salesQ.where('date','>=',from); purQ = purQ.where('date','>=',from); expQ = expQ.where('date','>=',from); }
-  if(to){ salesQ = salesQ.where('date','<=',to); purQ = purQ.where('date','<=',to); expQ = expQ.where('date','<=',to); }
-  salesQ = salesQ.orderBy('date').limit(QUERY_LIMIT);
-  purQ = purQ.orderBy('date').limit(QUERY_LIMIT);
-  expQ = expQ.orderBy('date').limit(QUERY_LIMIT);
-
-  let sales=[], purchases=[], expenses=[];
-  try{
-    const [sSnap, pSnap, eSnap] = await Promise.all([salesQ.get(), purQ.get(), expQ.get()]);
-    if(myToken !== reportsFetchToken) return;
-    sSnap.forEach(d=>sales.push(d.data()));
-    pSnap.forEach(d=>purchases.push(d.data()));
-    eSnap.forEach(d=>expenses.push(d.data()));
-  }catch(err){
-    if(myToken === reportsFetchToken){
-      document.getElementById('reportBody').innerHTML = `<div style="padding:20px;color:var(--danger-text);text-align:center;">লোড করতে সমস্যা হয়েছে: ${esc(err.message)}</div>`;
-    }
-    return;
-  }
-
-  const totalSales = sales.reduce((s,x)=>s+x.total,0);
-  const cogs = sales.reduce((sum,sale)=>sum + sale.items.reduce((s2,it)=>{
-    const unitCost = it.cost!==undefined ? it.cost : (DB.products.find(pp=>pp.id===it.productId)?.buyPrice||0);
-    return s2 + unitCost*it.qty;
-  },0),0);
+  const totalSales = dayRows.reduce((s,x)=>s+(x.totalSales||0),0);
+  const cogs = dayRows.reduce((s,x)=>s+(x.totalCogs||0),0);
   const grossProfit = totalSales - cogs;
+  const totalPurchase = dayRows.reduce((s,x)=>s+(x.totalPurchase||0),0);
+
+  // খরচের খাতভিত্তিক বিভাজনের জন্য (ছোট আকারের কালেকশন বলে সরাসরি লোড করা আছে)
+  let expenses = [...DB.expenses];
+  if(from) expenses = expenses.filter(e=>e.date>=from);
+  if(to) expenses = expenses.filter(e=>e.date<=to);
   const totalExpense = expenses.reduce((s,x)=>s+Number(x.amount),0);
   const netProfit = grossProfit - totalExpense;
-  const totalPurchase = purchases.reduce((s,x)=>s+x.total,0);
-
   const expByCat = {};
   expenses.forEach(e=>{ expByCat[e.category]=(expByCat[e.category]||0)+Number(e.amount); });
 
@@ -1543,7 +1722,6 @@ async function renderReportBody(){
         ${Object.keys(expByCat).map(c=>`<tr><td>${esc(c)}</td><td class="num">${money(expByCat[c])}</td></tr>`).join('') || '<tr><td colspan="2" style="text-align:center;color:var(--muted);">কোনো খরচ নেই</td></tr>'}
       </table>
     </div>
-    ${sales.length>=QUERY_LIMIT||purchases.length>=QUERY_LIMIT||expenses.length>=QUERY_LIMIT ? `<div style="font-size:11px;color:var(--warn-text);margin-top:10px;">⚠️ এই রেঞ্জে অনেক বেশি এন্ট্রি থাকায় শুধু প্রথম ${QUERY_LIMIT}টি হিসাব করা হয়েছে — আরও নির্ভুল রিপোর্টের জন্য তারিখ-রেঞ্জ ছোট করুন।</div>` : ''}
   `;
 }
 
@@ -1567,9 +1745,10 @@ function openUserModal(){
   openModal(`
     <h3>নতুন ইউজার যোগ করুন</h3>
     <div class="form-row full"><label>পূর্ণ নাম</label><input id="uf_name"></div>
+    <div class="form-row full"><label>ইউজারনেম</label><input id="uf_username"></div>
     <div class="form-row">
-      <div><label>ইউজারনেম</label><input id="uf_username"></div>
-      <div><label>পাসওয়ার্ড</label><input id="uf_password" type="text"></div>
+      <div><label>পাসওয়ার্ড (কমপক্ষে ৬ ক্যারেক্টার)</label><input id="uf_password" type="password"></div>
+      <div><label>পাসওয়ার্ড পুনরায় লিখুন</label><input id="uf_password2" type="password"></div>
     </div>
     <div class="form-row full"><label>রোল / এক্সেস লেভেল</label>
       <select id="uf_role">
@@ -1586,19 +1765,106 @@ function openUserModal(){
   `);
   setTimeout(()=>document.getElementById('uf_name')?.focus(), 0);
 }
-function saveUser(){
+async function saveUser(){
   const name = document.getElementById('uf_name').value.trim();
   const username = document.getElementById('uf_username').value.trim();
   const password = document.getElementById('uf_password').value;
+  const password2 = document.getElementById('uf_password2').value;
   if(!name||!username||!password){ alert('সব ঘর পূরণ করুন'); return; }
+  if(password.length < 6){ alert('পাসওয়ার্ড কমপক্ষে ৬ ক্যারেক্টার হতে হবে'); return; }
+  if(password !== password2){ alert('দুই ঘরের পাসওয়ার্ড মিলছে না'); return; }
   if(DB.users.find(u=>u.username===username)){ alert('এই ইউজারনেম আগে থেকেই আছে'); return; }
   const newId = genId();
-  fireWrite(fsDB.collection('erp_users').doc(String(newId)).set({id:newId, name, username, password, role: document.getElementById('uf_role').value}), 'নতুন ইউজার');
+  const hash = await hashPassword(username, password);
+  fireWrite(fsDB.collection('erp_users').doc(String(newId)).set({id:newId, name, username, password:hash, role: document.getElementById('uf_role').value}), 'নতুন ইউজার');
+  logAudit('নতুন ইউজার তৈরি', `${name} (${username})`);
   closeModal();
 }
 function deleteUser(id){
   if(!confirm('এই ইউজার মুছে ফেলতে চান?')) return;
+  const u = DB.users.find(x=>x.id===id);
   fireWrite(fsDB.collection('erp_users').doc(String(id)).delete(), 'ইউজার মোছা');
+  logAudit('ইউজার মোছা', u?`${u.name} (${u.username})`:String(id));
+}
+function openChangePasswordModal(){
+  openModal(`
+    <h3>নিজের পাসওয়ার্ড পরিবর্তন করুন</h3>
+    <div class="form-row full"><label>বর্তমান পাসওয়ার্ড</label><input id="cp_old" type="password"></div>
+    <div class="form-row full"><label>নতুন পাসওয়ার্ড (কমপক্ষে ৬ ক্যারেক্টার)</label><input id="cp_new" type="password"></div>
+    <div class="form-row full"><label>নতুন পাসওয়ার্ড আবার লিখুন</label><input id="cp_confirm" type="password"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">বাতিল</button>
+      <button class="btn btn-gold" onclick="changeOwnPassword()">পরিবর্তন করুন</button>
+    </div>
+  `);
+}
+async function changeOwnPassword(){
+  const oldP = document.getElementById('cp_old').value;
+  const newP = document.getElementById('cp_new').value;
+  const confirmP = document.getElementById('cp_confirm').value;
+  const oldHash = await hashPassword(currentUser.username, oldP);
+  if(oldHash !== currentUser.password){ alert('বর্তমান পাসওয়ার্ড ভুল!'); return; }
+  if(newP.length < 6){ alert('নতুন পাসওয়ার্ড কমপক্ষে ৬ ক্যারেক্টার হতে হবে'); return; }
+  if(newP !== confirmP){ alert('নতুন পাসওয়ার্ড দুই ঘরে মিলছে না'); return; }
+  const newHash = await hashPassword(currentUser.username, newP);
+  fireWrite(fsDB.collection('erp_users').doc(String(currentUser.id)).update({password:newHash}), 'পাসওয়ার্ড পরিবর্তন');
+  logAudit('নিজের পাসওয়ার্ড পরিবর্তন', currentUser.name);
+  closeModal();
+  alert('পাসওয়ার্ড পরিবর্তন হয়েছে।');
+}
+
+/* ================= সেটিংস (দোকানের তথ্য / প্রিন্ট) ================= */
+function renderSettings(){
+  const st = DB.settings || {};
+  document.getElementById('mainArea').innerHTML = `
+    <div class="topbar"><div><h2>দোকানের তথ্য / প্রিন্ট সেটিংস</h2><div class="sub">এই তথ্য বিক্রয়/ক্রয় ভাউচারের উপরে ছাপা হবে</div></div></div>
+    <div class="card" style="max-width:520px;">
+      <div class="form-row full"><label>দোকান/প্রতিষ্ঠানের নাম</label><input id="st_name" value="${esc(st.shopName||'')}"></div>
+      <div class="form-row full"><label>ঠিকানা (ঐচ্ছিক)</label><input id="st_addr" value="${esc(st.address||'')}"></div>
+      <div class="form-row full"><label>ফোন নম্বর (ঐচ্ছিক)</label><input id="st_phone" value="${esc(st.phone||'')}"></div>
+      <div class="form-row full"><label>ভাউচারের নিচে ফুটার লাইন</label><input id="st_footer" value="${esc(st.footer||'')}"></div>
+      <div class="form-row full"><label>প্রিন্টের কাগজের সাইজ</label>
+        <select id="st_paper">
+          <option value="a4" ${st.paperSize!=='thermal'?'selected':''}>A4 / A5 (সাধারণ প্রিন্টার বা "Save as PDF")</option>
+          <option value="thermal" ${st.paperSize==='thermal'?'selected':''}>৮০মিমি থার্মাল POS প্রিন্টার (রসিদ প্রিন্টার)</option>
+        </select>
+      </div>
+      <button class="btn btn-gold" onclick="saveSettings()">সংরক্ষণ করুন</button>
+    </div>
+    <div style="font-size:11.5px;color:var(--muted);max-width:520px;margin-top:10px;line-height:1.7;">
+      💡 প্রিন্ট সম্পূর্ণ ফ্রি — কোনো পেইড সফটওয়্যার/সার্ভিস লাগে না। ব্রাউজারের প্রিন্ট ডায়ালগ থেকে সরাসরি
+      প্রিন্টারে পাঠানো যায়, অথবা প্রিন্টার না থাকলে "Save as PDF" বেছে নিয়ে ফাইল হিসেবেও রাখা যায় বা
+      হোয়াটসঅ্যাপে পাঠানো যায়।
+    </div>
+  `;
+}
+function saveSettings(){
+  const data = {
+    shopName: document.getElementById('st_name').value.trim() || 'ব্যবসা ম্যানেজার',
+    address: document.getElementById('st_addr').value.trim(),
+    phone: document.getElementById('st_phone').value.trim(),
+    footer: document.getElementById('st_footer').value.trim(),
+    paperSize: document.getElementById('st_paper').value
+  };
+  fireWrite(fsDB.collection('erp_settings').doc('business').set(data, {merge:true}), 'সেটিংস');
+  alert('সংরক্ষণ হয়েছে।');
+}
+
+/* ================= অ্যাক্টিভিটি লগ (Admin only) ================= */
+async function renderAuditLog(){
+  document.getElementById('mainArea').innerHTML = `
+    <div class="topbar"><div><h2>অ্যাক্টিভিটি লগ</h2><div class="sub">সাম্প্রতিক ১০০টি স্পর্শকাতর কাজ (লগইন, ডিলিট, ডেটা মোছা/রিস্টোর ইত্যাদি)</div></div></div>
+    <div class="card"><div class="tbl-wrap" id="auditWrap"><div style="text-align:center;color:var(--muted);padding:20px;">লোড হচ্ছে...</div></div></div>
+  `;
+  const log = await loadAuditLog();
+  if(currentPage!=='audit') return;
+  document.getElementById('auditWrap').innerHTML = `
+    <table>
+      <tr><th>সময়</th><th>ইউজার</th><th>কাজ</th><th>বিবরণ</th></tr>
+      ${log.map(l=>`<tr><td style="white-space:nowrap;">${new Date(l.at).toLocaleString('bn-BD')}</td><td>${esc(l.user)} (${esc(l.username)})</td><td>${esc(l.action)}</td><td>${esc(l.detail||'-')}</td></tr>`).join('')
+        || `<tr><td colspan="4" style="text-align:center;color:var(--muted);">কোনো লগ নেই</td></tr>`}
+    </table>
+  `;
 }
 
 /* ================= BACKUP / RESTORE ================= */
@@ -1608,8 +1874,8 @@ function renderBackup(){
     <div class="grid g2">
       <div class="card">
         <h3>⬇️ ব্যাকআপ ডাউনলোড করুন</h3>
-        <p style="color:var(--muted);font-size:13px;margin-bottom:14px;">⚠️ ব্যাকআপে শুধু বর্তমানে লোড করা (সাম্প্রতিক) বিক্রয়/ক্রয় থাকবে, পূর্ণ ব্যাকআপের জন্য আগে সংশ্লিষ্ট পেজে গিয়ে "সব সময়" বেছে নিন।</p>
-        <button class="btn btn-gold" onclick="downloadBackup()">ব্যাকআপ ডাউনলোড করুন</button>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:14px;">সমস্ত বিক্রয়, ক্রয়, স্টক, খরচ ও ইউজার তথ্য একটি JSON ফাইলে সংরক্ষণ হবে।</p>
+        <button class="btn btn-gold" id="backupBtn" onclick="downloadBackup()">ব্যাকআপ ডাউনলোড করুন</button>
       </div>
       <div class="card">
         <h3>⬆️ ব্যাকআপ রিস্টোর করুন</h3>
@@ -1619,15 +1885,6 @@ function renderBackup(){
       </div>
     </div>
     ${hasAccess('admin') ? `
-    <div class="card" style="margin-top:16px;">
-      <h3>🔄 পরিসংখ্যান পুনর্গণনা করুন</h3>
-      <p style="color:var(--muted);font-size:13px;margin-bottom:14px;">
-        ড্যাশবোর্ডের সর্বমোট হিসাব (মোট বিক্রয়/ক্রয়/লাভ-ক্ষতি) একটা দ্রুত running-counter থেকে আসে।
-        যদি কখনো মনে হয় এই সংখ্যাগুলো ভুল দেখাচ্ছে (যেমন ম্যানুয়ালি ডেটা এডিট করার পর), এই বাটনে
-        চাপলে সমস্ত ইতিহাস থেকে আবার সঠিকভাবে গণনা করে নেবে। এতে কিছুটা সময় লাগতে পারে (বেশি ডেটা থাকলে)।
-      </p>
-      <button class="btn btn-outline" onclick="recalculateStats()">🔄 পরিসংখ্যান পুনর্গণনা করুন</button>
-    </div>
     <div class="card" style="margin-top:16px;border-color:var(--pill-bad-bg);">
       <h3 style="color:var(--danger-text);">⚠️ ডেঞ্জার জোন — সম্পূর্ণ ব্যবসায়িক ডেটা মুছে ফেলুন</h3>
       <p style="color:var(--muted);font-size:13px;margin-bottom:14px;">
@@ -1639,32 +1896,6 @@ function renderBackup(){
     </div>` : ''}
   `;
 }
-async function recalculateStats(){
-  if(!hasAccess('admin')) return;
-  if(!navigator.onLine){ alert('এই কাজের জন্য ইন্টারনেট সংযোগ লাগবে।'); return; }
-  if(!confirm('এটি সমস্ত বিক্রয়/ক্রয়/খরচ স্ক্যান করে পরিসংখ্যান নতুন করে গণনা করবে। ডেটা বেশি থাকলে কিছুটা সময় লাগতে পারে। শুরু করবেন?')) return;
-  try{
-    let totalSales=0, totalCOGS=0, salesCount=0, totalPurchase=0, purchaseCount=0, totalExpense=0, expenseCount=0;
-    const salesSnap = await fsDB.collection('erp_sales').get();
-    salesSnap.forEach(d=>{
-      const s = d.data();
-      totalSales += s.total||0; salesCount++;
-      (s.items||[]).forEach(it=>{
-        const unitCost = it.cost!==undefined ? it.cost : (DB.products.find(pp=>pp.id===it.productId)?.buyPrice||0);
-        totalCOGS += unitCost * it.qty;
-      });
-    });
-    const purSnap = await fsDB.collection('erp_purchases').get();
-    purSnap.forEach(d=>{ totalPurchase += d.data().total||0; purchaseCount++; });
-    const expSnap = await fsDB.collection('erp_expenses').get();
-    expSnap.forEach(d=>{ totalExpense += Number(d.data().amount)||0; expenseCount++; });
-
-    await fsDB.collection('erp_meta').doc('stats').set({totalSales,totalCOGS,totalPurchase,totalExpense,salesCount,purchaseCount,expenseCount});
-    alert('পরিসংখ্যান পুনর্গণনা সম্পন্ন হয়েছে।');
-  }catch(err){
-    alert('ব্যর্থ হয়েছে: ' + err.message);
-  }
-}
 async function wipeAllData(){
   if(!hasAccess('admin')) return;
   if(!navigator.onLine){ alert('এই কাজের জন্য ইন্টারনেট সংযোগ লাগবে।'); return; }
@@ -1672,7 +1903,7 @@ async function wipeAllData(){
   const typed = prompt('নিশ্চিত করতে নিচের ঘরে ঠিক এই কথাটা লিখুন: মুছে ফেলুন');
   if(typed !== 'মুছে ফেলুন'){ alert('লেখাটা মিলেনি — বাতিল করা হলো, কোনো ডেটা মোছা হয়নি।'); return; }
   try{
-    const collections = ['erp_products','erp_customers','erp_suppliers','erp_sales','erp_purchases','erp_expenses'];
+    const collections = ['erp_products','erp_customers','erp_suppliers','erp_sales','erp_purchases','erp_expenses','erp_stock_moves','erp_daystats'];
     for(const collName of collections){
       const snap = await fsDB.collection(collName).get();
       const docs = snap.docs;
@@ -1682,25 +1913,78 @@ async function wipeAllData(){
         await batch.commit();
       }
     }
-    await fsDB.collection('erp_meta').doc('stats').set({totalSales:0,totalCOGS:0,totalPurchase:0,totalExpense:0,salesCount:0,purchaseCount:0,expenseCount:0});
+    await fsDB.collection('erp_stats').doc('alltime').set({totalSales:0,totalPurchase:0,totalExpense:0,totalCogs:0,salesCount:0,purchaseCount:0});
+    logAudit('সম্পূর্ণ ব্যবসায়িক ডেটা মুছে ফেলা হলো', '');
     alert('সম্পূর্ণ ব্যবসায়িক ডেটা মুছে ফেলা হয়েছে। পেজ রিলোড হচ্ছে...');
     location.reload();
   }catch(err){
     alert('মুছতে সমস্যা হয়েছে: ' + err.message);
   }
 }
-function downloadBackup(){
-  const exportObj = {
-    products: DB.products, customers: DB.customers, suppliers: DB.suppliers,
-    sales: DB.sales, purchases: DB.purchases, expenses: DB.expenses, users: DB.users,
-    exportedAt: new Date().toISOString()
-  };
-  const blob = new Blob([JSON.stringify(exportObj,null,2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `business-backup-${todayStr()}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+/* ব্যাকআপে অবশ্যই সম্পূর্ণ ইতিহাস (শুধু আজকের না) থাকা দরকার — তাই এখানে
+   সরাসরি Firestore থেকে erp_sales/erp_purchases এর পুরো কালেকশন এক-কালীন
+   fetch করা হয় (DB.sales/DB.purchases ব্যবহার করা হয় না, কারণ সেগুলোতে
+   পারফরম্যান্সের জন্য শুধু "আজকের" ডেটা লাইভ রাখা হয়)। এটা একটা কদাচিৎ,
+   ইচ্ছাকৃত কাজ বলে পুরো কালেকশন পড়া এখানে গ্রহণযোগ্য — লাখ খানেক এন্ট্রি
+   হলে কিছুটা সময়/মেমরি লাগতে পারে, নিচে লোডিং বার্তা দেখানো হয়। */
+async function downloadBackup(){
+  const btn = document.getElementById('backupBtn');
+  if(btn){ btn.disabled = true; btn.textContent = 'সম্পূর্ণ ডেটা লোড হচ্ছে...'; }
+  try{
+    const [salesSnap, purchSnap] = await Promise.all([
+      fsDB.collection('erp_sales').get(),
+      fsDB.collection('erp_purchases').get()
+    ]);
+    const allSales = []; salesSnap.forEach(d=>allSales.push(d.data()));
+    const allPurchases = []; purchSnap.forEach(d=>allPurchases.push(d.data()));
+    const exportObj = {
+      products: DB.products, customers: DB.customers, suppliers: DB.suppliers,
+      sales: allSales, purchases: allPurchases, expenses: DB.expenses, users: DB.users,
+      settings: DB.settings,
+      exportedAt: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(exportObj,null,2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `business-backup-${todayStr()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    logAudit('ব্যাকআপ ডাউনলোড', `${allSales.length} বিক্রয়, ${allPurchases.length} ক্রয়`);
+  }catch(err){
+    alert('ব্যাকআপ তৈরি করতে সমস্যা হয়েছে: ' + err.message);
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = 'ব্যাকআপ ডাউনলোড করুন'; }
+  }
+}
+/* রিস্টোরের পর erp_stats/erp_daystats (দ্রুত ড্যাশবোর্ডের জন্য এগ্রিগেট) নতুন করে
+   হিসাব করে নেওয়া হয়, যাতে ড্যাশবোর্ড/রিপোর্ট রিস্টোর হওয়া ডেটার সাথে মিলে যায়।
+   পুরনো erp_stock_moves (ভাউচার-ভিত্তিক স্টক ট্রেস) ব্যাকআপ ফাইলে থাকে না বলে
+   রিস্টোরের পর সেটা খালি করে দেওয়া হয় (নাহলে ভুল/অসংগত ট্রেস দেখাবে)। */
+async function rebuildAggregatesAfterRestore(sales, purchases, expenses){
+  const byDate = {};
+  const addTo = (date, key, val)=>{ if(!byDate[date]) byDate[date]={}; byDate[date][key]=(byDate[date][key]||0)+val; };
+  let totalSales=0, totalPurchase=0, totalExpense=0, totalCogs=0, salesCount=0, purchaseCount=0;
+  sales.forEach(s=>{ addTo(s.date,'totalSales',s.total||0); addTo(s.date,'totalCogs',s.cogs||0); addTo(s.date,'salesCount',1); totalSales+=s.total||0; totalCogs+=s.cogs||0; salesCount++; });
+  purchases.forEach(p=>{ addTo(p.date,'totalPurchase',p.total||0); addTo(p.date,'purchaseCount',1); totalPurchase+=p.total||0; purchaseCount++; });
+  expenses.forEach(e=>{ addTo(e.date,'totalExpense',Number(e.amount)||0); totalExpense+=Number(e.amount)||0; });
+
+  // পুরনো daystats ও stock_moves খালি করা
+  for(const collName of ['erp_daystats','erp_stock_moves']){
+    const snap = await fsDB.collection(collName).get();
+    const docs = snap.docs;
+    for(let i=0;i<docs.length;i+=400){
+      const batch = fsDB.batch();
+      docs.slice(i,i+400).forEach(d=>batch.delete(d.ref));
+      await batch.commit();
+    }
+  }
+  const dates = Object.keys(byDate);
+  for(let i=0;i<dates.length;i+=400){
+    const batch = fsDB.batch();
+    dates.slice(i,i+400).forEach(d=>batch.set(fsDB.collection('erp_daystats').doc(d), byDate[d]));
+    await batch.commit();
+  }
+  await fsDB.collection('erp_stats').doc('alltime').set({totalSales,totalPurchase,totalExpense,totalCogs,salesCount,purchaseCount});
 }
 async function restoreBackup(){
   if(!navigator.onLine){ alert('রিস্টোর করতে ইন্টারনেট সংযোগ লাগবে।'); return; }
@@ -1728,7 +2012,11 @@ async function restoreBackup(){
           await batch.commit();
         }
       }
-      alert('রিস্টোর সফল হয়েছে। এবার "ব্যাকআপ/রিস্টোর" পেজে গিয়ে "🔄 পরিসংখ্যান পুনর্গণনা করুন" চাপুন যাতে ড্যাশবোর্ডের হিসাব ঠিক হয়ে যায়। পেজ রিলোড হচ্ছে...');
+      if(data.settings){ await fsDB.collection('erp_settings').doc('business').set(data.settings, {merge:true}); }
+      btn.textContent = 'হিসাব পুনরায় গণনা হচ্ছে...';
+      await rebuildAggregatesAfterRestore(collections.erp_sales, collections.erp_purchases, collections.erp_expenses);
+      logAudit('ব্যাকআপ রিস্টোর', file.name);
+      alert('রিস্টোর সফল হয়েছে! পেজ রিলোড হচ্ছে...');
       location.reload();
     }catch(err){
       alert('ব্যর্থ হয়েছে: ' + err.message);
@@ -1739,15 +2027,23 @@ async function restoreBackup(){
 }
 
 /* ================= INVOICE PRINT ================= */
+function shopHeaderHtml(){
+  const st = DB.settings || {};
+  return `<h2>${esc(st.shopName||'ব্যবসা ম্যানেজার')}</h2>
+    ${st.address?`<div>${esc(st.address)}</div>`:''}
+    ${st.phone?`<div>ফোন: ${esc(st.phone)}</div>`:''}`;
+}
 function printInvoice(saleId){
-  const s = DB.sales.find(x=>x.id===saleId);
+  const s = currentSalesRows().find(x=>x.id===saleId);
+  if(!s){ alert('এন্ট্রিটি খুঁজে পাওয়া যায়নি (হয়তো তালিকা রিফ্রেশ করা দরকার)'); return; }
   const rows = s.items.map(it=>{
     const p = DB.products.find(pp=>pp.id===it.productId);
     return `<tr><td>${esc(p?p.name:'—')}</td><td class="num">${it.qty} ${esc(p?p.unit:'')}</td><td class="num">${money(it.price)}</td><td class="num">${money(it.price*it.qty)}</td></tr>`;
   }).join('');
+  document.getElementById('printArea').className = (DB.settings?.paperSize==='thermal') ? 'thermal' : '';
   document.getElementById('printArea').innerHTML = `
     <div class="inv-head">
-      <div><h2>ব্যবসা ম্যানেজার</h2><div>ইনভয়েস / রশিদ</div></div>
+      <div>${shopHeaderHtml()}<div>ইনভয়েস / রশিদ</div></div>
       <div style="text-align:left;">
         <div><b>ইনভয়েস #:</b> ${refNo('INV', s.id)}</div>
         <div><b>তারিখ:</b> ${fmtDate(s.date)}</div>
@@ -1763,7 +2059,40 @@ function printInvoice(saleId){
       <tr><td>জমা</td><td class="num">${money(s.paid)}</td></tr>
       <tr><td><b>বাকি</b></td><td class="num"><b>${money(s.due)}</b></td></tr>
     </table>
-    <p style="margin-top:20px;font-size:12px;">ধন্যবাদান্তে, আপনার ব্যবসা প্রতিষ্ঠান।</p>
+    <p style="margin-top:20px;font-size:12px;">${esc(DB.settings?.footer||'ধন্যবাদান্তে, আপনার ব্যবসা প্রতিষ্ঠান।')}</p>
+  `;
+  window.print();
+}
+/* ক্রয় ভাউচার প্রিন্ট — সাপ্লায়ারকে দেওয়ার জন্য বা নিজের রেকর্ডের জন্য।
+   বিক্রয় ইনভয়েসের মতোই সম্পূর্ণ ফ্রি — ব্রাউজারের window.print() ব্যবহার করে,
+   কোনো পেইড লাইব্রেরি/সার্ভিস লাগে না; প্রিন্টার না থাকলে "Save as PDF"-ও করা যায়। */
+function printPurchaseVoucher(purId){
+  const pur = currentPurchaseRows().find(x=>x.id===purId);
+  if(!pur){ alert('এন্ট্রিটি খুঁজে পাওয়া যায়নি (হয়তো তালিকা রিফ্রেশ করা দরকার)'); return; }
+  const rows = pur.items.map(it=>{
+    const p = DB.products.find(pp=>pp.id===it.productId);
+    return `<tr><td>${esc(p?p.name+(p.color?' ('+p.color+')':''):'—')}</td><td class="num">${it.qty} ${esc(p?p.unit:'')}</td><td class="num">${money(it.price)}</td><td class="num">${money(it.price*it.qty)}</td></tr>`;
+  }).join('');
+  document.getElementById('printArea').className = (DB.settings?.paperSize==='thermal') ? 'thermal' : '';
+  document.getElementById('printArea').innerHTML = `
+    <div class="inv-head">
+      <div>${shopHeaderHtml()}<div>ক্রয় ভাউচার</div></div>
+      <div style="text-align:left;">
+        <div><b>ভাউচার #:</b> ${refNo('PUR', pur.id)}</div>
+        <div><b>তারিখ:</b> ${fmtDate(pur.date)}</div>
+        <div><b>সাপ্লায়ার:</b> ${esc(pur.supplierName)}</div>
+      </div>
+    </div>
+    <table class="inv-table">
+      <tr><th>পণ্য</th><th class="num">পরিমাণ</th><th class="num">ক্রয়মূল্য</th><th class="num">সাবটোটাল</th></tr>
+      ${rows}
+    </table>
+    <table class="inv-table" style="width:300px;margin-inline-start:auto;">
+      <tr><td>সর্বমোট</td><td class="num">${money(pur.total)}</td></tr>
+      <tr><td>জমা</td><td class="num">${money(pur.paid)}</td></tr>
+      <tr><td><b>বাকি</b></td><td class="num"><b>${money(pur.due)}</b></td></tr>
+    </table>
+    <p style="margin-top:20px;font-size:12px;">${esc(DB.settings?.footer||'ধন্যবাদান্তে।')}</p>
   `;
   window.print();
 }
@@ -1818,15 +2147,20 @@ async function bootApp(){
     }
 
     statusEl.textContent = '📦 ডেটা লোড করা হচ্ছে...';
-    /* শুধু বাউন্ডেড-সাইজ কালেকশন এখানে পুরোপুরি সিঙ্ক করা হয়; sales/purchases
-       পরে যখন সংশ্লিষ্ট পেজে যাওয়া হবে তখন প্রয়োজনমতো (তারিখ-রেঞ্জ ধরে) আনা হবে */
+    /* বিক্রয়/ক্রয় এখন সম্পূর্ণ কালেকশন চিরকাল লোড করে রাখা হয় না (লাখ লাখ এন্ট্রি হলে
+       অ্যাপ ভারী/স্লো হয়ে যেত) — বরং শুধু "আজকের" এন্ট্রি রিয়েল-টাইম শোনা হয়;
+       পুরনো তারিখ দেখতে চাইলে সেই মুহূর্তেই সেই রেঞ্জটুকু আলাদাভাবে লোড হয়
+       (দেখুন loadSalesRange/loadPurchaseRange)। */
     await Promise.all([
       listenCollection('erp_products','products'),
       listenCollection('erp_customers','customers'),
       listenCollection('erp_suppliers','suppliers'),
       listenCollection('erp_expenses','expenses'),
       listenCollection('erp_users','users'),
-      listenStats(),
+      listenDoc('erp_settings','business','settings'),
+      listenDoc('erp_stats','alltime','statsAlltime'),
+      listenTodaySales(),
+      listenTodayPurchases(),
     ]);
 
     document.getElementById('bootScreen').style.display = 'none';

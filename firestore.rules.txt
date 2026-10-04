@@ -1,0 +1,79 @@
+═══════════════════════════════════════════════════════════════════
+ ব্যবসা ম্যানেজার — Firestore Security Rules (সুপারিশকৃত)
+═══════════════════════════════════════════════════════════════════
+
+⚠️ গুরুত্বপূর্ণ প্রেক্ষাপট:
+এই অ্যাপটি Firebase "Anonymous Authentication" ব্যবহার করে — অর্থাৎ যে
+কেউ অ্যাপটা খুললেই একটা anonymous অ্যাকাউন্ট দিয়ে Firestore-এ সংযুক্ত
+হয়ে যায়। অ্যাপের ভেতরের লগইন স্ক্রিন (ইউজারনেম/পাসওয়ার্ড) শুধু অ্যাপের
+UI স্তরে নিয়ন্ত্রণ করে কে কী দেখতে/করতে পারবে — কিন্তু Firestore-এর
+ডিফল্ট নিয়মে (Test Mode) যেকোনো anonymous ইউজার সরাসরি ব্রাউজারের
+ডেভেলপার কনসোল থেকে পুরো ডেটাবেস পড়তে/লিখতে/মুছতে পারবে, অ্যাপের UI
+এড়িয়ে গিয়ে। তাই প্রকৃত নিরাপত্তার জন্য Firebase Console-এ গিয়ে নিচের
+Rules বসিয়ে দেওয়া অত্যন্ত জরুরি।
+
+কীভাবে বসাবেন:
+1. https://console.firebase.google.com এ আপনার প্রজেক্টে যান
+2. বাম মেনু থেকে Firestore Database → Rules ট্যাব
+3. নিচের পুরো কোডটুকু কপি করে পেস্ট করুন, তারপর "Publish" চাপুন
+
+───────────────────────────────────────────────────────────────────
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // শুধু লগইন করা (এমনকি anonymous) ইউজারই ডেটাবেসে ঢুকতে পারবে —
+    // সম্পূর্ণ অচেনা/লগআউট থাকা অবস্থায় কেউ কিছুই পড়তে/লিখতে পারবে না।
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    match /erp_products/{docId}    { allow read, write: if signedIn(); }
+    match /erp_customers/{docId}   { allow read, write: if signedIn(); }
+    match /erp_suppliers/{docId}   { allow read, write: if signedIn(); }
+    match /erp_sales/{docId}       { allow read, write: if signedIn(); }
+    match /erp_purchases/{docId}   { allow read, write: if signedIn(); }
+    match /erp_expenses/{docId}    { allow read, write: if signedIn(); }
+    match /erp_users/{docId}       { allow read, write: if signedIn(); }
+    match /erp_settings/{docId}    { allow read, write: if signedIn(); }
+    match /erp_stats/{docId}       { allow read, write: if signedIn(); }
+    match /erp_daystats/{docId}    { allow read, write: if signedIn(); }
+    match /erp_stock_moves/{docId} { allow read, write: if signedIn(); }
+    match /erp_audit_log/{docId}   { allow read, write: if signedIn(); }
+
+    // অন্য কোনো কালেকশনে কিছু নেই — ডিফল্টভাবে সবকিছু বন্ধ
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+───────────────────────────────────────────────────────────────────
+
+এই Rules আগের চেয়ে অনেক নিরাপদ (ডিফল্ট Test Mode-এ সম্পূর্ণ ওপেন থাকে,
+এমনকি anonymous auth ছাড়াও যে কেউ ঢুকতে পারে), তবে মনে রাখবেন —
+যেহেতু সব ইউজার একই "anonymous" Firebase অ্যাকাউন্ট শেয়ার করে
+(অ্যাপের লগইন সিস্টেম আলাদা), তাই এই Rules দিয়ে "User" রোলের কাউকে
+"Admin"-এর কাজ করা থেকে Firestore স্তরে আটকানো সম্ভব না — সেটা এখনো
+অ্যাপের ভেতরের UI/role-check এর ওপর নির্ভর করে (hasAccess() ফাংশন)।
+
+সত্যিকারের রোল-ভিত্তিক Firestore-স্তরের নিরাপত্তা পেতে হলে ভবিষ্যতে
+Firebase Authentication-এ প্রকৃত ইমেইল/পাসওয়ার্ড লগইন + Custom Claims
+(role) ব্যবহার করে Rules-এ role চেক করা লাগবে — সেটা একটা বড় পরিবর্তন,
+প্রয়োজন হলে আলাদাভাবে করিয়ে নিতে পারেন।
+
+───────────────────────────────────────────────────────────────────
+ইনডেক্স (Indexes) সম্পর্কে নোট:
+───────────────────────────────────────────────────────────────────
+অ্যাপ চালানোর সময় প্রথমবার "স্টক হিস্টোরি" (🕓) খুললে যদি এরর দেখায়
+("The query requires an index" জাতীয়), তাহলে Firebase কনসোলে
+Firestore → Indexes ট্যাবে গিয়ে (অথবা এরর মেসেজের সাথে দেওয়া লিংকে
+ক্লিক করে) একটা কম্পোজিট ইনডেক্স তৈরি করতে হবে:
+   কালেকশন: erp_stock_moves
+   ফিল্ড: productId (Ascending), at (Descending)
+এটা একবার তৈরি হয়ে গেলে (কয়েক মিনিট সময় লাগে) সমস্যা চলে যাবে।
+
+erp_daystats কালেকশনের জন্য কোনো এক্সট্রা ইনডেক্স লাগবে না (ডকুমেন্ট
+আইডি দিয়ে রেঞ্জ কোয়েরি, Firestore-এ এটা বিল্ট-ইন সাপোর্টেড)।
+erp_sales/erp_purchases এর date ফিল্ড দিয়ে রেঞ্জ+সর্ট কোয়েরিরও আলাদা
+কম্পোজিট ইনডেক্স লাগে না (একই ফিল্ডে রেঞ্জ ও সর্ট হলে Firestore
+এমনিতেই সিঙ্গেল-ফিল্ড ইনডেক্স ব্যবহার করে)।
