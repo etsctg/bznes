@@ -21,6 +21,10 @@
   }catch(e){}
 })();
 </script>
+<!-- ফন্ট: Noto Sans Bengali — বাংলা লেখা পরিষ্কার ও সামঞ্জস্যপূর্ণ দেখানোর জন্য -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="chart.umd.js"></script>
 <!-- Firebase (free tier) — powers real multi-user shared data. See CONFIG section in <script> below. -->
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -46,7 +50,13 @@
   --pill-ok-bg:#1c4a3a; --pill-ok-text:#5fd3a5;
   --pill-warn-bg:#4a3a1c; --pill-warn-text:#f0c869;
   --pill-bad-bg:#4a1c1c; --pill-bad-text:#ff8a75;
-  font-family:'Segoe UI',Tahoma,Arial,sans-serif;
+  --blue:#2f6fb0; --blue-2:#5b9ae0;
+  --purple:#6a4fc2; --purple-2:#9b84e8;
+  --pink:#b24a85; --pink-2:#e083b5;
+  --amber:#b4791a; --amber-2:#f0c869;
+  --shadow-sm:0 2px 10px rgba(0,0,0,.18);
+  --shadow-md:0 10px 28px rgba(0,0,0,.28);
+  font-family:'Noto Sans Bengali','Segoe UI',Tahoma,Arial,sans-serif;
 }
 html[data-theme="light"]{
   --bg:#f7f4ec;
@@ -66,6 +76,12 @@ html[data-theme="light"]{
   --pill-ok-bg:#dcf3e8; --pill-ok-text:#147a52;
   --pill-warn-bg:#faf0d3; --pill-warn-text:#93660c;
   --pill-bad-bg:#fbe1dc; --pill-bad-text:#b3392a;
+  --blue:#2f6fb0; --blue-2:#1f5590;
+  --purple:#6a4fc2; --purple-2:#53389e;
+  --pink:#b24a85; --pink-2:#93366a;
+  --amber:#b4791a; --amber-2:#8f5e10;
+  --shadow-sm:0 2px 10px rgba(30,40,35,.08);
+  --shadow-md:0 10px 28px rgba(30,40,35,.12);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--ink);min-height:100vh;}
@@ -105,16 +121,17 @@ body{background:var(--bg);color:var(--ink);min-height:100vh;}
 .field input:focus,.field select:focus{border-color:var(--teal-2);}
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:6px;
-  padding:11px 18px;border-radius:8px;border:none;cursor:pointer;font-size:14px;font-weight:600;
-  transition:.15s;
+  padding:11px 18px;border-radius:9px;border:none;cursor:pointer;font-size:14px;font-weight:700;
+  transition:transform .12s ease, filter .15s ease, box-shadow .15s ease;
 }
-.btn-primary{background:linear-gradient(135deg,var(--teal-2),var(--teal));color:#fff;width:100%;margin-top:20px;}
-.btn-primary:hover{filter:brightness(1.1);}
-.btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold-2));color:#1a1a1a;}
-.btn-gold:hover{filter:brightness(1.06);}
+.btn-primary{background:linear-gradient(135deg,var(--teal-2),var(--teal));color:#fff;width:100%;margin-top:20px;box-shadow:0 6px 16px rgba(47,156,128,.3);}
+.btn-primary:hover{filter:brightness(1.1);transform:translateY(-1px);}
+.btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold-2));color:#1a1a1a;box-shadow:0 6px 16px rgba(212,164,65,.3);}
+.btn-gold:hover{filter:brightness(1.06);transform:translateY(-1px);}
 .btn-outline{background:transparent;border:1px solid var(--line);color:var(--ink);}
-.btn-outline:hover{border-color:var(--teal-2);}
-.btn-danger{background:var(--danger);color:#fff;}
+.btn-outline:hover{border-color:var(--teal-2);color:var(--teal-2);}
+.btn-danger{background:var(--danger);color:#fff;box-shadow:0 6px 16px rgba(200,90,74,.3);}
+.btn-danger:hover{transform:translateY(-1px);}
 .login-err{color:var(--danger-text);font-size:12.5px;margin-top:10px;min-height:14px;}
 .login-hint{margin-top:18px;font-size:11.5px;color:var(--muted);line-height:1.6;background:var(--panel-2);
   border:1px dashed var(--line);border-radius:8px;padding:10px 12px;}
@@ -148,11 +165,11 @@ body{background:var(--bg);color:var(--ink);min-height:100vh;}
 }
 .sidebar .brand{padding:0 6px 18px;border-bottom:1px solid var(--line);margin-bottom:12px;}
 .nav-item{
-  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:var(--muted);
-  cursor:pointer;font-size:13.5px;font-weight:500;
+  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;color:var(--muted);
+  cursor:pointer;font-size:13.5px;font-weight:600;transition:background .12s ease, color .12s ease, transform .12s ease;
 }
-.nav-item:hover{background:var(--panel-2);color:var(--ink);}
-.nav-item.active{background:linear-gradient(135deg,var(--teal-2),var(--teal));color:#fff;}
+.nav-item:hover{background:var(--panel-2);color:var(--ink);transform:translateX(2px);}
+.nav-item.active{background:linear-gradient(135deg,var(--teal-2),var(--teal));color:#fff;box-shadow:0 4px 14px rgba(47,156,128,.35);}
 .nav-item .ic{width:18px;text-align:center;}
 .sidebar-foot{margin-top:auto;padding-top:14px;border-top:1px solid var(--line);}
 .user-chip{display:flex;align-items:center;gap:10px;padding:8px 6px;font-size:12.5px;color:var(--muted);}
@@ -173,25 +190,51 @@ body{background:var(--bg);color:var(--ink);min-height:100vh;}
 .g2{grid-template-columns:2fr 1fr;}
 @media(max-width:900px){.g4{grid-template-columns:repeat(2,1fr);}.g3{grid-template-columns:1fr;}.g2{grid-template-columns:1fr;}}
 
-.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;}
-.stat-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden;}
-.stat-card .lbl{font-size:12px;color:var(--muted);}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow-sm);}
+.stat-card{
+  background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--teal-2);
+  border-radius:14px;padding:16px 18px;position:relative;overflow:hidden;
+  box-shadow:var(--shadow-sm);transition:transform .15s ease, box-shadow .15s ease;
+}
+.stat-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);}
+.stat-card .lbl{font-size:12px;color:var(--muted);font-weight:600;}
 .stat-card .val{font-size:22px;font-weight:800;margin-top:6px;}
-.stat-card .ic{position:absolute;right:14px;top:14px;font-size:26px;opacity:.25;}
-.stat-card.gold{border-color:#4a3d1c;}
-.stat-card.gold .val{color:var(--gold-2);}
-.stat-card.danger .val{color:var(--danger-text);}
+.stat-card .ic{
+  position:absolute;right:14px;top:12px;font-size:19px;width:38px;height:38px;border-radius:11px;
+  display:flex;align-items:center;justify-content:center;background:var(--panel-2);
+}
+.stat-card.teal{border-top-color:var(--teal-2);}
+.stat-card.teal .ic{background:color-mix(in srgb, var(--teal-2) 18%, transparent);}
 .stat-card.teal .val{color:var(--teal-2);}
+.stat-card.gold{border-top-color:var(--gold-2);}
+.stat-card.gold .ic{background:color-mix(in srgb, var(--gold-2) 20%, transparent);}
+.stat-card.gold .val{color:var(--gold-2);}
+.stat-card.danger{border-top-color:var(--danger-text);}
+.stat-card.danger .ic{background:color-mix(in srgb, var(--danger-text) 18%, transparent);}
+.stat-card.danger .val{color:var(--danger-text);}
+.stat-card.blue{border-top-color:var(--blue-2);}
+.stat-card.blue .ic{background:color-mix(in srgb, var(--blue-2) 20%, transparent);}
+.stat-card.blue .val{color:var(--blue-2);}
+.stat-card.purple{border-top-color:var(--purple-2);}
+.stat-card.purple .ic{background:color-mix(in srgb, var(--purple-2) 20%, transparent);}
+.stat-card.purple .val{color:var(--purple-2);}
+.stat-card.pink{border-top-color:var(--pink-2);}
+.stat-card.pink .ic{background:color-mix(in srgb, var(--pink-2) 20%, transparent);}
+.stat-card.pink .val{color:var(--pink-2);}
+.stat-card.amber{border-top-color:var(--amber-2);}
+.stat-card.amber .ic{background:color-mix(in srgb, var(--amber-2) 22%, transparent);}
+.stat-card.amber .val{color:var(--amber-2);}
 
-.card h3{font-size:14.5px;margin-bottom:12px;color:var(--gold-2);}
+.card h3{font-size:14.5px;margin-bottom:12px;color:var(--gold-2);display:flex;align-items:center;gap:7px;}
 
 table{width:100%;border-collapse:collapse;font-size:13px;}
-th{text-align:left;padding:9px 8px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);font-size:12px;}
-td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);}
+th{text-align:left;padding:10px 8px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--line);font-size:11.5px;letter-spacing:.2px;text-transform:uppercase;background:var(--panel-2);}
+td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);}
 th.num,td.num{text-align:right;}
+tr:nth-child(even) td{background:color-mix(in srgb, var(--panel-2) 45%, transparent);}
 tr:hover td{background:var(--panel-2);}
-.tbl-wrap{overflow-x:auto;}
-.pill{padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.tbl-wrap{overflow-x:auto;border-radius:10px;}
+.pill{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
 .pill.ok{background:var(--pill-ok-bg);color:var(--pill-ok-text);}
 .pill.warn{background:var(--pill-warn-bg);color:var(--pill-warn-text);}
 .pill.bad{background:var(--pill-bad-bg);color:var(--pill-bad-text);}
@@ -207,8 +250,8 @@ tr:hover td{background:var(--panel-2);}
 }
 .modal-bg.show{display:flex;}
 .modal{
-  background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:560px;width:100%;
-  max-height:88vh;overflow-y:auto;padding:22px;
+  background:var(--panel);border:1px solid var(--line);border-radius:16px;max-width:560px;width:100%;
+  max-height:88vh;overflow-y:auto;padding:22px;box-shadow:var(--shadow-md);
 }
 .modal h3{font-size:16px;margin-bottom:16px;color:var(--gold-2);}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
@@ -849,19 +892,20 @@ async function renderDashboard(){
     </div>
     <div class="grid g4" style="margin-bottom:16px;">
       <div class="stat-card teal"><div class="lbl">মোট বিক্রয় (সর্বমোট)</div><div class="val">${money(totalSales)}</div><div class="ic">🧾</div></div>
-      <div class="stat-card"><div class="lbl">মোট ক্রয় (সর্বমোট)</div><div class="val">${money(totalPurchase)}</div><div class="ic">🛒</div></div>
+      <div class="stat-card blue"><div class="lbl">মোট ক্রয় (সর্বমোট)</div><div class="val">${money(totalPurchase)}</div><div class="ic">🛒</div></div>
       <div class="stat-card gold"><div class="lbl">নীট লাভ/ক্ষতি (সর্বমোট)</div><div class="val" style="color:${netProfit>=0?'var(--success)':'var(--danger-text)'}">${money(netProfit)}</div><div class="ic">📈</div></div>
       <div class="stat-card danger"><div class="lbl">মোট খরচ (সর্বমোট)</div><div class="val">${money(totalExpense)}</div><div class="ic">💵</div></div>
     </div>
     <div class="grid g4" style="margin-bottom:16px;">
-      <div class="stat-card"><div class="lbl">কাস্টমার বাকি (পাওনা)</div><div class="val" style="color:var(--warn-text)">${money(totalDueFromCustomers)}</div><div class="ic">💰</div></div>
-      <div class="stat-card"><div class="lbl">সাপ্লায়ার বাকি (দেনা)</div><div class="val" style="color:var(--danger-text)">${money(totalDueToSuppliers)}</div><div class="ic">💰</div></div>
-      <div class="stat-card"><div class="lbl">মোট পণ্য</div><div class="val">${DB.products.length}</div><div class="ic">📦</div></div>
-      <div class="stat-card"><div class="lbl">লো-স্টক এলার্ট</div><div class="val" style="color:${lowStockItems.length?'var(--danger-text)':'var(--success)'}">${lowStockItems.length}</div><div class="ic">⚠️</div></div>
+      <div class="stat-card amber"><div class="lbl">কাস্টমার বাকি (পাওনা)</div><div class="val" style="color:var(--amber-2)">${money(totalDueFromCustomers)}</div><div class="ic">💰</div></div>
+      <div class="stat-card pink"><div class="lbl">সাপ্লায়ার বাকি (দেনা)</div><div class="val" style="color:var(--pink-2)">${money(totalDueToSuppliers)}</div><div class="ic">💰</div></div>
+      <div class="stat-card purple"><div class="lbl">মোট পণ্য</div><div class="val">${DB.products.length}</div><div class="ic">📦</div></div>
+      <div class="stat-card ${lowStockItems.length?'danger':'teal'}"><div class="lbl">লো-স্টক এলার্ট</div><div class="val" style="color:${lowStockItems.length?'var(--danger-text)':'var(--success)'}">${lowStockItems.length}</div><div class="ic">⚠️</div></div>
     </div>
-    <div class="grid g2">
-      <div class="card"><h3>বিক্রয় বনাম ক্রয় (বিগত ৭ দিন)</h3><div class="chart-wrap" id="chartWrapSP"><canvas id="chartSalesPurchase"></canvas></div></div>
-      <div class="card"><h3>খরচের বিভাজন (আজ)</h3><div class="chart-wrap" id="chartWrapExp"><canvas id="chartExpense"></canvas></div></div>
+    <div class="grid g3">
+      <div class="card"><h3>📊 বিক্রয় বনাম ক্রয় (৭ দিন)</h3><div class="chart-wrap" id="chartWrapSP"><canvas id="chartSalesPurchase"></canvas></div></div>
+      <div class="card"><h3>📈 নীট লাভের ট্রেন্ড (৭ দিন)</h3><div class="chart-wrap" id="chartWrapProfit"><canvas id="chartProfit"></canvas></div></div>
+      <div class="card"><h3>🥧 খরচের বিভাজন (আজ)</h3><div class="chart-wrap" id="chartWrapExp"><canvas id="chartExpense"></canvas></div></div>
     </div>
     <div class="card" style="margin-top:16px;" id="lowStockCard">
       <h3>⚠️ লো-স্টক পণ্য</h3>
@@ -874,8 +918,9 @@ async function renderDashboard(){
   /* Chart.js একটা বাইরের CDN থেকে লোড হয় — যদি ইন্টারনেট সমস্যার কারণে সেটা লোড
      হতে ব্যর্থ হয়, তাহলে খালি জায়গার বদলে একটা স্পষ্ট বার্তা দেখাবে। */
   if(typeof Chart === 'undefined'){
-    document.getElementById('chartWrapSP').innerHTML = '<div class="chart-fallback">📉 চার্ট লোড করা যায়নি — "chart.umd.js" ফাইলটা index.html এর সাথে একই ফোল্ডারে আছে কিনা দেখুন, তারপর পেজ রিফ্রেশ করুন।</div>';
-    document.getElementById('chartWrapExp').innerHTML = '<div class="chart-fallback">📉 চার্ট লোড করা যায়নি — "chart.umd.js" ফাইলটা index.html এর সাথে একই ফোল্ডারে আছে কিনা দেখুন, তারপর পেজ রিফ্রেশ করুন।</div>';
+    ['chartWrapSP','chartWrapProfit','chartWrapExp'].forEach(id=>{
+      document.getElementById(id).innerHTML = '<div class="chart-fallback">📉 চার্ট লোড করা যায়নি — "chart.umd.js" ফাইলটা index.html এর সাথে একই ফোল্ডারে আছে কিনা দেখুন, তারপর পেজ রিফ্রেশ করুন।</div>';
+    });
     return;
   }
 
@@ -884,24 +929,47 @@ async function renderDashboard(){
   const byDate = {}; dayRows.forEach(r=>byDate[r.date]=r);
   const salesByDay = days.map(d=>(byDate[d]?.totalSales)||0);
   const purchByDay = days.map(d=>(byDate[d]?.totalPurchase)||0);
+  const profitByDay = days.map(d=>{
+    const r = byDate[d]||{};
+    return (r.totalSales||0) - (r.totalCogs||0) - (r.totalExpense||0);
+  });
   if(currentPage !== 'dashboard') return; // ততক্ষণে অন্য পেজে চলে গেলে চার্ট আঁকার দরকার নেই
+
+  const inkColor = cssVar('--ink'), mutedColor = cssVar('--muted'), lineColor = cssVar('--line');
+  const tealColor = cssVar('--teal-2'), goldColor = cssVar('--gold-2'), blueColor = cssVar('--blue-2');
 
   try{
     if(chartRefs.sp) chartRefs.sp.destroy();
-    const inkColor = cssVar('--ink'), mutedColor = cssVar('--muted'), lineColor = cssVar('--line');
     chartRefs.sp = new Chart(document.getElementById('chartSalesPurchase'), {
       type:'bar',
       data:{ labels: days.map(d=>fmtDate(d)),
         datasets:[
-          {label:'বিক্রয়', data:salesByDay, backgroundColor:'#2f9c80'},
-          {label:'ক্রয়', data:purchByDay, backgroundColor:'#d4a441'}
+          {label:'বিক্রয়', data:salesByDay, backgroundColor:tealColor, borderRadius:6, borderSkipped:false, maxBarThickness:28},
+          {label:'ক্রয়', data:purchByDay, backgroundColor:blueColor, borderRadius:6, borderSkipped:false, maxBarThickness:28}
         ]},
-      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:inkColor}}}, scales:{
-        x:{ticks:{color:mutedColor}, grid:{color:lineColor}},
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:inkColor,usePointStyle:true}}}, scales:{
+        x:{ticks:{color:mutedColor}, grid:{display:false}},
         y:{ticks:{color:mutedColor}, grid:{color:lineColor}, beginAtZero:true}
       }}
     });
   }catch(err){ console.error('Sales/Purchase chart error:', err); }
+
+  /* নতুন: ৭ দিনের নীট লাভের ট্রেন্ড — প্রতিদিন লাভ না ক্ষতি হচ্ছে তা এক নজরে বোঝার জন্য */
+  try{
+    if(chartRefs.profit) chartRefs.profit.destroy();
+    chartRefs.profit = new Chart(document.getElementById('chartProfit'), {
+      type:'line',
+      data:{ labels: days.map(d=>fmtDate(d)),
+        datasets:[{
+          label:'নীট লাভ/ক্ষতি', data:profitByDay, borderColor:goldColor, backgroundColor:'rgba(240,200,105,.18)',
+          fill:true, tension:.35, pointBackgroundColor:goldColor, pointRadius:4, pointHoverRadius:6, borderWidth:2.5
+        }]},
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{
+        x:{ticks:{color:mutedColor}, grid:{display:false}},
+        y:{ticks:{color:mutedColor}, grid:{color:lineColor}}
+      }}
+    });
+  }catch(err){ console.error('Profit trend chart error:', err); }
 
   const expenseCats = {};
   DB.expenses.filter(e=>e.date===todayStr()).forEach(e=>{ expenseCats[e.category] = (expenseCats[e.category]||0) + Number(e.amount); });
@@ -912,9 +980,10 @@ async function renderDashboard(){
       type:'doughnut',
       data:{ labels: catLabels.length?catLabels:['আজ কোনো খরচ নেই'],
         datasets:[{ data: catLabels.length?catLabels.map(c=>expenseCats[c]):[1],
-          backgroundColor:['#2f9c80','#d4a441','#c85a4a','#3d6ba8','#8a5fd3','#d35f9c','#5fd3a5']
+          backgroundColor:['#2f9c80','#d4a441','#c85a4a','#3d6ba8','#8a5fd3','#d35f9c','#5fd3a5'],
+          borderWidth:2, borderColor:cssVar('--panel'), hoverOffset:6
         }]},
-      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:cssVar('--ink')}}} }
+      options:{ responsive:true, maintainAspectRatio:false, cutout:'62%', plugins:{legend:{position:'bottom',labels:{color:cssVar('--ink'),usePointStyle:true,boxWidth:8,padding:10,font:{size:11}}}} }
     });
   }catch(err){ console.error('Expense chart error:', err); }
 }
@@ -1705,13 +1774,13 @@ async function renderReportBody(){
   document.getElementById('reportBody').innerHTML = `
     <div class="grid g3">
       <div class="stat-card teal"><div class="lbl">মোট বিক্রয়</div><div class="val">${money(totalSales)}</div></div>
-      <div class="stat-card"><div class="lbl">বিক্রিত পণ্যের ক্রয়মূল্য (COGS)</div><div class="val">${money(cogs)}</div></div>
+      <div class="stat-card purple"><div class="lbl">বিক্রিত পণ্যের ক্রয়মূল্য (COGS)</div><div class="val">${money(cogs)}</div></div>
       <div class="stat-card gold"><div class="lbl">গ্রস প্রফিট</div><div class="val">${money(grossProfit)}</div></div>
     </div>
     <div class="grid g3" style="margin-top:16px;">
       <div class="stat-card danger"><div class="lbl">মোট খরচ</div><div class="val">${money(totalExpense)}</div></div>
-      <div class="stat-card"><div class="lbl">মোট ক্রয়</div><div class="val">${money(totalPurchase)}</div></div>
-      <div class="stat-card" style="border-color:${netProfit>=0?'var(--pill-ok-bg)':'var(--pill-bad-bg)'}">
+      <div class="stat-card blue"><div class="lbl">মোট ক্রয়</div><div class="val">${money(totalPurchase)}</div></div>
+      <div class="stat-card ${netProfit>=0?'teal':'danger'}">
         <div class="lbl">নীট লাভ/ক্ষতি</div><div class="val" style="color:${netProfit>=0?'var(--success)':'var(--danger-text)'}">${money(netProfit)}</div>
       </div>
     </div>
