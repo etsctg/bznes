@@ -890,6 +890,19 @@ function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;
 /* কোনো অবজেক্টকে JSON বানিয়ে HTML-এর সিঙ্গেল-কোট অ্যাট্রিবিউটের ভেতরে নিরাপদে
    বসানোর জন্য — নাম/টেক্সটে ' (apostrophe) থাকলেও যেন ভেঙে না যায় */
 function attrJson(obj){ return JSON.stringify(obj).replace(/'/g, "&#39;"); }
+/* কে একটা ভাউচার এডিট করতে পারবে — যে ইউজার এন্ট্রিটা করেছে, অথবা ম্যানেজার+ */
+function canEditVoucher(entry){
+  if(!currentUser || !entry) return false;
+  return hasAccess('manager') || entry.createdBy===currentUser.name;
+}
+/* ভাউচার নম্বরটা এডিট-যোগ্য হলে ক্লিকযোগ্য লিঙ্ক আকারে দেখানো হয় (যে এন্ট্রি করেছে
+   সে নিজে, অথবা ম্যানেজার+ হলে) — নাহলে শুধু প্লেইন টেক্সট */
+function voucherLink(prefix, entry, kind){
+  const label = refNo(prefix, entry.id);
+  if(!canEditVoucher(entry)) return esc(label);
+  const fn = kind==='purchase' ? `openPurchaseModal(${entry.id})` : `openSaleModal(${entry.id})`;
+  return `<a href="javascript:void(0)" onclick="${fn}" title="এডিট করতে ক্লিক করুন" style="color:var(--teal-2);text-decoration:underline;font-weight:600;">${esc(label)}</a>`;
+}
 function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 
 function openModal(html){
@@ -1038,8 +1051,20 @@ function renderStock(){
     </div>
     <div class="toolbar">
       <input type="text" id="stockSearch" placeholder="🔍 নাম/ব্র্যান্ড/শেলফ দিয়ে খুঁজুন..." oninput="renderStockTable()">
+      <select id="stockFilter" onchange="renderStockTable()">
+        <option value="all">সব অবস্থা</option>
+        <option value="ok">✅ ঠিক আছে</option>
+        <option value="low">⚠️ কম স্টক</option>
+        <option value="out">❌ স্টক শেষ</option>
+      </select>
+      <select id="stockSort" onchange="renderStockTable()">
+        <option value="name">নাম (A-Z)</option>
+        <option value="stock_asc">স্টক (কম → বেশি)</option>
+        <option value="stock_desc">স্টক (বেশি → কম)</option>
+        <option value="status">অবস্থা (আগে সমস্যাযুক্ত)</option>
+      </select>
       <div class="spacer"></div>
-      <span style="color:var(--muted);font-size:12.5px;">মোট পণ্য: ${DB.products.length}</span>
+      <span style="color:var(--muted);font-size:12.5px;" id="stockCountLbl">মোট পণ্য: ${DB.products.length}</span>
     </div>
     <div class="card"><div class="tbl-wrap" id="stockTableWrap"></div></div>
   `;
@@ -1047,10 +1072,21 @@ function renderStock(){
 }
 function renderStockTable(){
   const q = (document.getElementById('stockSearch')?.value||'').toLowerCase();
-  const rows = DB.products.filter(p=>
+  const filterVal = document.getElementById('stockFilter')?.value||'all';
+  const sortVal = document.getElementById('stockSort')?.value||'name';
+  const statusOf = p=> p.stock<=0?'out':(p.stock<=p.lowStock?'low':'ok');
+  let rows = DB.products.filter(p=>
     p.name.toLowerCase().includes(q) || (p.brand||'').toLowerCase().includes(q) ||
     (p.shelf||'').toLowerCase().includes(q) || (p.color||'').toLowerCase().includes(q)
   );
+  if(filterVal!=='all') rows = rows.filter(p=>statusOf(p)===filterVal);
+  const statusRank = {out:0, low:1, ok:2};
+  if(sortVal==='stock_asc') rows = [...rows].sort((a,b)=>a.stock-b.stock);
+  else if(sortVal==='stock_desc') rows = [...rows].sort((a,b)=>b.stock-a.stock);
+  else if(sortVal==='status') rows = [...rows].sort((a,b)=>statusRank[statusOf(a)]-statusRank[statusOf(b)] || a.name.localeCompare(b.name,'bn'));
+  else rows = [...rows].sort((a,b)=>a.name.localeCompare(b.name,'bn'));
+  const countLbl = document.getElementById('stockCountLbl');
+  if(countLbl) countLbl.textContent = `দেখানো হচ্ছে: ${rows.length} / মোট পণ্য: ${DB.products.length}`;
   const canEdit = hasAccess('manager');
   document.getElementById('stockTableWrap').innerHTML = `
     <table>
@@ -1196,6 +1232,10 @@ function renderSales(){
       <span style="color:var(--muted);font-size:12px;">থেকে</span>
       <input type="date" id="saleTo" value="${todayStr()}" onchange="renderSalesTable()">
       <button class="btn btn-outline small-btn" onclick="document.getElementById('saleFrom').value='';document.getElementById('saleTo').value='';renderSalesTable();">সব সময়</button>
+      <select id="saleViewMode" onchange="renderSalesTable()">
+        <option value="invoice">ভিউ: ইনভয়েস-ভিত্তিক</option>
+        <option value="items">ভিউ: পণ্য-ভিত্তিক রিপোর্ট</option>
+      </select>
       <div class="spacer"></div>
       <span style="color:var(--muted);font-size:12.5px;" id="saleCountLbl"></span>
     </div>
@@ -1242,23 +1282,61 @@ async function renderSalesTable(){
   const rows = [...currentSalesRows()].sort((a,b)=>b.id-a.id);
   const countLbl = document.getElementById('saleCountLbl');
   if(countLbl) countLbl.textContent = `দেখানো হচ্ছে: ${rows.length} টি` + (truncated?` (সাম্প্রতিক সর্বোচ্চ ${RANGE_LOAD_LIMIT}টি — তারিখ রেঞ্জ ছোট করে আরও নির্দিষ্টভাবে দেখুন)`:'');
+  const viewMode = document.getElementById('saleViewMode')?.value||'invoice';
+  if(viewMode==='items'){ renderSalesItemReport(rows); renderUserBreakdownCard(rows, 'saleUserBreakdownCard', 'বিক্রয়'); return; }
   const totalAmt = rows.reduce((s,x)=>s+x.total,0);
   document.getElementById('salesTableWrap').innerHTML = `
     <table>
       <tr><th>#</th><th>তারিখ</th><th>কাস্টমার</th><th class="num">মোট</th><th class="num">জমা</th><th class="num">বাকি</th><th>স্ট্যাটাস</th><th></th></tr>
       ${rows.map(s=>`
         <tr>
-          <td>${refNo('INV', s.id)}</td><td>${fmtDate(s.date)}</td><td>${esc(s.customerName)}</td>
+          <td>${voucherLink('INV', s)}</td><td>${fmtDate(s.date)}</td><td>${esc(s.customerName)}</td>
           <td class="num">${money(s.total)}</td><td class="num">${money(s.paid)}</td><td class="num">${money(s.due)}</td>
           <td>${s.due<=0?'<span class="pill ok">পরিশোধিত</span>':'<span class="pill warn">বাকি আছে</span>'}</td>
           <td><button class="icon-btn" onclick="viewSaleDetail(${s.id})" title="বিস্তারিত">👁️</button>
               <button class="icon-btn" onclick="printInvoice(${s.id})" title="প্রিন্ট">🖨️</button>
+              ${s.due>0?`<button class="icon-btn" onclick="openInvoicePaymentModal('sale',${s.id})" title="বাকি পরিশোধ">💳</button>`:''}
               ${hasAccess('manager')?`<button class="icon-btn" onclick="deleteSale(${s.id})" title="মুছুন">🗑️</button>`:''}</td>
         </tr>`).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--muted);">কোনো বিক্রয় নেই</td></tr>`}
       <tr><td colspan="3" class="foot-total">সর্বমোট</td><td class="foot-total num">${money(totalAmt)}</td><td colspan="4"></td></tr>
     </table>
   `;
   renderUserBreakdownCard(rows, 'saleUserBreakdownCard', 'বিক্রয়');
+}
+/* "পণ্য-ভিত্তিক রিপোর্ট" ভিউ — প্রতিটা ইনভয়েসের প্রতিটা পণ্য-লাইন আলাদা সারি হিসেবে
+   দেখায়: তারিখ, পণ্য, পরিমাণ, দর, মোট, লাভ, পার্টি, এন্ট্রি করেছেন, অ্যাকশন।
+   পুরনো এন্ট্রিতে প্রতি-লাইন ক্রয়মূল্য (buyPrice) সংরক্ষিত না থাকলে বর্তমান পণ্যের
+   ক্রয়মূল্য দিয়ে আনুমানিক লাভ হিসাব করা হয় (সামনে ~ চিহ্ন দিয়ে বোঝানো থাকে)। */
+function renderSalesItemReport(rows){
+  const lines = [];
+  rows.forEach(s=>{
+    s.items.forEach(it=>{
+      const p = DB.products.find(pp=>pp.id===it.productId);
+      const buyPrice = (it.buyPrice!=null) ? it.buyPrice : (p?p.buyPrice:null);
+      const approx = it.buyPrice==null;
+      const profit = buyPrice!=null ? (it.price-buyPrice)*it.qty : null;
+      lines.push({sale:s, productName:p?p.name:'পণ্য মুছে ফেলা হয়েছে', unit:p?p.unit:'', qty:it.qty, price:it.price, profit, approx});
+    });
+  });
+  const totalLineAmt = lines.reduce((s,l)=>s+l.price*l.qty,0);
+  const totalProfit = lines.reduce((s,l)=>s+(l.profit||0),0);
+  document.getElementById('salesTableWrap').innerHTML = `
+    <table>
+      <tr><th>তারিখ</th><th>পণ্য</th><th class="num">পরিমাণ</th><th class="num">দর</th><th class="num">মোট</th><th class="num">লাভ</th><th>পার্টি</th><th>এন্ট্রি করেছেন</th><th>অ্যাকশন</th></tr>
+      ${lines.map(l=>`
+        <tr>
+          <td>${fmtDate(l.sale.date)}</td><td>${esc(l.productName)} ${esc(l.unit)}</td>
+          <td class="num">${l.qty}</td><td class="num">${money(l.price)}</td><td class="num">${money(l.price*l.qty)}</td>
+          <td class="num" style="color:${l.profit==null?'var(--muted)':(l.profit>=0?'var(--success)':'var(--danger-text)')}">${l.profit==null?'-':(l.approx?'~':'')+money(l.profit)}</td>
+          <td>${esc(l.sale.customerName)}</td><td>${esc(l.sale.createdBy||'-')}</td>
+          <td><button class="icon-btn" onclick="viewSaleDetail(${l.sale.id})" title="বিস্তারিত">👁️</button>
+              <button class="icon-btn" onclick="printInvoice(${l.sale.id})" title="প্রিন্ট">🖨️</button>
+              ${l.sale.due>0?`<button class="icon-btn" onclick="openInvoicePaymentModal('sale',${l.sale.id})" title="বাকি পরিশোধ">💳</button>`:''}
+              ${hasAccess('manager')?`<button class="icon-btn" onclick="deleteSale(${l.sale.id})" title="মুছুন">🗑️</button>`:''}</td>
+        </tr>`).join('') || `<tr><td colspan="9" style="text-align:center;color:var(--muted);">কোনো বিক্রয় নেই</td></tr>`}
+      <tr><td colspan="4" class="foot-total">সর্বমোট (ডিসকাউন্টের আগে)</td><td class="foot-total num">${money(totalLineAmt)}</td><td class="foot-total num">${money(totalProfit)}</td><td colspan="3"></td></tr>
+    </table>
+  `;
 }
 /* বিক্রয়ের বিস্তারিত (কোন পণ্য কত পরিমাণ, কত দরে বিক্রি হলো) — ক্লিয়ার দেখতে */
 function viewSaleDetail(id){
@@ -1270,7 +1348,7 @@ function viewSaleDetail(id){
   }).join('');
   openModal(`
     <h3>বিক্রয় বিস্তারিত — ${refNo('INV', s.id)}</h3>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">তারিখ: ${fmtDate(s.date)} • কাস্টমার: ${esc(s.customerName)}${s.createdBy?' • এন্ট্রি করেছেন: '+esc(s.createdBy):''}</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">তারিখ: ${fmtDate(s.date)} • কাস্টমার: ${esc(s.customerName)}${s.createdBy?' • এন্ট্রি করেছেন: '+esc(s.createdBy):''}${s.editedBy?' • সর্বশেষ এডিট: '+esc(s.editedBy):''}</div>
     <div class="tbl-wrap"><table>
       <tr><th>পণ্য</th><th class="num">পরিমাণ</th><th class="num">দর</th><th class="num">সাবটোটাল</th></tr>
       ${rows}
@@ -1282,19 +1360,30 @@ function viewSaleDetail(id){
     </table></div>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal()">বন্ধ করুন</button>
+      ${s.due>0?`<button class="btn btn-outline" onclick="openInvoicePaymentModal('sale',${s.id})">💳 বাকি পরিশোধ</button>`:''}
+      ${canEditVoucher(s)?`<button class="btn btn-outline" onclick="openSaleModal(${s.id})">✏️ এডিট করুন</button>`:''}
       <button class="btn btn-gold" onclick="printInvoice(${s.id})">🖨️ প্রিন্ট করুন</button>
     </div>
   `);
 }
 let saleCart = [];
-function openSaleModal(){
-  saleCart = [{productId:'', qty:1}];
+let editingSaleId = null; // null = নতুন এন্ট্রি; নাহলে এই আইডির বিক্রয়টা এডিট হচ্ছে
+function openSaleModal(editId){
+  let existing = null;
+  if(editId){
+    existing = currentSalesRows().find(x=>x.id===editId);
+    if(!existing){ alert('এই এন্ট্রি বর্তমান তালিকায় লোড নেই — তারিখ রেঞ্জ "আজ" করে বা সেই তারিখ বেছে আবার চেষ্টা করুন।'); return; }
+    if(!canEditVoucher(existing)){ alert('আপনি শুধু নিজের তৈরি করা এন্ট্রি এডিট করতে পারবেন (ম্যানেজার/এডমিন সবগুলো করতে পারবেন)।'); return; }
+  }
+  editingSaleId = editId || null;
+  saleCart = existing ? existing.items.map(it=>({productId:it.productId, qty:it.qty})) : [{productId:'', qty:1}];
   openModal(`
-    <h3>নতুন বিক্রয় এন্ট্রি</h3>
+    <h3>${existing?`বিক্রয় এডিট করুন — ${refNo('INV', existing.id)}`:'নতুন বিক্রয় এন্ট্রি'}</h3>
+    ${existing?`<div style="font-size:11.5px;color:var(--amber-2);margin-bottom:8px;">⚠️ এডিট করলে বর্তমান বিক্রয়মূল্য অনুযায়ী পুনঃগণনা হবে (মূল্য পরিবর্তিত হয়ে থাকলে টোটাল বদলে যেতে পারে)।</div>`:''}
     <div class="form-row">
-      <div><label>তারিখ</label><input id="sf_date" type="date" value="${todayStr()}"></div>
+      <div><label>তারিখ</label><input id="sf_date" type="date" value="${existing?existing.date:todayStr()}"></div>
       <div><label>কাস্টমার</label>
-        <select id="sf_customer">${DB.customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select>
+        <select id="sf_customer">${DB.customers.map(c=>`<option value="${c.id}" ${existing&&existing.customerId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
       </div>
     </div>
     <datalist id="saleProductOptions">
@@ -1308,19 +1397,20 @@ function openSaleModal(){
       <div><label>সর্বমোট (ডিসকাউন্টের পর)</label><input id="sf_total" readonly style="font-weight:800;"></div>
     </div>
     <div class="form-row">
-      <div><label>ডিসকাউন্ট (%)</label><input id="sf_discPct" type="number" min="0" max="100" value="0" oninput="calcSaleTotal('pct')"></div>
-      <div><label>ডিসকাউন্ট (টাকা)</label><input id="sf_discAmt" type="number" min="0" value="0" oninput="calcSaleTotal('amt')"></div>
+      <div><label>ডিসকাউন্ট (%)</label><input id="sf_discPct" type="number" min="0" max="100" value="${existing?existing.discountPercent||0:0}" oninput="calcSaleTotal('pct')"></div>
+      <div><label>ডিসকাউন্ট (টাকা)</label><input id="sf_discAmt" type="number" min="0" value="${existing?existing.discount||0:0}" oninput="calcSaleTotal('amt')"></div>
     </div>
     <div class="form-row">
-      <div><label>জমা/পরিশোধিত (Enter = সংরক্ষণ)</label><input id="sf_paid" type="number" value="0" oninput="calcSaleTotal()" onkeydown="if(event.key==='Enter'){event.preventDefault();saveSale();}"></div>
+      <div><label>জমা/পরিশোধিত (Enter = সংরক্ষণ)</label><input id="sf_paid" type="number" value="${existing?existing.paid:0}" oninput="calcSaleTotal()" onkeydown="if(event.key==='Enter'){event.preventDefault();saveSale();}"></div>
       <div><label>বাকি</label><input id="sf_due" readonly></div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal()">বাতিল</button>
-      <button class="btn btn-gold" id="modalSaveBtn" onclick="saveSale()">বিক্রয় সংরক্ষণ করুন</button>
+      <button class="btn btn-gold" id="modalSaveBtn" onclick="saveSale()">${existing?'পরিবর্তন সংরক্ষণ করুন':'বিক্রয় সংরক্ষণ করুন'}</button>
     </div>
   `);
   renderSaleLines();
+  calcSaleTotal();
   setTimeout(()=>document.getElementById('saleProd_0')?.focus(), 0);
 }
 function renderSaleLines(){
@@ -1401,8 +1491,16 @@ function saveSale(){
     return {productId:p.id, qty:Number(l.qty), price:p.sellPrice, buyPrice:p.buyPrice, _stock:p.stock, _name:p.name};
   });
   if(!items.length){ alert('অন্তত একটি পণ্য যোগ করুন'); return; }
+
+  // এডিট মোডে হলে — এই বিক্রয়ে আগে যে পরিমাণ পণ্য ব্যবহার হয়েছিল সেটা প্রথমে
+  // স্টকে ফেরত ধরে নিয়ে (সেভের সময় রিভার্স+পুনরায় প্রয়োগ হবে) এভেইলেবিলিটি চেক হয়
+  const original = editingSaleId ? currentSalesRows().find(x=>x.id===editingSaleId) : null;
+  const origQtyByProduct = {};
+  if(original) original.items.forEach(it=>{ origQtyByProduct[it.productId] = (origQtyByProduct[it.productId]||0) + it.qty; });
+
   for(const it of items){
-    if(it.qty > it._stock){ alert(`"${it._name}" এর স্টক অপর্যাপ্ত! বর্তমান স্টক: ${it._stock}`); return; }
+    const availableStock = it._stock + (origQtyByProduct[it.productId]||0);
+    if(it.qty > availableStock){ alert(`"${it._name}" এর স্টক অপর্যাপ্ত! সর্বোচ্চ পাওয়া যাবে: ${availableStock}`); return; }
   }
   const custId = Number(document.getElementById('sf_customer').value);
   const cust = DB.customers.find(c=>c.id===custId);
@@ -1415,23 +1513,54 @@ function saveSale(){
   const total = subtotal - discount;
   const cogs = items.reduce((s,it)=>s+it.buyPrice*it.qty,0);
   const due = total - paid;
-  const saleId = genId();
+  const saleId = original ? original.id : genId();
 
   const batch = fsDB.batch();
-  items.forEach(it=>{
-    batch.update(fsDB.collection('erp_products').doc(String(it.productId)), {stock: it._stock - it.qty});
-    logStockMove(batch, {productId:it.productId, qty:-it.qty, type:'sale', refType:'sale', refId:saleId, date});
+
+  // ---- স্টক: পুরনো (এডিট হলে) + নতুন মিলিয়ে নিট পরিবর্তন — প্রতি পণ্যে একবারই আপডেট ----
+  const netQtyChange = {}; // ধনাত্মক মানে স্টকে যোগ হবে
+  if(original) original.items.forEach(it=>{ netQtyChange[it.productId] = (netQtyChange[it.productId]||0) + it.qty; });
+  items.forEach(it=>{ netQtyChange[it.productId] = (netQtyChange[it.productId]||0) - it.qty; });
+  Object.keys(netQtyChange).forEach(pid=>{
+    const p = DB.products.find(x=>x.id==pid);
+    if(p && netQtyChange[pid]!==0) batch.update(fsDB.collection('erp_products').doc(String(pid)), {stock: p.stock + netQtyChange[pid]});
   });
-  batch.update(fsDB.collection('erp_customers').doc(String(custId)), {due: (cust.due||0) + due});
+  // স্বচ্ছতার জন্য স্টক-লেজারে রিভার্স ও নতুন এন্ট্রি আলাদাভাবে লগ হয়
+  if(original) original.items.forEach(it=>logStockMove(batch, {productId:it.productId, qty:it.qty, type:'sale-edit-revert', refType:'sale', refId:saleId, date:original.date}));
+  items.forEach(it=>logStockMove(batch, {productId:it.productId, qty:-it.qty, type: original?'sale-edit-apply':'sale', refType:'sale', refId:saleId, date}));
+
+  // ---- কাস্টমার বাকি: পুরনো কাস্টমার থেকে রিভার্স (যদি থাকে), নতুন কাস্টমারে প্রয়োগ ----
+  if(original && original.customerId===custId){
+    batch.update(fsDB.collection('erp_customers').doc(String(custId)), {due: cust.due - original.due + due});
+  } else {
+    if(original){
+      const oldCust = DB.customers.find(c=>c.id===original.customerId);
+      if(oldCust) batch.update(fsDB.collection('erp_customers').doc(String(original.customerId)), {due: oldCust.due - original.due});
+    }
+    batch.update(fsDB.collection('erp_customers').doc(String(custId)), {due: (cust.due||0) + due});
+  }
+
   batch.set(fsDB.collection('erp_sales').doc(String(saleId)), {
     id:saleId, date, customerId:custId, customerName: cust.name,
-    items: items.map(({productId,qty,price})=>({productId,qty,price})), subtotal, discount, discountPercent,
+    items: items.map(({productId,qty,price,buyPrice})=>({productId,qty,price,buyPrice})), subtotal, discount, discountPercent,
     total, paid, due, cogs,
-    createdBy: currentUser?currentUser.name:'', createdByUsername: currentUser?currentUser.username:''
+    createdBy: original?original.createdBy:(currentUser?currentUser.name:''),
+    createdByUsername: original?original.createdByUsername:(currentUser?currentUser.username:''),
+    ...(original?{editedBy: currentUser?currentUser.name:'', editedAt: new Date().toISOString()}:{})
   });
-  applyStatsDelta(batch, date, {totalSales: total, totalCogs: cogs, salesCount: 1});
+
+  // ---- পরিসংখ্যান (দৈনিক/সর্বমোট) নিট আপডেট ----
+  if(original && original.date===date){
+    applyStatsDelta(batch, date, {totalSales: total-original.total, totalCogs: cogs-original.cogs});
+  } else {
+    if(original) applyStatsDelta(batch, original.date, {totalSales:-original.total, totalCogs:-original.cogs, salesCount:-1});
+    applyStatsDelta(batch, date, {totalSales: total, totalCogs: cogs, salesCount: 1});
+  }
+
+  if(original) logAudit('বিক্রয় এন্ট্রি এডিট', `${refNo('INV', saleId)} — ${money(original.total)} → ${money(total)}`);
   closeModal();
-  fireWrite(batch.commit(), 'বিক্রয় এন্ট্রি');
+  fireWrite(batch.commit(), original?'বিক্রয় এডিট':'বিক্রয় এন্ট্রি');
+  editingSaleId = null;
 }
 function deleteSale(id){
   if(!confirm('এই বিক্রয় এন্ট্রি মুছে ফেলতে চান? (স্টক ফেরত যাবে)')) return;
@@ -1465,6 +1594,10 @@ function renderPurchase(){
       <span style="color:var(--muted);font-size:12px;">থেকে</span>
       <input type="date" id="purTo" value="${todayStr()}" onchange="renderPurchaseTable()">
       <button class="btn btn-outline small-btn" onclick="document.getElementById('purFrom').value='';document.getElementById('purTo').value='';renderPurchaseTable();">সব সময়</button>
+      <select id="purViewMode" onchange="renderPurchaseTable()">
+        <option value="invoice">ভিউ: ভাউচার-ভিত্তিক</option>
+        <option value="items">ভিউ: পণ্য-ভিত্তিক রিপোর্ট</option>
+      </select>
       <div class="spacer"></div>
       <span style="color:var(--muted);font-size:12.5px;" id="purCountLbl"></span>
     </div>
@@ -1490,21 +1623,52 @@ async function renderPurchaseTable(){
   const rows = [...currentPurchaseRows()].sort((a,b)=>b.id-a.id);
   const countLbl = document.getElementById('purCountLbl');
   if(countLbl) countLbl.textContent = `দেখানো হচ্ছে: ${rows.length} টি` + (truncated?` (সাম্প্রতিক সর্বোচ্চ ${RANGE_LOAD_LIMIT}টি — তারিখ রেঞ্জ ছোট করে আরও নির্দিষ্টভাবে দেখুন)`:'');
+  const viewMode = document.getElementById('purViewMode')?.value||'invoice';
+  if(viewMode==='items'){ renderPurchaseItemReport(rows); renderUserBreakdownCard(rows, 'purUserBreakdownCard', 'ক্রয়'); return; }
   document.getElementById('purchaseTableWrap').innerHTML = `
     <table>
       <tr><th>#</th><th>তারিখ</th><th>সাপ্লায়ার</th><th class="num">মোট</th><th class="num">জমা</th><th class="num">বাকি</th><th>স্ট্যাটাস</th><th></th></tr>
       ${rows.map(s=>`
         <tr>
-          <td>${refNo('PUR', s.id)}</td><td>${fmtDate(s.date)}</td><td>${esc(s.supplierName)}</td>
+          <td>${voucherLink('PUR', s, 'purchase')}</td><td>${fmtDate(s.date)}</td><td>${esc(s.supplierName)}</td>
           <td class="num">${money(s.total)}</td><td class="num">${money(s.paid)}</td><td class="num">${money(s.due)}</td>
           <td>${s.due<=0?'<span class="pill ok">পরিশোধিত</span>':'<span class="pill warn">বাকি আছে</span>'}</td>
           <td><button class="icon-btn" onclick="viewPurchaseDetail(${s.id})" title="বিস্তারিত">👁️</button>
               <button class="icon-btn" onclick="printPurchaseVoucher(${s.id})" title="প্রিন্ট">🖨️</button>
+              ${s.due>0?`<button class="icon-btn" onclick="openInvoicePaymentModal('purchase',${s.id})" title="বাকি পরিশোধ">💳</button>`:''}
               ${hasAccess('manager')?`<button class="icon-btn" onclick="deletePurchase(${s.id})" title="মুছুন">🗑️</button>`:''}</td>
         </tr>`).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--muted);">কোনো ক্রয় নেই</td></tr>`}
     </table>
   `;
   renderUserBreakdownCard(rows, 'purUserBreakdownCard', 'ক্রয়');
+}
+/* "পণ্য-ভিত্তিক রিপোর্ট" ভিউ — প্রতিটা ভাউচারের প্রতিটা পণ্য-লাইন আলাদা সারি হিসেবে
+   দেখায়: তারিখ, পণ্য, পরিমাণ, দর, মোট, পার্টি, এন্ট্রি করেছেন, অ্যাকশন। */
+function renderPurchaseItemReport(rows){
+  const lines = [];
+  rows.forEach(pur=>{
+    pur.items.forEach(it=>{
+      const p = DB.products.find(pp=>pp.id===it.productId);
+      lines.push({pur, productName:p?(p.name+(p.color?' ('+p.color+')':'')):'পণ্য মুছে ফেলা হয়েছে', unit:p?p.unit:'', qty:it.qty, price:it.price});
+    });
+  });
+  const totalLineAmt = lines.reduce((s,l)=>s+l.price*l.qty,0);
+  document.getElementById('purchaseTableWrap').innerHTML = `
+    <table>
+      <tr><th>তারিখ</th><th>পণ্য</th><th class="num">পরিমাণ</th><th class="num">দর</th><th class="num">মোট</th><th>পার্টি</th><th>এন্ট্রি করেছেন</th><th>অ্যাকশন</th></tr>
+      ${lines.map(l=>`
+        <tr>
+          <td>${fmtDate(l.pur.date)}</td><td>${esc(l.productName)} ${esc(l.unit)}</td>
+          <td class="num">${l.qty}</td><td class="num">${money(l.price)}</td><td class="num">${money(l.price*l.qty)}</td>
+          <td>${esc(l.pur.supplierName)}</td><td>${esc(l.pur.createdBy||'-')}</td>
+          <td><button class="icon-btn" onclick="viewPurchaseDetail(${l.pur.id})" title="বিস্তারিত">👁️</button>
+              <button class="icon-btn" onclick="printPurchaseVoucher(${l.pur.id})" title="প্রিন্ট">🖨️</button>
+              ${l.pur.due>0?`<button class="icon-btn" onclick="openInvoicePaymentModal('purchase',${l.pur.id})" title="বাকি পরিশোধ">💳</button>`:''}
+              ${hasAccess('manager')?`<button class="icon-btn" onclick="deletePurchase(${l.pur.id})" title="মুছুন">🗑️</button>`:''}</td>
+        </tr>`).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--muted);">কোনো ক্রয় নেই</td></tr>`}
+      <tr><td colspan="4" class="foot-total">সর্বমোট</td><td class="foot-total num">${money(totalLineAmt)}</td><td colspan="3"></td></tr>
+    </table>
+  `;
 }
 /* ক্রয়ের বিস্তারিত — কোন পণ্য কত পরিমাণ কত দরে ক্রয় হলো, স্পষ্টভাবে দেখার জন্য।
    প্রতিটা পণ্যের পাশে "স্টক হিস্টোরি" বাটন আছে — স্টকে কোনো গরমিল মনে হলে
@@ -1519,7 +1683,7 @@ function viewPurchaseDetail(id){
   }).join('');
   openModal(`
     <h3>ক্রয় বিস্তারিত — ${refNo('PUR', pur.id)}</h3>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">তারিখ: ${fmtDate(pur.date)} • সাপ্লায়ার: ${esc(pur.supplierName)}${pur.createdBy?' • এন্ট্রি করেছেন: '+esc(pur.createdBy):''}</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">তারিখ: ${fmtDate(pur.date)} • সাপ্লায়ার: ${esc(pur.supplierName)}${pur.createdBy?' • এন্ট্রি করেছেন: '+esc(pur.createdBy):''}${pur.editedBy?' • সর্বশেষ এডিট: '+esc(pur.editedBy):''}</div>
     <div class="tbl-wrap"><table>
       <tr><th>পণ্য</th><th class="num">পরিমাণ</th><th class="num">ক্রয়মূল্য</th><th class="num">সাবটোটাল</th><th></th></tr>
       ${rows}
@@ -1529,6 +1693,8 @@ function viewPurchaseDetail(id){
     </table></div>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal()">বন্ধ করুন</button>
+      ${pur.due>0?`<button class="btn btn-outline" onclick="openInvoicePaymentModal('purchase',${pur.id})">💳 বাকি পরিশোধ</button>`:''}
+      ${canEditVoucher(pur)?`<button class="btn btn-outline" onclick="openPurchaseModal(${pur.id})">✏️ এডিট করুন</button>`:''}
       <button class="btn btn-gold" onclick="printPurchaseVoucher(${pur.id})">🖨️ প্রিন্ট করুন</button>
     </div>
   `);
@@ -1536,14 +1702,23 @@ function viewPurchaseDetail(id){
 /* প্রতিটা ক্রয়-লাইনে এখন রং ও শেলফ (দুটোই ঐচ্ছিক) দেওয়া যায় — একই পণ্যের ভিন্ন
    রং ভিন্ন স্টক-লাইন হিসেবে স্বয়ংক্রিয়ভাবে তৈরি/আপডেট হয়ে যায় (নিচে savePurchase দেখুন) */
 let purchaseCart = [];
-function openPurchaseModal(){
-  purchaseCart = [{productId:'', qty:1, color:'', shelf:''}];
+let editingPurchaseId = null;
+function openPurchaseModal(editId){
+  let existing = null;
+  if(editId){
+    existing = currentPurchaseRows().find(x=>x.id===editId);
+    if(!existing){ alert('এই এন্ট্রি বর্তমান তালিকায় লোড নেই — তারিখ রেঞ্জ "আজ" করে বা সেই তারিখ বেছে আবার চেষ্টা করুন।'); return; }
+    if(!canEditVoucher(existing)){ alert('আপনি শুধু নিজের তৈরি করা এন্ট্রি এডিট করতে পারবেন (ম্যানেজার/এডমিন সবগুলো করতে পারবেন)।'); return; }
+  }
+  editingPurchaseId = editId || null;
+  purchaseCart = existing ? existing.items.map(it=>({productId:it.productId, qty:it.qty, color:'', shelf:''})) : [{productId:'', qty:1, color:'', shelf:''}];
   openModal(`
-    <h3>নতুন ক্রয় এন্ট্রি</h3>
+    <h3>${existing?`ক্রয় এডিট করুন — ${refNo('PUR', existing.id)}`:'নতুন ক্রয় এন্ট্রি'}</h3>
+    ${existing?`<div style="font-size:11.5px;color:var(--amber-2);margin-bottom:8px;">⚠️ এডিট করলে বর্তমান ক্রয়মূল্য অনুযায়ী পুনঃগণনা হবে। রং/শেলফ পরিবর্তন করতে চাইলে সরাসরি সেই রং-এর পণ্যটা তালিকা থেকে বেছে নিন।</div>`:''}
     <div class="form-row">
-      <div><label>তারিখ</label><input id="pf2_date" type="date" value="${todayStr()}"></div>
+      <div><label>তারিখ</label><input id="pf2_date" type="date" value="${existing?existing.date:todayStr()}"></div>
       <div><label>সাপ্লায়ার</label>
-        <select id="pf2_supplier">${DB.suppliers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select>
+        <select id="pf2_supplier">${DB.suppliers.map(c=>`<option value="${c.id}" ${existing&&existing.supplierId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
       </div>
     </div>
     <datalist id="purchaseProductOptions">
@@ -1558,14 +1733,15 @@ function openPurchaseModal(){
     <button class="btn btn-outline small-btn" onclick="addPurchaseLine()">+ পণ্য যোগ করুন</button>
     <div class="form-row" style="margin-top:14px;">
       <div><label>সর্বমোট</label><input id="pf2_total" readonly></div>
-      <div><label>জমা/পরিশোধিত (Enter = সংরক্ষণ)</label><input id="pf2_paid" type="number" value="0" oninput="calcPurchaseTotal()" onkeydown="if(event.key==='Enter'){event.preventDefault();savePurchase();}"></div>
+      <div><label>জমা/পরিশোধিত (Enter = সংরক্ষণ)</label><input id="pf2_paid" type="number" value="${existing?existing.paid:0}" oninput="calcPurchaseTotal()" onkeydown="if(event.key==='Enter'){event.preventDefault();savePurchase();}"></div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal()">বাতিল</button>
-      <button class="btn btn-gold" id="modalSaveBtn" onclick="savePurchase()">ক্রয় সংরক্ষণ করুন</button>
+      <button class="btn btn-gold" id="modalSaveBtn" onclick="savePurchase()">${existing?'পরিবর্তন সংরক্ষণ করুন':'ক্রয় সংরক্ষণ করুন'}</button>
     </div>
   `);
   renderPurchaseLines();
+  calcPurchaseTotal();
   setTimeout(()=>document.getElementById('purchProd_0')?.focus(), 0);
 }
 function renderPurchaseLines(){
@@ -1622,58 +1798,87 @@ function savePurchase(){
   if(!sup){ alert('সাপ্লায়ার খুঁজে পাওয়া যায়নি'); return; }
   const date = document.getElementById('pf2_date').value || todayStr();
   const paid = Number(document.getElementById('pf2_paid').value)||0;
-  const purId = genId();
+  const original = editingPurchaseId ? currentPurchaseRows().find(x=>x.id===editingPurchaseId) : null;
+  const purId = original ? original.id : genId();
 
   const resolvedItems = []; // {productId, qty, price}
   const batch = fsDB.batch();
+  // এডিট হলে — আগের সব আইটেমের পরিমাণ প্রথমে "বিয়োগ" হিসেবে ধরা হয় (রিভার্স),
+  // তারপর নতুন প্রতিটা লাইনের পরিমাণ "যোগ" হয় — প্রতি পণ্যে একবারেই নিট আপডেট হবে
+  const netQtyChange = {};
+  if(original) original.items.forEach(it=>{ netQtyChange[it.productId] = (netQtyChange[it.productId]||0) - it.qty; });
 
   for(const line of rawLines){
     const base = DB.products.find(x=>x.id===line.productId);
     const color = (line.color||'').trim();
     const shelf = (line.shelf||'').trim();
 
+    let targetId;
     if(!color && !shelf){
-      // সহজ পথ: সরাসরি বাছাই করা পণ্যের স্টক বাড়াও
-      batch.update(fsDB.collection('erp_products').doc(String(base.id)), {stock: base.stock + line.qty});
-      logStockMove(batch, {productId: base.id, qty: line.qty, type:'purchase', refType:'purchase', refId: purId, date});
-      resolvedItems.push({productId: base.id, qty: line.qty, price: base.buyPrice});
-      continue;
-    }
-
-    const existingVariant = color
-      ? DB.products.find(x=>
-          x.name===base.name && (x.brand||'')===(base.brand||'') && (x.size||'')===(base.size||'') && (x.color||'')===color)
-      : base;
-
-    if(existingVariant){
-      const upd = {stock: existingVariant.stock + line.qty};
-      if(shelf) upd.shelf = shelf;
-      batch.update(fsDB.collection('erp_products').doc(String(existingVariant.id)), upd);
-      logStockMove(batch, {productId: existingVariant.id, qty: line.qty, type:'purchase', refType:'purchase', refId: purId, date});
-      resolvedItems.push({productId: existingVariant.id, qty: line.qty, price: base.buyPrice});
+      targetId = base.id; // সহজ পথ: সরাসরি বাছাই করা পণ্য
     } else {
-      const newId = genId();
-      batch.set(fsDB.collection('erp_products').doc(String(newId)), {
-        id:newId, name:base.name, brand:base.brand||'', size:base.size||'', unit:base.unit,
-        buyPrice:base.buyPrice, sellPrice:base.sellPrice, lowStock:base.lowStock,
-        color, shelf, stock: line.qty
-      });
-      logStockMove(batch, {productId: newId, qty: line.qty, type:'purchase', refType:'purchase', refId: purId, date});
-      resolvedItems.push({productId: newId, qty: line.qty, price: base.buyPrice});
+      const existingVariant = color
+        ? DB.products.find(x=>
+            x.name===base.name && (x.brand||'')===(base.brand||'') && (x.size||'')===(base.size||'') && (x.color||'')===color)
+        : base;
+      if(existingVariant){
+        targetId = existingVariant.id;
+        if(shelf && shelf!==existingVariant.shelf) batch.update(fsDB.collection('erp_products').doc(String(existingVariant.id)), {shelf});
+      } else {
+        const newId = genId();
+        batch.set(fsDB.collection('erp_products').doc(String(newId)), {
+          id:newId, name:base.name, brand:base.brand||'', size:base.size||'', unit:base.unit,
+          buyPrice:base.buyPrice, sellPrice:base.sellPrice, lowStock:base.lowStock,
+          color, shelf, stock: line.qty
+        });
+        logStockMove(batch, {productId: newId, qty: line.qty, type:'purchase', refType:'purchase', refId: purId, date});
+        resolvedItems.push({productId: newId, qty: line.qty, price: base.buyPrice});
+        continue; // নতুন ভ্যারিয়েন্ট — নেট-চেঞ্জের হিসাবে ঢুকবে না, আলাদাভাবেই তৈরি হলো
+      }
     }
+    netQtyChange[targetId] = (netQtyChange[targetId]||0) + line.qty;
+    resolvedItems.push({productId: targetId, qty: line.qty, price: base.buyPrice});
+    logStockMove(batch, {productId: targetId, qty: line.qty, type: original?'purchase-edit-apply':'purchase', refType:'purchase', refId: purId, date});
   }
+  if(original) original.items.forEach(it=>logStockMove(batch, {productId: it.productId, qty: -it.qty, type:'purchase-edit-revert', refType:'purchase', refId: purId, date: original.date}));
+
+  Object.keys(netQtyChange).forEach(pid=>{
+    const p = DB.products.find(x=>x.id==pid);
+    if(p && netQtyChange[pid]!==0) batch.update(fsDB.collection('erp_products').doc(String(pid)), {stock: p.stock + netQtyChange[pid]});
+  });
 
   const total = resolvedItems.reduce((s,it)=>s+it.price*it.qty,0);
   const due = total - paid;
 
-  batch.update(fsDB.collection('erp_suppliers').doc(String(supId)), {due: (sup.due||0) + due});
+  // ---- সাপ্লায়ার বাকি: পুরনো সাপ্লায়ার থেকে রিভার্স (যদি থাকে), নতুনে প্রয়োগ ----
+  if(original && original.supplierId===supId){
+    batch.update(fsDB.collection('erp_suppliers').doc(String(supId)), {due: sup.due - original.due + due});
+  } else {
+    if(original){
+      const oldSup = DB.suppliers.find(c=>c.id===original.supplierId);
+      if(oldSup) batch.update(fsDB.collection('erp_suppliers').doc(String(original.supplierId)), {due: oldSup.due - original.due});
+    }
+    batch.update(fsDB.collection('erp_suppliers').doc(String(supId)), {due: (sup.due||0) + due});
+  }
+
   batch.set(fsDB.collection('erp_purchases').doc(String(purId)), {
     id:purId, date, supplierId:supId, supplierName: sup.name, items: resolvedItems, total, paid, due,
-    createdBy: currentUser?currentUser.name:'', createdByUsername: currentUser?currentUser.username:''
+    createdBy: original?original.createdBy:(currentUser?currentUser.name:''),
+    createdByUsername: original?original.createdByUsername:(currentUser?currentUser.username:''),
+    ...(original?{editedBy: currentUser?currentUser.name:'', editedAt: new Date().toISOString()}:{})
   });
-  applyStatsDelta(batch, date, {totalPurchase: total, purchaseCount: 1});
+
+  if(original && original.date===date){
+    applyStatsDelta(batch, date, {totalPurchase: total-original.total});
+  } else {
+    if(original) applyStatsDelta(batch, original.date, {totalPurchase:-original.total, purchaseCount:-1});
+    applyStatsDelta(batch, date, {totalPurchase: total, purchaseCount: 1});
+  }
+
+  if(original) logAudit('ক্রয় এন্ট্রি এডিট', `${refNo('PUR', purId)} — ${money(original.total)} → ${money(total)}`);
   closeModal();
-  fireWrite(batch.commit(), 'ক্রয় এন্ট্রি');
+  fireWrite(batch.commit(), original?'ক্রয় এডিট':'ক্রয় এন্ট্রি');
+  editingPurchaseId = null;
 }
 function deletePurchase(id){
   if(!confirm('এই ক্রয় এন্ট্রি মুছে ফেলতে চান? (স্টক থেকে বাদ যাবে)')) return;
@@ -1802,6 +2007,64 @@ function saveCollectDue(type, id){
   fireWrite(batch.commit(), 'বাকি আপডেট');
   showDuePaymentReceiptOption(paymentRec);
 }
+/* ================= নির্দিষ্ট ভাউচার/ইনভয়েসের বাকি পরিশোধ =================
+   কোনো নির্দিষ্ট বিক্রয়/ক্রয় এন্ট্রিতে বাকি থাকলে, সেই এন্ট্রি থেকেই সরাসরি
+   (💳 বাটনে চেপে) আংশিক/সম্পূর্ণ পরিশোধ করা যায় — কাস্টমার/সাপ্লায়ারের
+   সামগ্রিক বাকির পাশাপাশি ওই নির্দিষ্ট ভাউচারের paid/due ফিল্ডও আপডেট হয়,
+   তাই পরে আবার সেই ভাউচার দেখলে ঠিক কতটা পরিশোধ হয়েছে বোঝা যায়। */
+function openInvoicePaymentModal(voucherType, id){
+  const isSale = voucherType==='sale';
+  const entry = isSale ? currentSalesRows().find(x=>x.id===id) : currentPurchaseRows().find(x=>x.id===id);
+  if(!entry){ alert('এন্ট্রিটি বর্তমান তালিকায় পাওয়া যায়নি — তারিখ রেঞ্জ পরিবর্তন করে আবার চেষ্টা করুন।'); return; }
+  if(entry.due<=0){ alert('এই ভাউচারে কোনো বাকি নেই।'); return; }
+  const partyLabel = isSale ? entry.customerName : entry.supplierName;
+  openModal(`
+    <h3>${refNo(isSale?'INV':'PUR', entry.id)} — বাকি পরিশোধ</h3>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:14px;">${esc(partyLabel)} • এই ভাউচারের বাকি: <b style="color:var(--gold-2);">${money(entry.due)}</b></div>
+    <div class="form-row full">
+      <label>কত টাকা ${isSale?'জমা নিচ্ছেন':'পরিশোধ করছেন'}</label>
+      <input id="inv_pay_amt" type="number" value="${entry.due}" max="${entry.due}" onkeydown="if(event.key==='Enter'){event.preventDefault();saveInvoicePayment('${voucherType}',${id});}">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">বাতিল</button>
+      <button class="btn btn-gold" onclick="saveInvoicePayment('${voucherType}',${id})">সংরক্ষণ করুন</button>
+    </div>
+  `);
+  setTimeout(()=>{ const el=document.getElementById('inv_pay_amt'); el?.focus(); el?.select(); }, 0);
+}
+function saveInvoicePayment(voucherType, id){
+  const isSale = voucherType==='sale';
+  const entry = isSale ? currentSalesRows().find(x=>x.id===id) : currentPurchaseRows().find(x=>x.id===id);
+  if(!entry) return;
+  const val = Number(document.getElementById('inv_pay_amt').value);
+  if(!val || val<=0 || val>entry.due){ alert('সঠিক পরিমাণ দিন (০ থেকে '+money(entry.due)+' এর মধ্যে)'); return; }
+
+  const partyId = isSale ? entry.customerId : entry.supplierId;
+  const partyColl = isSale ? 'erp_customers' : 'erp_suppliers';
+  const partyList = isSale ? DB.customers : DB.suppliers;
+  const party = partyList.find(x=>x.id===partyId);
+  const voucherColl = isSale ? 'erp_sales' : 'erp_purchases';
+
+  const newPaid = entry.paid + val;
+  const newDue = entry.due - val;
+  const payId = genId();
+  const voucherRef = refNo(isSale?'INV':'PUR', id);
+  const paymentRec = {
+    id:payId, type: isSale?'customer':'supplier', partyId, partyName: isSale?entry.customerName:entry.supplierName,
+    amount:val, dueBefore: entry.due, dueAfter: newDue,
+    voucherType, voucherId: id, voucherRef,
+    date: todayStr(), at: new Date().toISOString(), by: currentUser?currentUser.name:''
+  };
+
+  const batch = fsDB.batch();
+  batch.update(fsDB.collection(voucherColl).doc(String(id)), {paid:newPaid, due:newDue});
+  if(party) batch.update(fsDB.collection(partyColl).doc(String(partyId)), {due: Math.max(0,(party.due||0) - val)});
+  batch.set(fsDB.collection('erp_due_payments').doc(String(payId)), paymentRec);
+  fireWrite(batch.commit(), 'ভাউচার বাকি পরিশোধ');
+  logAudit('ভাউচার বাকি পরিশোধ', `${voucherRef} — ${money(val)}`);
+  showDuePaymentReceiptOption(paymentRec);
+}
+
 /* বাকি জমা/পরিশোধের পর — চাইলে সাথে সাথেই একটা রশিদ প্রিন্ট করা যায় (বাধ্যতামূলক না,
    "প্রয়োজনে" প্রিন্ট করার অপশন)। পেমেন্টটা erp_due_payments এ রেকর্ড থাকে বলে
    ভবিষ্যতেও দরকার হলে হিসাব যাচাই করা সম্ভব। */
@@ -1828,6 +2091,7 @@ function printDuePaymentReceipt(rec){
         <div><b>রশিদ #:</b> ${refNo('PMT', rec.id)}</div>
         <div><b>তারিখ:</b> ${fmtDate(rec.date)}</div>
         <div><b>${rec.type==='customer'?'কাস্টমার':'সাপ্লায়ার'}:</b> ${esc(rec.partyName)}</div>
+        ${rec.voucherRef?`<div><b>সংশ্লিষ্ট ভাউচার:</b> ${esc(rec.voucherRef)}</div>`:''}
       </div>
     </div>
     <table class="inv-table" style="width:320px;margin-inline-start:auto;">
