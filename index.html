@@ -9,6 +9,7 @@
 <meta name="theme-color" content="#122924">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ব্যবসা ম্যানেজার">
@@ -261,12 +262,86 @@ tr:hover td{background:var(--panel-2);}
   width:100%;padding:9px 10px;background:var(--panel-2);border:1px solid var(--line);border-radius:7px;color:var(--ink);font-size:13.5px;
 }
 .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;}
-.items-box{border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:12px;}
-.item-line{display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:6px;margin-bottom:6px;align-items:center;}
-.item-line-purchase{display:grid;grid-template-columns:2fr 0.7fr 0.9fr 0.7fr 1fr auto;gap:6px;margin-bottom:6px;align-items:center;}
+.items-box{border:1px solid var(--line);border-radius:10px;padding:9px;margin-bottom:12px;max-height:360px;overflow-y:auto;}
+/* প্রতিটা পণ্য-লাইন এখন নিজের বক্সে, দুই সারিতে সাজানো — তাই ফর্মের বাইরে কখনো
+   ছড়িয়ে পড়ে না বা ডানদিকে স্ক্রল করার দরকার হয় না, মোবাইলেও ঠিকঠাক বসে যায়। */
+.item-line-card{border:1px solid var(--line);border-radius:10px;padding:8px 9px;margin-bottom:8px;background:var(--panel-2);position:relative;}
+.item-line-card:last-child{margin-bottom:0;}
+.il-row-main{display:flex;gap:6px;align-items:center;margin-bottom:7px;}
+.il-row-nums{display:flex;gap:6px;flex-wrap:wrap;}
+.il-row-extra{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap;}
+.il-row-extra input{flex:1;min-width:88px;padding:6px 7px;font-size:12px;border-radius:6px;background:var(--panel);border:1px solid var(--line);color:var(--ink);}
+.il-field{display:flex;flex-direction:column;gap:2px;}
+.il-field label{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.2px;}
+.il-field input{padding:6px 7px;font-size:13px;text-align:center;border-radius:6px;background:var(--panel);border:1px solid var(--line);color:var(--ink);}
+.il-qty{width:58px;}
+.il-price,.il-subtotal{width:88px;max-width:30vw;}
+.il-remove{flex:0 0 auto;background:transparent;border:none;color:var(--danger-text);cursor:pointer;font-size:16px;padding:4px 8px;border-radius:6px;}
+.il-remove:hover{background:var(--pill-bad-bg);}
 .chart-wrap{position:relative;height:260px;}
 .chart-fallback{display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:12.5px;text-align:center;padding:20px;}
-.item-line select,.item-line input{padding:7px 8px;font-size:12.5px;}
+
+/* কাস্টম প্রোডাক্ট সাজেশন ড্রপডাউন — নেটিভ <datalist> এর বদলে, যাতে প্রতিটা
+   অপশনে স্টক ও মূল্য স্পষ্টভাবে (স্টাইল করা আকারে) দেখা যায়, বিশেষত মোবাইলে */
+.sugg-box{
+  position:absolute;left:0;right:0;top:100%;margin-top:4px;background:var(--panel);border:1px solid var(--line);
+  border-radius:10px;box-shadow:var(--shadow-md);z-index:35;max-height:240px;overflow-y:auto;
+}
+.sugg-row{padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--line);}
+.sugg-row:last-child{border-bottom:none;}
+.sugg-row:hover{background:var(--panel-2);}
+.sugg-name{font-size:13px;font-weight:700;}
+.sugg-bits{font-weight:400;color:var(--muted);font-size:11.5px;}
+.sugg-meta{display:flex;justify-content:space-between;margin-top:3px;font-size:11.5px;gap:8px;}
+.sugg-price{color:var(--teal-2);font-weight:700;}
+.sugg-stock{font-weight:600;white-space:nowrap;}
+.sugg-empty{padding:10px;color:var(--muted);font-size:12.5px;text-align:center;}
+
+/* ---- POS-স্টাইল এন্ট্রি বার + পণ্য তালিকা ---- */
+.entry-bar{position:sticky;top:0;z-index:6;background:var(--panel);padding:8px 0 9px;margin:0 0 10px;border-bottom:1px dashed var(--line);}
+.entry-bar label{font-size:10px;color:var(--muted);display:block;margin-bottom:2px;font-weight:600;}
+.eb-prod{position:relative;}
+.eb-prod input{font-size:14.5px;padding:10px 12px;}
+.eb-row{display:flex;gap:6px;align-items:flex-end;margin-top:7px;flex-wrap:wrap;}
+.eb-row input{padding:8px 7px;font-size:14px;text-align:center;border-radius:7px;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);}
+.eb-row .il-qty{width:76px;}
+.eb-add{flex:1;min-width:88px;height:38px;}
+.eb-extra{display:flex;gap:6px;margin-top:7px;}
+.eb-extra input{flex:1;min-width:0;padding:7px 9px;font-size:12.5px;border-radius:7px;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);}
+.eb-info{font-size:11.5px;margin-top:5px;min-height:15px;color:var(--muted);}
+.eb-msg{font-size:12px;color:var(--danger-text);margin-top:3px;font-weight:700;}
+.eb-msg:empty{display:none;}
+.cart-list{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:12px;}
+.cart-empty{padding:16px 12px;text-align:center;color:var(--muted);font-size:12.5px;line-height:1.7;}
+.cart-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line);}
+.cart-row:last-child{border-bottom:none;}
+.cart-row:nth-child(even){background:var(--panel-2);}
+.cr-name{font-size:13px;font-weight:700;}
+.cr-meta{font-size:11.5px;color:var(--muted);margin-top:2px;}
+.cr-sub{font-weight:800;font-size:13px;white-space:nowrap;}
+.cr-actions{display:flex;gap:2px;}
+.cr-actions .icon-btn{padding:5px 7px;}
+.sugg-row.active{background:var(--panel-2);outline:2px solid color-mix(in srgb,var(--teal-2) 55%,transparent);outline-offset:-2px;}
+
+/* ---- বিক্রয়/ক্রয় ফর্ম: আকর্ষণীয় ও মোবাইল-বান্ধব ---- */
+.modal.entry-modal{max-width:620px;padding:0;display:flex;flex-direction:column;overflow:hidden;}
+.entry-head{padding:16px 20px 12px;border-bottom:1px solid var(--line);}
+.entry-head h3{margin:0;font-size:17px;}
+.entry-body{padding:14px 20px;overflow-y:auto;flex:1;}
+.entry-foot{padding:12px 20px;border-top:1px solid var(--line);background:var(--panel-2);}
+.entry-foot .modal-actions{margin:0;}
+.entry-modal.sale-theme .entry-head{background:linear-gradient(135deg,color-mix(in srgb,var(--teal-2) 22%,transparent),transparent);}
+.entry-modal.purchase-theme .entry-head{background:linear-gradient(135deg,color-mix(in srgb,var(--blue-2) 22%,transparent),transparent);}
+.sum-box{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:6px;}
+.sum-box .form-row{margin-bottom:10px;}
+.sum-box .form-row:last-child{margin-bottom:0;}
+@media(max-width:560px){
+  .modal-bg{padding:0;align-items:flex-end;}
+  .modal.entry-modal{max-width:100%;max-height:96vh;border-radius:18px 18px 0 0;}
+  .entry-body{padding:12px 12px;}
+  .entry-head,.entry-foot{padding-left:12px;padding-right:12px;}
+  .items-box{max-height:none;overflow:visible;border:none;padding:0;}
+}
 .small-btn{padding:6px 10px;font-size:12px;border-radius:6px;}
 .icon-btn{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:4px 6px;}
 .icon-btn:hover{color:var(--gold-2);}
@@ -906,11 +981,14 @@ function voucherLink(prefix, entry, kind){
 function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 
 function openModal(html){
+  document.getElementById('modalBox').className='modal';
   document.getElementById('modalBox').innerHTML = html;
   document.getElementById('modalBg').classList.add('show');
 }
-function closeModal(){ document.getElementById('modalBg').classList.remove('show'); }
-document.getElementById('modalBg').addEventListener('click', e=>{ if(e.target.id==='modalBg') closeModal(); });
+function closeModal(){ document.getElementById('modalBox').innerHTML=''; document.getElementById('modalBg').classList.remove('show'); }
+/* ইচ্ছাকৃতভাবে ফর্মের বাইরে ক্লিক করলে মডাল বন্ধ হওয়ার ব্যবস্থা রাখা হয়নি —
+   ভুলবশত বাইরে ক্লিক পড়লে এন্ট্রি করা তথ্য হারিয়ে যাওয়ার ঝুঁকি থাকে।
+   শুধু "বাতিল"/"বন্ধ করুন" বাটনে চাপলে বা Esc চাপলেই মডাল বন্ধ হবে। */
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && modalOpen()) closeModal(); });
 /* F2/F3 শর্টকাট এখন যেকোনো পেজেই কাজ করবে — শুধু বিক্রয়/ক্রয় পেজে আর সীমাবদ্ধ না,
    যাতে দ্রুত এন্ট্রি দিতে আগে ওই পেজে যেতে না হয়। */
@@ -1356,6 +1434,7 @@ function viewSaleDetail(id){
       <tr><td colspan="3" style="color:var(--danger-text);">ডিসকাউন্ট ${s.discountPercent?`(${s.discountPercent}%)`:''}</td><td class="num" style="color:var(--danger-text);">-${money(s.discount)}</td></tr>` : ''}
       <tr><td colspan="3" class="foot-total">সর্বমোট</td><td class="foot-total num">${money(s.total)}</td></tr>
       <tr><td colspan="3">জমা</td><td class="num">${money(s.paid)}</td></tr>
+      ${s.changeGiven?`<tr><td colspan="3" style="color:var(--success);">গ্রাহককে ফেরত দেওয়া হয়েছে</td><td class="num" style="color:var(--success);">${money(s.changeGiven)}</td></tr>`:''}
       <tr><td colspan="3"><b>বাকি</b></td><td class="num"><b>${money(s.due)}</b></td></tr>
     </table></div>
     <div class="modal-actions">
@@ -1366,6 +1445,42 @@ function viewSaleDetail(id){
     </div>
   `);
 }
+/* ================= দ্রুত নতুন কাস্টমার/সাপ্লায়ার যোগ (ফর্মের ভেতর থেকেই) =================
+   বিক্রয়/ক্রয় ফর্ম ছেড়ে আলাদা পেজে না গিয়ে, এখানেই "+" চেপে একটা ছোট্ট ইনলাইন
+   ফর্ম খুলে সাথে সাথেই নতুন কাস্টমার/সাপ্লায়ার যোগ ও বাছাই করা যায় — মূল ফর্মের
+   বাকি তথ্য (পণ্য/পরিমাণ ইত্যাদি) অক্ষত থাকে, যেহেতু এটা একই মডালের ভেতরেই ঘটে। */
+function toggleQuickAddParty(kind){
+  const box = document.getElementById(kind==='sale'?'sf_quickAddBox':'pf_quickAddBox');
+  if(!box) return;
+  box.classList.toggle('hidden');
+  if(!box.classList.contains('hidden')){
+    const nameEl = document.getElementById(kind==='sale'?'sf_newCustName':'pf_newSupName');
+    setTimeout(()=>nameEl?.focus(), 0);
+  }
+}
+function quickAddParty(kind){
+  const isSale = kind==='sale';
+  const nameEl = document.getElementById(isSale?'sf_newCustName':'pf_newSupName');
+  const phoneEl = document.getElementById(isSale?'sf_newCustPhone':'pf_newSupPhone');
+  const name = nameEl.value.trim();
+  if(!name){ alert('নাম লিখুন'); return; }
+  const phone = phoneEl.value.trim();
+  const newId = genId();
+  const rec = {id:newId, name, phone, due:0};
+  const coll = isSale?'erp_customers':'erp_suppliers';
+  (isSale?DB.customers:DB.suppliers).push(rec);
+  fireWrite(fsDB.collection(coll).doc(String(newId)).set(rec), isSale?'নতুন কাস্টমার':'নতুন সাপ্লায়ার');
+  const selectEl = document.getElementById(isSale?'sf_customer':'pf2_supplier');
+  if(selectEl){
+    const opt = document.createElement('option');
+    opt.value = newId; opt.textContent = name;
+    selectEl.appendChild(opt);
+    selectEl.value = String(newId);
+  }
+  nameEl.value=''; phoneEl.value='';
+  toggleQuickAddParty(kind);
+}
+
 let saleCart = [];
 let editingSaleId = null; // null = নতুন এন্ট্রি; নাহলে এই আইডির বিক্রয়টা এডিট হচ্ছে
 function openSaleModal(editId){
@@ -1376,23 +1491,52 @@ function openSaleModal(editId){
     if(!canEditVoucher(existing)){ alert('আপনি শুধু নিজের তৈরি করা এন্ট্রি এডিট করতে পারবেন (ম্যানেজার/এডমিন সবগুলো করতে পারবেন)।'); return; }
   }
   editingSaleId = editId || null;
-  saleCart = existing ? existing.items.map(it=>({productId:it.productId, qty:it.qty})) : [{productId:'', qty:1}];
+  saleCart = existing ? existing.items.map(it=>({productId:it.productId, qty:it.qty})) : [];
+  entryReset('sale');
   openModal(`
-    <h3>${existing?`বিক্রয় এডিট করুন — ${refNo('INV', existing.id)}`:'নতুন বিক্রয় এন্ট্রি'}</h3>
+    <div class="entry-head"><h3>${existing?`বিক্রয় এডিট করুন — ${refNo('INV', existing.id)}`:'🧾 নতুন বিক্রয় এন্ট্রি'}</h3></div>
+    <div class="entry-body">
     ${existing?`<div style="font-size:11.5px;color:var(--amber-2);margin-bottom:8px;">⚠️ এডিট করলে বর্তমান বিক্রয়মূল্য অনুযায়ী পুনঃগণনা হবে (মূল্য পরিবর্তিত হয়ে থাকলে টোটাল বদলে যেতে পারে)।</div>`:''}
     <div class="form-row">
       <div><label>তারিখ</label><input id="sf_date" type="date" value="${existing?existing.date:todayStr()}"></div>
       <div><label>কাস্টমার</label>
-        <select id="sf_customer">${DB.customers.map(c=>`<option value="${c.id}" ${existing&&existing.customerId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
+        <div style="display:flex;gap:6px;">
+          <select id="sf_customer" style="flex:1;min-width:0;">${DB.customers.map(c=>`<option value="${c.id}" ${existing&&existing.customerId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
+          <button type="button" class="btn btn-outline small-btn" style="flex:0 0 auto;" onclick="toggleQuickAddParty('sale')" title="নতুন কাস্টমার যোগ করুন">+</button>
+        </div>
+        <div id="sf_quickAddBox" class="hidden" style="margin-top:8px;padding:9px;border:1px dashed var(--line);border-radius:8px;">
+          <div class="form-row" style="margin-bottom:8px;">
+            <input type="text" id="sf_newCustName" placeholder="কাস্টমারের নাম">
+            <input type="text" id="sf_newCustPhone" placeholder="মোবাইল নম্বর (ঐচ্ছিক)">
+          </div>
+          <div style="display:flex;gap:6px;justify-content:flex-end;">
+            <button type="button" class="btn btn-outline small-btn" onclick="toggleQuickAddParty('sale')">বাতিল</button>
+            <button type="button" class="btn btn-gold small-btn" onclick="quickAddParty('sale')">যোগ করুন</button>
+          </div>
+        </div>
       </div>
     </div>
-    <datalist id="saleProductOptions">
-      ${DB.products.map(p=>`<option value="${esc(productLabel(p))}">`).join('')}
-    </datalist>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">💡 পণ্যের নাম টাইপ করুন, তালিকা থেকে বাছাই করলেই পরিমাণে কার্সর চলে যাবে। Enter চাপলে পরের লাইন যোগ হবে।</div>
-    <div class="items-box" id="saleItemsBox"></div>
-    <button class="btn btn-outline small-btn" onclick="addSaleLine()">+ পণ্য যোগ করুন</button>
-    <div class="form-row" style="margin-top:14px;">
+    <div class="entry-bar">
+      <div class="eb-prod">
+        <label>পণ্য (নাম লিখুন → ↑↓ দিয়ে বাছাই → Enter)</label>
+        <input type="text" id="saleEntProd" autocomplete="off" placeholder="🔍 পণ্যের নাম লিখে খুঁজুন..."
+          oninput="entryTyped('sale')" onkeydown="entryKeydown(event,'sale')" onfocus="this.select()"
+          onblur="setTimeout(()=>entryHideSugg('sale'),200)">
+        <div class="sugg-box hidden" id="saleEntSugg"></div>
+      </div>
+      <div class="eb-info" id="saleEntInfo"></div>
+      <div class="eb-row">
+        <div class="il-field"><label>পরিমাণ</label><input class="il-qty" type="number" inputmode="decimal" min="0" step="any" id="saleEntQty" placeholder="১"
+          oninput="entryUpdateSub('sale')" onkeydown="entryQtyKeydown(event,'sale')" onfocus="this.select()"></div>
+        <div class="il-field"><label>দর</label><input class="il-price" readonly id="saleEntPrice" tabindex="-1"></div>
+        <div class="il-field"><label>সাবটোটাল</label><input class="il-subtotal" readonly id="saleEntSub" tabindex="-1"></div>
+        <button type="button" class="btn btn-gold eb-add" onclick="entryAdd('sale')">➕ যোগ (Enter)</button>
+      </div>
+      <div class="eb-msg" id="saleEntMsg"></div>
+    </div>
+    <div class="cart-list" id="saleItemsBox"></div>
+    <div class="sum-box">
+    <div class="form-row">
       <div><label>সাবটোটাল</label><input id="sf_subtotal" readonly></div>
       <div><label>সর্বমোট (ডিসকাউন্টের পর)</label><input id="sf_total" readonly style="font-weight:800;"></div>
     </div>
@@ -1404,50 +1548,221 @@ function openSaleModal(editId){
       <div><label>জমা/পরিশোধিত (Enter = সংরক্ষণ)</label><input id="sf_paid" type="number" value="${existing?existing.paid:0}" oninput="calcSaleTotal()" onkeydown="if(event.key==='Enter'){event.preventDefault();saveSale();}"></div>
       <div><label>বাকি</label><input id="sf_due" readonly></div>
     </div>
-    <div class="modal-actions">
+    <div class="form-row full hidden" id="sf_changeRow">
+      <div style="background:var(--pill-ok-bg);border-radius:8px;padding:9px 12px;">
+        <label style="color:var(--pill-ok-text);">💵 গ্রাহককে ফেরত দিন</label>
+        <input id="sf_change" readonly style="background:transparent;border:none;color:var(--pill-ok-text);font-weight:800;font-size:16px;padding:0;">
+      </div>
+    </div>
+    </div>
+    </div>
+    <div class="entry-foot"><div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal()">বাতিল</button>
       <button class="btn btn-gold" id="modalSaveBtn" onclick="saveSale()">${existing?'পরিবর্তন সংরক্ষণ করুন':'বিক্রয় সংরক্ষণ করুন'}</button>
-    </div>
+    </div></div>
   `);
+  document.getElementById('modalBox').className='modal entry-modal sale-theme';
   renderSaleLines();
   calcSaleTotal();
-  setTimeout(()=>document.getElementById('saleProd_0')?.focus(), 0);
+  setTimeout(()=>document.getElementById('saleEntProd')?.focus(), 0);
 }
-function renderSaleLines(){
-  document.getElementById('saleItemsBox').innerHTML = saleCart.map((line,i)=>{
-    const p = line.productId ? DB.products.find(x=>x.id==line.productId) : null;
-    return `
-    <div class="item-line">
-      <input type="text" list="saleProductOptions" id="saleProd_${i}" placeholder="পণ্য টাইপ করুন..."
-        value="${p?esc(productLabel(p)):''}" oninput="onSaleProductInput(${i},this.value)">
-      <input type="number" min="1" id="saleQty_${i}" value="${line.qty}" placeholder="পরিমাণ"
-        oninput="saleCart[${i}].qty=Number(this.value);calcSaleTotal();"
-        onkeydown="if(event.key==='Enter'){event.preventDefault();handleSaleQtyEnter(${i});}"
-        onfocus="this.select()">
-      <input type="text" readonly value="${p?money(p.sellPrice):''}" placeholder="দর">
-      <input type="text" readonly value="${p?money(p.sellPrice*line.qty):''}" placeholder="সাবটোটাল">
-      <button class="icon-btn" onclick="removeSaleLine(${i})">✖</button>
+/* =====================================================================
+   POS-স্টাইল দ্রুত এন্ট্রি (বিক্রয় ও ক্রয় — দুটোতেই একই কোড)
+   -------------------------------------------------------------------
+   একটাই এন্ট্রি বার: পণ্য লিখুন → ↑/↓ দিয়ে তালিকা থেকে বাছাই → Enter → পরিমাণ
+   → Enter = লাইনটা নিচের তালিকায় যোগ হয়ে কার্সর আবার "পণ্য" ঘরে ফিরে আসে।
+   খালি পণ্য-ঘরে Enter চাপলে কার্সর সরাসরি "জমা" ঘরে চলে যায়।
+   নিচের তালিকায় প্রতিটা লাইনের পাশে ✏️ এডিট ও 🗑️ মুছুন বাটন থাকে।
+   মাউস/টাচে তালিকার আইটেমে ট্যাপ করলেও সাথে সাথে বাছাই হয়।
+   ===================================================================== */
+function productSuggestMatches(query){
+  const q = query.trim().toLowerCase();
+  if(!q) return [];
+  const words = q.split(/\s+/).filter(Boolean);
+  return DB.products.filter(p=>{
+    const hay = [p.name, p.brand, p.size, p.color, p.shelf].filter(Boolean).join(' ').toLowerCase();
+    return words.every(w=>hay.includes(w));
+  }).slice(0,30);
+}
+function productShort(p){
+  const bits = [p.brand, p.size, p.color].filter(Boolean).join(' ');
+  return p.name + (bits ? ' — ' + bits : '');
+}
+const ENTRY_CFG = {
+  sale:     { pre:'saleEnt',  cart:()=>saleCart,     price:p=>p.sellPrice, priceLbl:'বিক্রয়মূল্য', recalc:()=>calcSaleTotal(),     renderList:()=>renderSaleLines(),     paidId:'sf_paid' },
+  purchase: { pre:'purchEnt', cart:()=>purchaseCart, price:p=>p.buyPrice,  priceLbl:'ক্রয়মূল্য',   recalc:()=>calcPurchaseTotal(), renderList:()=>renderPurchaseLines(), paidId:'pf2_paid' }
+};
+const entryState = { sale:{productId:'',active:0,matches:[]}, purchase:{productId:'',active:0,matches:[]} };
+function eEl(kind, suf){ return document.getElementById(ENTRY_CFG[kind].pre + suf); }
+function entryReset(kind){ entryState[kind] = {productId:'', active:0, matches:[]}; }
+function entryHideSugg(kind){ const b = eEl(kind,'Sugg'); if(b){ b.classList.add('hidden'); b.innerHTML=''; } }
+function entrySuggOpen(kind){ const b = eEl(kind,'Sugg'); return !!(b && !b.classList.contains('hidden') && entryState[kind].matches.length); }
+function entryRenderSugg(kind){
+  const st = entryState[kind], box = eEl(kind,'Sugg'), cfg = ENTRY_CFG[kind];
+  if(!box) return;
+  if(!eEl(kind,'Prod').value.trim()){ entryHideSugg(kind); return; }
+  if(!st.matches.length){ box.innerHTML = '<div class="sugg-empty">কোনো পণ্য পাওয়া যায়নি</div>'; box.classList.remove('hidden'); return; }
+  box.innerHTML = st.matches.map((p,idx)=>{
+    const bits = [p.brand, p.size, p.color].filter(Boolean).join(' ');
+    const stockColor = p.stock<=0 ? 'var(--danger-text)' : (p.stock<=p.lowStock ? 'var(--amber-2)' : 'var(--success)');
+    return `<div class="sugg-row ${idx===st.active?'active':''}" data-idx="${idx}"
+        onmousedown="event.preventDefault();entryPick('${kind}',${p.id})"
+        onmouseenter="entrySetActive('${kind}',${idx},false)">
+      <div class="sugg-name">${esc(p.name)}${bits?` <span class="sugg-bits">— ${esc(bits)}</span>`:''}</div>
+      <div class="sugg-meta"><span class="sugg-price">${cfg.priceLbl} ${money(cfg.price(p))}</span><span class="sugg-stock" style="color:${stockColor};">স্টক: ${p.stock} ${esc(p.unit||'')}</span></div>
+    </div>`;
+  }).join('');
+  box.classList.remove('hidden');
+}
+function entrySetActive(kind, idx, scroll){
+  const st = entryState[kind], box = eEl(kind,'Sugg'); if(!box) return;
+  st.active = idx;
+  box.querySelectorAll('.sugg-row').forEach((r,i)=>{
+    r.classList.toggle('active', i===idx);
+    if(scroll && i===idx) r.scrollIntoView({block:'nearest'});
+  });
+}
+function entryTyped(kind){
+  const st = entryState[kind];
+  st.productId = '';
+  eEl(kind,'Price').value = ''; eEl(kind,'Sub').value = ''; eEl(kind,'Info').textContent = ''; eEl(kind,'Msg').textContent = '';
+  st.matches = productSuggestMatches(eEl(kind,'Prod').value);
+  st.active = 0;
+  entryRenderSugg(kind);
+}
+function entryKeydown(e, kind){
+  const st = entryState[kind], cfg = ENTRY_CFG[kind], open = entrySuggOpen(kind);
+  if(e.key==='ArrowDown'){
+    if(open){ e.preventDefault(); entrySetActive(kind, (st.active+1)%st.matches.length, true); }
+    else if(!st.productId && eEl(kind,'Prod').value.trim()){ e.preventDefault(); entryTyped(kind); }
+  } else if(e.key==='ArrowUp'){
+    if(open){ e.preventDefault(); entrySetActive(kind, (st.active-1+st.matches.length)%st.matches.length, true); }
+  } else if(e.key==='Enter'){
+    e.preventDefault();
+    if(!st.productId && open){ entryPick(kind, st.matches[st.active].id); }
+    else if(st.productId){ const q = eEl(kind,'Qty'); q.focus(); q.select(); }
+    else if(!eEl(kind,'Prod').value.trim() && cfg.cart().length){ const pe = document.getElementById(cfg.paidId); if(pe){ pe.focus(); pe.select(); } }
+  } else if(e.key==='Tab' && !e.shiftKey && open && !st.productId){
+    e.preventDefault(); entryPick(kind, st.matches[st.active].id);
+  } else if(e.key==='Escape' && !eEl(kind,'Sugg').classList.contains('hidden')){
+    e.stopPropagation(); entryHideSugg(kind);
+  }
+}
+function entryPick(kind, id){
+  const p = DB.products.find(x=>x.id==id); if(!p) return;
+  const st = entryState[kind], cfg = ENTRY_CFG[kind];
+  st.productId = p.id;
+  eEl(kind,'Prod').value = productShort(p);
+  entryHideSugg(kind);
+  eEl(kind,'Price').value = money(cfg.price(p));
+  const qEl = eEl(kind,'Qty'); if(!Number(qEl.value)) qEl.value = 1;
+  const stockColor = p.stock<=0 ? 'var(--danger-text)' : (p.stock<=p.lowStock ? 'var(--amber-2)' : 'var(--success)');
+  eEl(kind,'Info').innerHTML = `${cfg.priceLbl}: <b>${money(cfg.price(p))}</b> • বর্তমান স্টক: <b style="color:${stockColor};">${p.stock} ${esc(p.unit||'')}</b>`;
+  entryUpdateSub(kind);
+  qEl.focus(); qEl.select();
+}
+function entryUpdateSub(kind){
+  const st = entryState[kind], cfg = ENTRY_CFG[kind];
+  const p = st.productId ? DB.products.find(x=>x.id==st.productId) : null;
+  const qty = Number(eEl(kind,'Qty').value)||0;
+  eEl(kind,'Sub').value = p ? money(cfg.price(p)*qty) : '';
+}
+function entryQtyKeydown(e, kind){
+  if(e.key==='Enter'){ e.preventDefault(); entryAdd(kind); }
+  else if(e.key==='ArrowUp' || (e.key==='Backspace' && !e.target.value)){ /* খালি ঘরে Backspace = পণ্য ঘরে ফিরে যাওয়া */
+    if(e.key==='ArrowUp'){ e.preventDefault(); } 
+    eEl(kind,'Prod').focus();
+  }
+}
+function entryAdd(kind){
+  const st = entryState[kind], cfg = ENTRY_CFG[kind];
+  const msg = eEl(kind,'Msg'); msg.textContent = '';
+  if(!st.productId){ msg.textContent = 'আগে তালিকা থেকে একটি পণ্য বাছাই করুন'; eEl(kind,'Prod').focus(); return false; }
+  const p = DB.products.find(x=>x.id==st.productId);
+  if(!p){ msg.textContent = 'পণ্যটি খুঁজে পাওয়া যায়নি'; return false; }
+  const qty = Number(eEl(kind,'Qty').value)||0;
+  if(qty<=0){ msg.textContent = 'পরিমাণ ০ এর বেশি হতে হবে'; eEl(kind,'Qty').focus(); return false; }
+  const cart = cfg.cart();
+  const color = kind==='purchase' ? eEl(kind,'Color').value.trim() : '';
+  const shelf = kind==='purchase' ? eEl(kind,'Shelf').value.trim() : '';
+  const idx = cart.findIndex(l=> l.productId==p.id && (kind==='sale' || ((l.color||'')===color && (l.shelf||'')===shelf)));
+  const already = idx>=0 ? cart[idx].qty : 0;
+  if(kind==='sale'){
+    const orig = editingSaleId ? currentSalesRows().find(x=>x.id===editingSaleId) : null;
+    const origQty = orig ? orig.items.filter(it=>it.productId==p.id).reduce((s,it)=>s+it.qty,0) : 0;
+    const avail = p.stock + origQty - already;
+    if(qty>avail){
+      msg.textContent = `স্টক অপর্যাপ্ত! "${p.name}" আর সর্বোচ্চ ${Math.max(0,avail)} ${p.unit||''} যোগ করা যাবে`;
+      const q = eEl(kind,'Qty'); q.focus(); q.select(); return false;
+    }
+  }
+  if(idx>=0) cart[idx].qty += qty;
+  else cart.push(kind==='sale' ? {productId:p.id, qty} : {productId:p.id, qty, color, shelf});
+  entryReset(kind);
+  ['Prod','Qty','Price','Sub'].forEach(x=>eEl(kind,x).value='');
+  if(kind==='purchase'){ eEl(kind,'Color').value=''; eEl(kind,'Shelf').value=''; }
+  eEl(kind,'Info').textContent = '';
+  cfg.renderList(); cfg.recalc();
+  eEl(kind,'Prod').focus();
+  return true;
+}
+/* সেভ করার আগে — এন্ট্রি বারে বাছাই করা কিন্তু "যোগ" না করা পণ্য থাকলে সেটা নিজেই যোগ হয়ে যায় */
+function entryFlush(kind){
+  const st = entryState[kind], txt = eEl(kind,'Prod')?.value.trim();
+  if(!st.productId){
+    if(txt){ eEl(kind,'Msg').textContent = `"${txt}" — তালিকা থেকে বাছাই করে ➕ যোগ করুন, অথবা লেখাটা মুছে দিন`; eEl(kind,'Prod').focus(); return false; }
+    return true;
+  }
+  return entryAdd(kind);
+}
+function entryEditLine(kind, i){
+  const cfg = ENTRY_CFG[kind], cart = cfg.cart(), line = cart[i]; if(!line) return;
+  if(entryState[kind].productId || eEl(kind,'Prod').value.trim()){ if(!entryFlush(kind)) return; }
+  const idx = cart.indexOf(line);
+  cart.splice(idx,1);
+  const p = DB.products.find(x=>x.id==line.productId);
+  entryReset(kind);
+  entryState[kind].productId = line.productId;
+  eEl(kind,'Prod').value = p ? productShort(p) : '';
+  eEl(kind,'Qty').value = line.qty;
+  if(kind==='purchase'){ eEl(kind,'Color').value = line.color||''; eEl(kind,'Shelf').value = line.shelf||''; }
+  if(p){
+    eEl(kind,'Price').value = money(cfg.price(p));
+    const stockColor = p.stock<=0 ? 'var(--danger-text)' : (p.stock<=p.lowStock ? 'var(--amber-2)' : 'var(--success)');
+    eEl(kind,'Info').innerHTML = `${cfg.priceLbl}: <b>${money(cfg.price(p))}</b> • বর্তমান স্টক: <b style="color:${stockColor};">${p.stock} ${esc(p.unit||'')}</b>`;
+  }
+  entryUpdateSub(kind);
+  cfg.renderList(); cfg.recalc();
+  const q = eEl(kind,'Qty'); q.focus(); q.select();
+}
+function cartRowsHtml(kind, cart){
+  if(!cart.length) return '<div class="cart-empty">এখনো কোনো পণ্য যোগ হয়নি<br>উপরের বারে পণ্য ও পরিমাণ দিয়ে Enter চাপুন</div>';
+  const cfg = ENTRY_CFG[kind];
+  const editFn = kind==='sale' ? 'removeSaleLine' : 'removePurchaseLine';
+  return cart.map((l,i)=>{
+    const p = DB.products.find(x=>x.id==l.productId);
+    const price = p ? cfg.price(p) : 0;
+    const bits = p ? [p.brand, p.size, p.color].filter(Boolean).join(' ') : '';
+    const extra = kind==='purchase' ? [l.color?('রং: '+l.color):'', l.shelf?('শেলফ: '+l.shelf):''].filter(Boolean).join(' • ') : '';
+    return `<div class="cart-row">
+      <div>
+        <div class="cr-name">${i+1}. ${esc(p?p.name:'মুছে ফেলা পণ্য')}${bits?` <span class="sugg-bits">— ${esc(bits)}</span>`:''}</div>
+        <div class="cr-meta">${money(price)} × ${l.qty} ${esc(p?p.unit||'':'')}${extra?' • '+esc(extra):''}</div>
+      </div>
+      <div class="cr-sub">${money(price*l.qty)}</div>
+      <div class="cr-actions">
+        <button type="button" class="icon-btn" onclick="entryEditLine('${kind}',${i})" title="এডিট (পরিমাণ/পণ্য বদলান)">✏️</button>
+        <button type="button" class="icon-btn" onclick="${editFn}(${i})" title="মুছুন">🗑️</button>
+      </div>
     </div>`;
   }).join('');
 }
-function onSaleProductInput(i, val){
-  const match = DB.products.find(p=>productLabel(p)===val);
-  if(match){
-    saleCart[i].productId = match.id;
-    calcSaleTotal();
-    const qtyEl = document.getElementById('saleQty_'+i);
-    if(qtyEl){ qtyEl.focus(); qtyEl.select(); }
-  } else {
-    saleCart[i].productId = '';
-  }
+let saleSuggestCache = {}; // (পুরনো রেফারেন্সের জন্য — এখন ব্যবহৃত হয় না)
+function renderSaleLines(){
+  const box = document.getElementById('saleItemsBox'); if(!box) return;
+  box.innerHTML = cartRowsHtml('sale', saleCart);
 }
-function handleSaleQtyEnter(i){
-  if(i === saleCart.length-1) addSaleLine();
-  const el = document.getElementById('saleProd_'+(i+1));
-  if(el) el.focus();
-}
-function addSaleLine(){ saleCart.push({productId:'', qty:1}); renderSaleLines(); }
-function removeSaleLine(i){ saleCart.splice(i,1); renderSaleLines(); calcSaleTotal(); }
+function removeSaleLine(i){ saleCart.splice(i,1); renderSaleLines(); calcSaleTotal(); eEl('sale','Prod')?.focus(); }
 /* ডিসকাউন্ট % বা টাকা — দুটো ঘরই আছে, যেকোনো একটায় লিখলে অন্যটা
    স্বয়ংক্রিয়ভাবে হিসাব হয়ে যায় (changedField বলে দেয় কোনটা এইমাত্র বদলালো) */
 function calcSaleTotal(changedField){
@@ -1479,13 +1794,25 @@ function calcSaleTotal(changedField){
   const totalEl = document.getElementById('sf_total');
   if(totalEl) totalEl.value = money(grandTotal);
 
-  const paid = Number(document.getElementById('sf_paid')?.value)||0;
+  /* গ্রাহক সর্বমোটের চেয়ে বড় নোট/বেশি টাকা দিলে — বাকি কখনোই ঋণাত্মক দেখানো হয় না;
+     বাড়তি অংশ আলাদাভাবে "ফেরত দিন" হিসেবে দেখানো হয়, আর হিসাবে (due/paid) সবসময়
+     বাস্তবসম্মত (০ বা ধনাত্মক) মান থাকে — এভাবেই ঋণাত্মক-বাকির সমস্যাটা সমাধান হয়। */
+  const paidRaw = Number(document.getElementById('sf_paid')?.value)||0;
+  const due = Math.max(0, grandTotal - paidRaw);
+  const changeBack = Math.max(0, paidRaw - grandTotal);
   const dueEl = document.getElementById('sf_due');
-  if(dueEl) dueEl.value = money(grandTotal - paid);
+  if(dueEl) dueEl.value = money(due);
+  const changeRow = document.getElementById('sf_changeRow');
+  const changeEl = document.getElementById('sf_change');
+  if(changeRow && changeEl){
+    if(changeBack>0){ changeRow.classList.remove('hidden'); changeEl.value = money(changeBack); }
+    else { changeRow.classList.add('hidden'); }
+  }
 
   return grandTotal;
 }
 function saveSale(){
+  if(!entryFlush('sale')) return;
   const items = saleCart.filter(l=>l.productId && l.qty>0).map(l=>{
     const p = DB.products.find(x=>x.id==l.productId);
     return {productId:p.id, qty:Number(l.qty), price:p.sellPrice, buyPrice:p.buyPrice, _stock:p.stock, _name:p.name};
@@ -1506,12 +1833,17 @@ function saveSale(){
   const cust = DB.customers.find(c=>c.id===custId);
   if(!cust){ alert('কাস্টমার খুঁজে পাওয়া যায়নি'); return; }
   const date = document.getElementById('sf_date').value || todayStr();
-  const paid = Number(document.getElementById('sf_paid').value)||0;
+  const paidRaw = Number(document.getElementById('sf_paid').value)||0;
   const subtotal = items.reduce((s,it)=>s+it.price*it.qty,0);
   const discountPercent = Math.max(0, Math.min(100, Number(document.getElementById('sf_discPct').value)||0));
   const discount = Math.max(0, Math.min(subtotal, Number(document.getElementById('sf_discAmt').value)||0));
   const total = subtotal - discount;
   const cogs = items.reduce((s,it)=>s+it.buyPrice*it.qty,0);
+  // গ্রাহক সর্বমোটের চেয়ে বেশি টাকা দিলে সেই বাড়তি অংশ "ফেরত" — ইনভয়েসে paid হিসেবে
+  // কখনোই total-এর বেশি জমা হয় না, তাই due কখনো ঋণাত্মক হয় না এবং হিসাবে কোনো
+  // অবাস্তব "নেগেটিভ বাকি" থেকে যায় না; ফেরত দেওয়া অংশ শুধু রেকর্ডের জন্য changeGiven-এ থাকে
+  const paid = Math.min(paidRaw, total);
+  const changeGiven = Math.max(0, paidRaw - total);
   const due = total - paid;
   const saleId = original ? original.id : genId();
 
@@ -1543,7 +1875,7 @@ function saveSale(){
   batch.set(fsDB.collection('erp_sales').doc(String(saleId)), {
     id:saleId, date, customerId:custId, customerName: cust.name,
     items: items.map(({productId,qty,price,buyPrice})=>({productId,qty,price,buyPrice})), subtotal, discount, discountPercent,
-    total, paid, due, cogs,
+    total, paid, due, cogs, changeGiven,
     createdBy: original?original.createdBy:(currentUser?currentUser.name:''),
     createdByUsername: original?original.createdByUsername:(currentUser?currentUser.username:''),
     ...(original?{editedBy: currentUser?currentUser.name:'', editedAt: new Date().toISOString()}:{})
@@ -1689,6 +2021,7 @@ function viewPurchaseDetail(id){
       ${rows}
       <tr><td colspan="3" class="foot-total">সর্বমোট</td><td class="foot-total num">${money(pur.total)}</td><td></td></tr>
       <tr><td colspan="3">জমা</td><td class="num">${money(pur.paid)}</td><td></td></tr>
+      ${pur.changeGiven?`<tr><td colspan="3" style="color:var(--success);">ফেরত নেওয়া হয়েছে</td><td class="num" style="color:var(--success);">${money(pur.changeGiven)}</td><td></td></tr>`:''}
       <tr><td colspan="3"><b>বাকি</b></td><td class="num"><b>${money(pur.due)}</b></td><td></td></tr>
     </table></div>
     <div class="modal-actions">
@@ -1711,93 +2044,114 @@ function openPurchaseModal(editId){
     if(!canEditVoucher(existing)){ alert('আপনি শুধু নিজের তৈরি করা এন্ট্রি এডিট করতে পারবেন (ম্যানেজার/এডমিন সবগুলো করতে পারবেন)।'); return; }
   }
   editingPurchaseId = editId || null;
-  purchaseCart = existing ? existing.items.map(it=>({productId:it.productId, qty:it.qty, color:'', shelf:''})) : [{productId:'', qty:1, color:'', shelf:''}];
+  purchaseCart = existing ? existing.items.map(it=>({productId:it.productId, qty:it.qty, color:'', shelf:''})) : [];
+  entryReset('purchase');
   openModal(`
-    <h3>${existing?`ক্রয় এডিট করুন — ${refNo('PUR', existing.id)}`:'নতুন ক্রয় এন্ট্রি'}</h3>
+    <div class="entry-head"><h3>${existing?`ক্রয় এডিট করুন — ${refNo('PUR', existing.id)}`:'🛒 নতুন ক্রয় এন্ট্রি'}</h3></div>
+    <div class="entry-body">
     ${existing?`<div style="font-size:11.5px;color:var(--amber-2);margin-bottom:8px;">⚠️ এডিট করলে বর্তমান ক্রয়মূল্য অনুযায়ী পুনঃগণনা হবে। রং/শেলফ পরিবর্তন করতে চাইলে সরাসরি সেই রং-এর পণ্যটা তালিকা থেকে বেছে নিন।</div>`:''}
     <div class="form-row">
       <div><label>তারিখ</label><input id="pf2_date" type="date" value="${existing?existing.date:todayStr()}"></div>
       <div><label>সাপ্লায়ার</label>
-        <select id="pf2_supplier">${DB.suppliers.map(c=>`<option value="${c.id}" ${existing&&existing.supplierId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
+        <div style="display:flex;gap:6px;">
+          <select id="pf2_supplier" style="flex:1;min-width:0;">${DB.suppliers.map(c=>`<option value="${c.id}" ${existing&&existing.supplierId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
+          <button type="button" class="btn btn-outline small-btn" style="flex:0 0 auto;" onclick="toggleQuickAddParty('purchase')" title="নতুন সাপ্লায়ার যোগ করুন">+</button>
+        </div>
+        <div id="pf_quickAddBox" class="hidden" style="margin-top:8px;padding:9px;border:1px dashed var(--line);border-radius:8px;">
+          <div class="form-row" style="margin-bottom:8px;">
+            <input type="text" id="pf_newSupName" placeholder="সাপ্লায়ারের নাম">
+            <input type="text" id="pf_newSupPhone" placeholder="মোবাইল নম্বর (ঐচ্ছিক)">
+          </div>
+          <div style="display:flex;gap:6px;justify-content:flex-end;">
+            <button type="button" class="btn btn-outline small-btn" onclick="toggleQuickAddParty('purchase')">বাতিল</button>
+            <button type="button" class="btn btn-gold small-btn" onclick="quickAddParty('purchase')">যোগ করুন</button>
+          </div>
+        </div>
       </div>
     </div>
-    <datalist id="purchaseProductOptions">
-      ${DB.products.map(p=>`<option value="${esc(purchaseProductLabel(p))}">`).join('')}
-    </datalist>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">
-      💡 পণ্যের নাম টাইপ করে বাছাই করুন। একই পণ্যের ভিন্ন রং থাকলে <b>রং</b> ঘরে লিখুন —
-      একই রং আগে থেকে থাকলে সেটার স্টক বাড়বে, না থাকলে নতুন রং-লাইন নিজে থেকে তৈরি হবে।
-      একাধিক রং হলে একই পণ্যের জন্য একাধিক লাইন যোগ করুন।
+    <div class="entry-bar">
+      <div class="eb-prod">
+        <label>পণ্য (নাম লিখুন → ↑↓ দিয়ে বাছাই → Enter)</label>
+        <input type="text" id="purchEntProd" autocomplete="off" placeholder="🔍 পণ্যের নাম লিখে খুঁজুন..."
+          oninput="entryTyped('purchase')" onkeydown="entryKeydown(event,'purchase')" onfocus="this.select()"
+          onblur="setTimeout(()=>entryHideSugg('purchase'),200)">
+        <div class="sugg-box hidden" id="purchEntSugg"></div>
+      </div>
+      <div class="eb-info" id="purchEntInfo"></div>
+      <div class="eb-row">
+        <div class="il-field"><label>পরিমাণ</label><input class="il-qty" type="number" inputmode="decimal" min="0" step="any" id="purchEntQty" placeholder="১"
+          oninput="entryUpdateSub('purchase')" onkeydown="entryQtyKeydown(event,'purchase')" onfocus="this.select()"></div>
+        <div class="il-field"><label>ক্রয়মূল্য</label><input class="il-price" readonly id="purchEntPrice" tabindex="-1"></div>
+        <div class="il-field"><label>সাবটোটাল</label><input class="il-subtotal" readonly id="purchEntSub" tabindex="-1"></div>
+        <button type="button" class="btn btn-gold eb-add" onclick="entryAdd('purchase')">➕ যোগ (Enter)</button>
+      </div>
+      <div class="eb-extra">
+        <input type="text" id="purchEntColor" placeholder="রং (ঐচ্ছিক — নতুন রং হলে নতুন লাইন তৈরি হবে)" onkeydown="if(event.key==='Enter'){event.preventDefault();entryAdd('purchase');}">
+        <input type="text" id="purchEntShelf" placeholder="শেলফ (ঐচ্ছিক)" onkeydown="if(event.key==='Enter'){event.preventDefault();entryAdd('purchase');}">
+      </div>
+      <div class="eb-msg" id="purchEntMsg"></div>
     </div>
-    <div class="items-box" id="purchaseItemsBox"></div>
-    <button class="btn btn-outline small-btn" onclick="addPurchaseLine()">+ পণ্য যোগ করুন</button>
-    <div class="form-row" style="margin-top:14px;">
-      <div><label>সর্বমোট</label><input id="pf2_total" readonly></div>
+    <div class="cart-list" id="purchaseItemsBox"></div>
+    <div class="sum-box">
+    <div class="form-row">
+      <div><label>সর্বমোট</label><input id="pf2_total" readonly style="font-weight:800;"></div>
       <div><label>জমা/পরিশোধিত (Enter = সংরক্ষণ)</label><input id="pf2_paid" type="number" value="${existing?existing.paid:0}" oninput="calcPurchaseTotal()" onkeydown="if(event.key==='Enter'){event.preventDefault();savePurchase();}"></div>
     </div>
-    <div class="modal-actions">
+    <div class="form-row">
+      <div><label>বাকি (সাপ্লায়ারকে দেনা)</label><input id="pf2_due" readonly></div>
+      <div class="hidden" id="pf2_changeRow" style="background:var(--pill-ok-bg);border-radius:8px;padding:6px 10px;">
+        <label style="color:var(--pill-ok-text);">💵 সাপ্লায়ারের কাছ থেকে ফেরত নিন</label>
+        <input id="pf2_change" readonly style="background:transparent;border:none;color:var(--pill-ok-text);font-weight:800;font-size:15px;padding:0;">
+      </div>
+    </div>
+    </div>
+    </div>
+    <div class="entry-foot"><div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal()">বাতিল</button>
       <button class="btn btn-gold" id="modalSaveBtn" onclick="savePurchase()">${existing?'পরিবর্তন সংরক্ষণ করুন':'ক্রয় সংরক্ষণ করুন'}</button>
-    </div>
+    </div></div>
   `);
+  document.getElementById('modalBox').className='modal entry-modal purchase-theme';
   renderPurchaseLines();
   calcPurchaseTotal();
-  setTimeout(()=>document.getElementById('purchProd_0')?.focus(), 0);
+  setTimeout(()=>document.getElementById('purchEntProd')?.focus(), 0);
 }
 function renderPurchaseLines(){
-  document.getElementById('purchaseItemsBox').innerHTML = purchaseCart.map((line,i)=>{
-    const p = line.productId ? DB.products.find(x=>x.id==line.productId) : null;
-    return `
-    <div class="item-line-purchase">
-      <input type="text" list="purchaseProductOptions" id="purchProd_${i}" placeholder="পণ্য টাইপ করুন..."
-        value="${p?esc(purchaseProductLabel(p)):''}" oninput="onPurchaseProductInput(${i},this.value)">
-      <input type="number" min="1" id="purchQty_${i}" value="${line.qty}" placeholder="পরিমাণ"
-        oninput="purchaseCart[${i}].qty=Number(this.value);calcPurchaseTotal();"
-        onkeydown="if(event.key==='Enter'){event.preventDefault();handlePurchQtyEnter(${i});}"
-        onfocus="this.select()">
-      <input type="text" placeholder="রং (ঐচ্ছিক)" value="${esc(line.color||'')}" oninput="purchaseCart[${i}].color=this.value;">
-      <input type="text" placeholder="শেলফ (ঐচ্ছিক)" value="${esc(line.shelf||'')}" oninput="purchaseCart[${i}].shelf=this.value;">
-      <input type="text" readonly value="${p?money(p.buyPrice*line.qty):''}" placeholder="সাবটোটাল">
-      <button class="icon-btn" onclick="removePurchaseLine(${i})">✖</button>
-    </div>`;
-  }).join('');
+  const box = document.getElementById('purchaseItemsBox'); if(!box) return;
+  box.innerHTML = cartRowsHtml('purchase', purchaseCart);
 }
-function onPurchaseProductInput(i, val){
-  const match = DB.products.find(p=>purchaseProductLabel(p)===val);
-  if(match){
-    purchaseCart[i].productId = match.id;
-    calcPurchaseTotal();
-    const qtyEl = document.getElementById('purchQty_'+i);
-    if(qtyEl){ qtyEl.focus(); qtyEl.select(); }
-  } else {
-    purchaseCart[i].productId = '';
-  }
-}
-function handlePurchQtyEnter(i){
-  if(i === purchaseCart.length-1) addPurchaseLine();
-  const el = document.getElementById('purchProd_'+(i+1));
-  if(el) el.focus();
-}
-function addPurchaseLine(){ purchaseCart.push({productId:'', qty:1, color:'', shelf:''}); renderPurchaseLines(); }
-function removePurchaseLine(i){ purchaseCart.splice(i,1); renderPurchaseLines(); calcPurchaseTotal(); }
+function removePurchaseLine(i){ purchaseCart.splice(i,1); renderPurchaseLines(); calcPurchaseTotal(); eEl('purchase','Prod')?.focus(); }
 function calcPurchaseTotal(){
   let total = 0;
   purchaseCart.forEach(l=>{ if(l.productId){ const p = DB.products.find(x=>x.id==l.productId); if(p) total += p.buyPrice*(l.qty||0); } });
   const totalEl = document.getElementById('pf2_total');
   if(totalEl) totalEl.value = money(total);
+  // বিক্রয়ের মতোই: বেশি টাকা দিলে বাকি ঋণাত্মক হয় না, বাড়তি অংশ "ফেরত পাবেন" হিসেবে আলাদা দেখায়
+  const paidRaw = Number(document.getElementById('pf2_paid')?.value)||0;
+  const due = Math.max(0, total - paidRaw);
+  const changeBack = Math.max(0, paidRaw - total);
+  const dueEl = document.getElementById('pf2_due');
+  if(dueEl) dueEl.value = money(due);
+  const changeRow = document.getElementById('pf2_changeRow');
+  const changeEl = document.getElementById('pf2_change');
+  if(changeRow && changeEl){
+    if(changeBack>0){ changeRow.classList.remove('hidden'); changeEl.value = money(changeBack); }
+    else { changeRow.classList.add('hidden'); }
+  }
   return total;
 }
 /* প্রতিটা লাইনের জন্য: রং খালি থাকলে সরাসরি বাছাই করা পণ্যেরই স্টক বাড়ে (আগের মতো সহজ)।
    রং দেওয়া থাকলে — একই নাম+ব্র্যান্ড+সাইজ+রং মিলে এমন পণ্য খোঁজা হয়; পেলে তার স্টক বাড়ে,
    না পেলে বাছাই করা পণ্যের তথ্য কপি করে নতুন রং-ভিত্তিক পণ্য-লাইন তৈরি হয়। */
 function savePurchase(){
+  if(!entryFlush('purchase')) return;
   const rawLines = purchaseCart.filter(l=>l.productId && l.qty>0);
   if(!rawLines.length){ alert('অন্তত একটি পণ্য যোগ করুন'); return; }
   const supId = Number(document.getElementById('pf2_supplier').value);
   const sup = DB.suppliers.find(c=>c.id===supId);
   if(!sup){ alert('সাপ্লায়ার খুঁজে পাওয়া যায়নি'); return; }
   const date = document.getElementById('pf2_date').value || todayStr();
-  const paid = Number(document.getElementById('pf2_paid').value)||0;
+  const paidRaw = Number(document.getElementById('pf2_paid').value)||0;
   const original = editingPurchaseId ? currentPurchaseRows().find(x=>x.id===editingPurchaseId) : null;
   const purId = original ? original.id : genId();
 
@@ -1848,6 +2202,8 @@ function savePurchase(){
   });
 
   const total = resolvedItems.reduce((s,it)=>s+it.price*it.qty,0);
+  const paid = Math.min(paidRaw, total);   // বেশি দিলে বাড়তি অংশ ফেরত — due কখনো ঋণাত্মক হবে না
+  const changeGiven = Math.max(0, paidRaw - total);
   const due = total - paid;
 
   // ---- সাপ্লায়ার বাকি: পুরনো সাপ্লায়ার থেকে রিভার্স (যদি থাকে), নতুনে প্রয়োগ ----
@@ -1862,7 +2218,7 @@ function savePurchase(){
   }
 
   batch.set(fsDB.collection('erp_purchases').doc(String(purId)), {
-    id:purId, date, supplierId:supId, supplierName: sup.name, items: resolvedItems, total, paid, due,
+    id:purId, date, supplierId:supId, supplierName: sup.name, items: resolvedItems, total, paid, due, changeGiven,
     createdBy: original?original.createdBy:(currentUser?currentUser.name:''),
     createdByUsername: original?original.createdByUsername:(currentUser?currentUser.username:''),
     ...(original?{editedBy: currentUser?currentUser.name:'', editedAt: new Date().toISOString()}:{})
@@ -2570,6 +2926,7 @@ function printInvoice(saleId){
       <tr><td>ডিসকাউন্ট ${s.discountPercent?`(${s.discountPercent}%)`:''}</td><td class="num">-${money(s.discount)}</td></tr>` : ''}
       <tr><td>সর্বমোট</td><td class="num">${money(s.total)}</td></tr>
       <tr><td>জমা</td><td class="num">${money(s.paid)}</td></tr>
+      ${s.changeGiven?`<tr><td>ফেরত দেওয়া হয়েছে</td><td class="num">${money(s.changeGiven)}</td></tr>`:''}
       <tr><td><b>বাকি</b></td><td class="num"><b>${money(s.due)}</b></td></tr>
     </table>
     <p style="margin-top:20px;font-size:12px;">${esc(DB.settings?.footer||'ধন্যবাদান্তে, আপনার ব্যবসা প্রতিষ্ঠান।')}</p>
@@ -2603,6 +2960,7 @@ function printPurchaseVoucher(purId){
     <table class="inv-table" style="width:300px;margin-inline-start:auto;">
       <tr><td>সর্বমোট</td><td class="num">${money(pur.total)}</td></tr>
       <tr><td>জমা</td><td class="num">${money(pur.paid)}</td></tr>
+      ${pur.changeGiven?`<tr><td>ফেরত নেওয়া হয়েছে</td><td class="num">${money(pur.changeGiven)}</td></tr>`:''}
       <tr><td><b>বাকি</b></td><td class="num"><b>${money(pur.due)}</b></td></tr>
     </table>
     <p style="margin-top:20px;font-size:12px;">${esc(DB.settings?.footer||'ধন্যবাদান্তে।')}</p>

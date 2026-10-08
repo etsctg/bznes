@@ -40,6 +40,7 @@ service cloud.firestore {
     match /erp_daystats/{docId}    { allow read, write: if signedIn(); }
     match /erp_stock_moves/{docId} { allow read, write: if signedIn(); }
     match /erp_audit_log/{docId}   { allow read, write: if signedIn(); }
+    match /erp_due_payments/{docId} { allow read, write: if signedIn(); }
 
     // অন্য কোনো কালেকশনে কিছু নেই — ডিফল্টভাবে সবকিছু বন্ধ
     match /{document=**} {
@@ -48,6 +49,11 @@ service cloud.firestore {
   }
 }
 ───────────────────────────────────────────────────────────────────
+
+⚠️ আপডেট নোট: আগের ভার্সনের রুলসে "erp_due_payments" কালেকশনটা বাদ পড়েছিল — ফলে বাকি
+জমা/পরিশোধ করলে "Missing or insufficient permissions" এরর আসতো। এই ফাইলের রুলস
+আবার Firebase Console → Firestore → Rules এ পেস্ট করে Publish করুন।
+(নতুন কালেকশন যোগ হলে রুলসেও যোগ করতে হয়, নাহলে সেটায় লেখা/পড়া বন্ধ থাকে।)
 
 এই Rules আগের চেয়ে অনেক নিরাপদ (ডিফল্ট Test Mode-এ সম্পূর্ণ ওপেন থাকে,
 এমনকি anonymous auth ছাড়াও যে কেউ ঢুকতে পারে), তবে মনে রাখবেন —
