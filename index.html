@@ -1168,7 +1168,7 @@ function renderStockTable(){
   const canEdit = hasAccess('manager');
   document.getElementById('stockTableWrap').innerHTML = `
     <table>
-      <tr><th>পণ্যের নাম / বিস্তারিত</th><th>শেলফ</th><th>একক</th><th class="num">ক্রয়মূল্য</th><th class="num">বিক্রয়মূল্য</th><th class="num">স্টক</th><th>অবস্থা</th><th></th></tr>
+      <tr><th>পণ্যের নাম / বিস্তারিত</th><th>শেলফ</th><th>একক</th><th class="num">গড় ক্রয়মূল্য</th><th class="num">বিক্রয়মূল্য</th><th class="num">স্টক</th><th>অবস্থা</th><th></th></tr>
       ${rows.map(p=>{
         const status = p.stock<=0?'<span class="pill bad">স্টক শেষ</span>':(p.stock<=p.lowStock?'<span class="pill warn">কম স্টক</span>':'<span class="pill ok">ঠিক আছে</span>');
         const detailBits = [p.brand, p.size, p.color].filter(Boolean).join(' • ');
@@ -1590,7 +1590,7 @@ function productShort(p){
 }
 const ENTRY_CFG = {
   sale:     { pre:'saleEnt',  cart:()=>saleCart,     price:p=>p.sellPrice, priceLbl:'বিক্রয়মূল্য', recalc:()=>calcSaleTotal(),     renderList:()=>renderSaleLines(),     paidId:'sf_paid' },
-  purchase: { pre:'purchEnt', cart:()=>purchaseCart, price:p=>p.buyPrice,  priceLbl:'ক্রয়মূল্য',   recalc:()=>calcPurchaseTotal(), renderList:()=>renderPurchaseLines(), paidId:'pf2_paid' }
+  purchase: { pre:'purchEnt', cart:()=>purchaseCart, price:p=>p.buyPrice,  priceLbl:'গড় ক্রয়মূল্য',   recalc:()=>calcPurchaseTotal(), renderList:()=>renderPurchaseLines(), paidId:'pf2_paid' }
 };
 const entryState = { sale:{productId:'',active:0,matches:[]}, purchase:{productId:'',active:0,matches:[]} };
 function eEl(kind, suf){ return document.getElementById(ENTRY_CFG[kind].pre + suf); }
@@ -1625,7 +1625,8 @@ function entrySetActive(kind, idx, scroll){
 function entryTyped(kind){
   const st = entryState[kind];
   st.productId = '';
-  eEl(kind,'Price').value = ''; eEl(kind,'Sub').value = ''; eEl(kind,'Info').textContent = ''; eEl(kind,'Msg').textContent = '';
+  eEl(kind,'Price').value = ''; eEl(kind,'Sub').value = ''; eEl(kind,'Info').innerHTML = ''; eEl(kind,'Msg').textContent = '';
+  const sellEl = eEl(kind,'Sell'); if(sellEl){ sellEl.value=''; sellEl.placeholder='অপরিবর্তিত'; }
   st.matches = productSuggestMatches(eEl(kind,'Prod').value);
   st.active = 0;
   entryRenderSugg(kind);
@@ -1654,25 +1655,79 @@ function entryPick(kind, id){
   st.productId = p.id;
   eEl(kind,'Prod').value = productShort(p);
   entryHideSugg(kind);
-  eEl(kind,'Price').value = money(cfg.price(p));
+  eEl(kind,'Price').value = kind==='purchase' ? p.buyPrice : money(cfg.price(p));
+  const sellEl = eEl(kind,'Sell'); if(sellEl){ sellEl.value=''; sellEl.placeholder = money(p.sellPrice); }
   const qEl = eEl(kind,'Qty'); if(!Number(qEl.value)) qEl.value = 1;
-  const stockColor = p.stock<=0 ? 'var(--danger-text)' : (p.stock<=p.lowStock ? 'var(--amber-2)' : 'var(--success)');
-  eEl(kind,'Info').innerHTML = `${cfg.priceLbl}: <b>${money(cfg.price(p))}</b> • বর্তমান স্টক: <b style="color:${stockColor};">${p.stock} ${esc(p.unit||'')}</b>`;
   entryUpdateSub(kind);
   qEl.focus(); qEl.select();
 }
+function entryPriceOf(kind){
+  const st = entryState[kind], p = st.productId ? DB.products.find(x=>x.id==st.productId) : null;
+  if(!p) return 0;
+  if(kind==='purchase'){ const v = eEl(kind,'Price').value; return v===''||isNaN(Number(v)) ? p.buyPrice : Number(v); }
+  return ENTRY_CFG[kind].price(p);
+}
 function entryUpdateSub(kind){
-  const st = entryState[kind], cfg = ENTRY_CFG[kind];
+  const st = entryState[kind];
   const p = st.productId ? DB.products.find(x=>x.id==st.productId) : null;
   const qty = Number(eEl(kind,'Qty').value)||0;
-  eEl(kind,'Sub').value = p ? money(cfg.price(p)*qty) : '';
+  eEl(kind,'Sub').value = p ? money(entryPriceOf(kind)*qty) : '';
+  eEl(kind,'Info').innerHTML = entryInfoHtml(kind);
+}
+/* ক্রয় করতে গিয়ে দাম বদলালে — নতুন "গড় ক্রয়মূল্য" (Weighted Average Cost) আগেই হিসাব করে দেখানো হয়:
+   নতুন গড় = (পুরনো স্টক × পুরনো গড় + নতুন পরিমাণ × নতুন দাম) ÷ (মোট স্টক)
+   এতে একই পণ্যের স্টক আলাদা না হয়েও লাভ-ক্ষতির হিসাব সঠিক থাকে। */
+function purchaseProjection(){
+  const st = entryState.purchase, p = st.productId ? DB.products.find(x=>x.id==st.productId) : null;
+  if(!p) return null;
+  const qty = Number(eEl('purchase','Qty').value)||0;
+  const price = entryPriceOf('purchase');
+  const stockQty = Math.max(0, p.stock);
+  const avg = (stockQty+qty)>0 ? (stockQty*p.buyPrice + qty*price)/(stockQty+qty) : price;
+  const newSell = Number(eEl('purchase','Sell').value)||0;
+  const sell = newSell>0 ? newSell : p.sellPrice;
+  const sug = Math.ceil(p.buyPrice>0 ? avg*p.sellPrice/p.buyPrice : avg*1.1);
+  return {p, qty, price, avg:Math.round(avg*100)/100, sell, newSell, margin:Math.round((sell-avg)*100)/100, pct: avg>0?(sell-avg)/avg*100:0, sug};
+}
+function entrySuggestSell(){
+  const pr = purchaseProjection(); if(!pr) return;
+  eEl('purchase','Sell').value = pr.sug;
+  entryUpdateSub('purchase');
+}
+function entryInfoHtml(kind){
+  const st = entryState[kind], p = st.productId ? DB.products.find(x=>x.id==st.productId) : null;
+  if(!p) return '';
+  const stockColor = p.stock<=0 ? 'var(--danger-text)' : (p.stock<=p.lowStock ? 'var(--amber-2)' : 'var(--success)');
+  const stockTxt = `বর্তমান স্টক: <b style="color:${stockColor};">${p.stock} ${esc(p.unit||'')}</b>`;
+  if(kind==='sale'){
+    const loss = p.sellPrice < p.buyPrice, mgr = hasAccess('manager');
+    let h = `বিক্রয়মূল্য: <b>${money(p.sellPrice)}</b> • ${stockTxt}`;
+    if(mgr) h += ` • লাভ/একক: <b style="color:${loss?'var(--danger-text)':'var(--success)'};">${money(Math.round((p.sellPrice-p.buyPrice)*100)/100)}</b>`;
+    if(loss) h += `<div style="color:var(--danger-text);font-weight:700;margin-top:3px;">⚠️ বিক্রয়মূল্য ক্রয়মূল্যের চেয়ে কম — এই দামে বিক্রি করলে লোকসান হবে${mgr?'':' (ম্যানেজারকে জানান)'}</div>`;
+    return h;
+  }
+  const pr = purchaseProjection();
+  let h = `বর্তমান গড় ক্রয়মূল্য: <b>${money(p.buyPrice)}</b> • বিক্রয়মূল্য: <b>${money(p.sellPrice)}</b> • ${stockTxt}`;
+  if(pr && pr.qty>0){
+    const col = pr.margin<=0 ? 'var(--danger-text)' : 'var(--success)';
+    h += `<div style="margin-top:3px;">এই ক্রয়ের পর নতুন গড় ক্রয়মূল্য ≈ <b>${money(pr.avg)}</b> • ${money(pr.sell)}-এ বিক্রি করলে লাভ/একক: <b style="color:${col};">${money(pr.margin)} (${pr.pct.toFixed(1)}%)</b></div>`;
+    if(pr.margin<=0) h += `<div style="color:var(--danger-text);font-weight:700;margin-top:3px;">⚠️ এই দামে বিক্রয়মূল্য ≤ ক্রয়মূল্য — লোকসান! বিক্রয়মূল্য বাড়ান।</div>`;
+    if(pr.newSell<=0 && pr.price!==p.buyPrice && pr.sug!==p.sellPrice){
+      h += `<div style="margin-top:3px;">💡 দাম বদলেছে। আগের লাভের হার ঠিক রাখতে বিক্রয়মূল্য <a href="javascript:void(0)" onmousedown="event.preventDefault()" onclick="entrySuggestSell()" style="color:var(--teal-2);font-weight:700;text-decoration:underline;">${money(pr.sug)} বসান</a></div>`;
+    }
+  }
+  return h;
 }
 function entryQtyKeydown(e, kind){
+  if(e.key==='Enter'){
+    e.preventDefault();
+    if(kind==='purchase'){ const pe = eEl(kind,'Price'); pe.focus(); pe.select(); }  // ক্রয়ে দাম নিশ্চিত করে তারপর যোগ
+    else entryAdd(kind);
+  } else if(e.key==='ArrowUp'){ e.preventDefault(); eEl(kind,'Prod').focus(); }
+  else if(e.key==='Backspace' && !e.target.value){ eEl(kind,'Prod').focus(); }
+}
+function entryPriceKeydown(e, kind){
   if(e.key==='Enter'){ e.preventDefault(); entryAdd(kind); }
-  else if(e.key==='ArrowUp' || (e.key==='Backspace' && !e.target.value)){ /* খালি ঘরে Backspace = পণ্য ঘরে ফিরে যাওয়া */
-    if(e.key==='ArrowUp'){ e.preventDefault(); } 
-    eEl(kind,'Prod').focus();
-  }
 }
 function entryAdd(kind){
   const st = entryState[kind], cfg = ENTRY_CFG[kind];
@@ -1685,7 +1740,14 @@ function entryAdd(kind){
   const cart = cfg.cart();
   const color = kind==='purchase' ? eEl(kind,'Color').value.trim() : '';
   const shelf = kind==='purchase' ? eEl(kind,'Shelf').value.trim() : '';
-  const idx = cart.findIndex(l=> l.productId==p.id && (kind==='sale' || ((l.color||'')===color && (l.shelf||'')===shelf)));
+  let price = 0, newSell = 0;
+  if(kind==='purchase'){
+    const pv = eEl(kind,'Price').value;
+    price = pv==='' ? p.buyPrice : Number(pv);
+    if(isNaN(price) || price<0){ msg.textContent = 'ক্রয়মূল্য সঠিক দিন'; eEl(kind,'Price').focus(); return false; }
+    newSell = Number(eEl(kind,'Sell').value)||0;
+  }
+  const idx = cart.findIndex(l=> l.productId==p.id && (kind==='sale' || ((l.color||'')===color && (l.shelf||'')===shelf && Number(l.price)===price && (Number(l.newSell)||0)===newSell)));
   const already = idx>=0 ? cart[idx].qty : 0;
   if(kind==='sale'){
     const orig = editingSaleId ? currentSalesRows().find(x=>x.id===editingSaleId) : null;
@@ -1697,11 +1759,11 @@ function entryAdd(kind){
     }
   }
   if(idx>=0) cart[idx].qty += qty;
-  else cart.push(kind==='sale' ? {productId:p.id, qty} : {productId:p.id, qty, color, shelf});
+  else cart.push(kind==='sale' ? {productId:p.id, qty} : {productId:p.id, qty, color, shelf, price, newSell});
   entryReset(kind);
   ['Prod','Qty','Price','Sub'].forEach(x=>eEl(kind,x).value='');
-  if(kind==='purchase'){ eEl(kind,'Color').value=''; eEl(kind,'Shelf').value=''; }
-  eEl(kind,'Info').textContent = '';
+  if(kind==='purchase'){ eEl(kind,'Color').value=''; eEl(kind,'Shelf').value=''; eEl(kind,'Sell').value=''; eEl(kind,'Sell').placeholder='অপরিবর্তিত'; }
+  eEl(kind,'Info').innerHTML = '';
   cfg.renderList(); cfg.recalc();
   eEl(kind,'Prod').focus();
   return true;
@@ -1725,12 +1787,12 @@ function entryEditLine(kind, i){
   entryState[kind].productId = line.productId;
   eEl(kind,'Prod').value = p ? productShort(p) : '';
   eEl(kind,'Qty').value = line.qty;
-  if(kind==='purchase'){ eEl(kind,'Color').value = line.color||''; eEl(kind,'Shelf').value = line.shelf||''; }
-  if(p){
-    eEl(kind,'Price').value = money(cfg.price(p));
-    const stockColor = p.stock<=0 ? 'var(--danger-text)' : (p.stock<=p.lowStock ? 'var(--amber-2)' : 'var(--success)');
-    eEl(kind,'Info').innerHTML = `${cfg.priceLbl}: <b>${money(cfg.price(p))}</b> • বর্তমান স্টক: <b style="color:${stockColor};">${p.stock} ${esc(p.unit||'')}</b>`;
-  }
+  if(kind==='purchase'){
+    eEl(kind,'Color').value = line.color||''; eEl(kind,'Shelf').value = line.shelf||'';
+    eEl(kind,'Price').value = line.price!=null ? line.price : (p?p.buyPrice:'');
+    eEl(kind,'Sell').value = line.newSell>0 ? line.newSell : '';
+    eEl(kind,'Sell').placeholder = p ? money(p.sellPrice) : 'অপরিবর্তিত';
+  } else if(p){ eEl(kind,'Price').value = money(cfg.price(p)); }
   entryUpdateSub(kind);
   cfg.renderList(); cfg.recalc();
   const q = eEl(kind,'Qty'); q.focus(); q.select();
@@ -1738,12 +1800,13 @@ function entryEditLine(kind, i){
 function cartRowsHtml(kind, cart){
   if(!cart.length) return '<div class="cart-empty">এখনো কোনো পণ্য যোগ হয়নি<br>উপরের বারে পণ্য ও পরিমাণ দিয়ে Enter চাপুন</div>';
   const cfg = ENTRY_CFG[kind];
-  const editFn = kind==='sale' ? 'removeSaleLine' : 'removePurchaseLine';
+  const delFn = kind==='sale' ? 'removeSaleLine' : 'removePurchaseLine';
   return cart.map((l,i)=>{
     const p = DB.products.find(x=>x.id==l.productId);
-    const price = p ? cfg.price(p) : 0;
+    const price = (kind==='purchase' && l.price!=null) ? Number(l.price) : (p ? cfg.price(p) : 0);
     const bits = p ? [p.brand, p.size, p.color].filter(Boolean).join(' ') : '';
-    const extra = kind==='purchase' ? [l.color?('রং: '+l.color):'', l.shelf?('শেলফ: '+l.shelf):''].filter(Boolean).join(' • ') : '';
+    const extra = kind==='purchase'
+      ? [l.color?('রং: '+l.color):'', l.shelf?('শেলফ: '+l.shelf):'', l.newSell>0?('নতুন বিক্রয়মূল্য: '+money(l.newSell)):''].filter(Boolean).join(' • ') : '';
     return `<div class="cart-row">
       <div>
         <div class="cr-name">${i+1}. ${esc(p?p.name:'মুছে ফেলা পণ্য')}${bits?` <span class="sugg-bits">— ${esc(bits)}</span>`:''}</div>
@@ -1751,8 +1814,8 @@ function cartRowsHtml(kind, cart){
       </div>
       <div class="cr-sub">${money(price*l.qty)}</div>
       <div class="cr-actions">
-        <button type="button" class="icon-btn" onclick="entryEditLine('${kind}',${i})" title="এডিট (পরিমাণ/পণ্য বদলান)">✏️</button>
-        <button type="button" class="icon-btn" onclick="${editFn}(${i})" title="মুছুন">🗑️</button>
+        <button type="button" class="icon-btn" onclick="entryEditLine('${kind}',${i})" title="এডিট (পরিমাণ/দাম বদলান)">✏️</button>
+        <button type="button" class="icon-btn" onclick="${delFn}(${i})" title="মুছুন">🗑️</button>
       </div>
     </div>`;
   }).join('');
@@ -2044,12 +2107,12 @@ function openPurchaseModal(editId){
     if(!canEditVoucher(existing)){ alert('আপনি শুধু নিজের তৈরি করা এন্ট্রি এডিট করতে পারবেন (ম্যানেজার/এডমিন সবগুলো করতে পারবেন)।'); return; }
   }
   editingPurchaseId = editId || null;
-  purchaseCart = existing ? existing.items.map(it=>({productId:it.productId, qty:it.qty, color:'', shelf:''})) : [];
+  purchaseCart = existing ? existing.items.map(it=>({productId:it.productId, qty:it.qty, color:'', shelf:'', price:it.price, newSell:0})) : [];
   entryReset('purchase');
   openModal(`
     <div class="entry-head"><h3>${existing?`ক্রয় এডিট করুন — ${refNo('PUR', existing.id)}`:'🛒 নতুন ক্রয় এন্ট্রি'}</h3></div>
     <div class="entry-body">
-    ${existing?`<div style="font-size:11.5px;color:var(--amber-2);margin-bottom:8px;">⚠️ এডিট করলে বর্তমান ক্রয়মূল্য অনুযায়ী পুনঃগণনা হবে। রং/শেলফ পরিবর্তন করতে চাইলে সরাসরি সেই রং-এর পণ্যটা তালিকা থেকে বেছে নিন।</div>`:''}
+    ${existing?`<div style="font-size:11.5px;color:var(--amber-2);margin-bottom:8px;">⚠️ এডিট করলে প্রতিটা লাইনের আগের ক্রয়মূল্যই থাকবে (বদলাতে লাইনের ✏️ চাপুন)। পণ্যের গড় ক্রয়মূল্য নতুন করে হিসাব হবে।</div>`:''}
     <div class="form-row">
       <div><label>তারিখ</label><input id="pf2_date" type="date" value="${existing?existing.date:todayStr()}"></div>
       <div><label>সাপ্লায়ার</label>
@@ -2081,7 +2144,10 @@ function openPurchaseModal(editId){
       <div class="eb-row">
         <div class="il-field"><label>পরিমাণ</label><input class="il-qty" type="number" inputmode="decimal" min="0" step="any" id="purchEntQty" placeholder="১"
           oninput="entryUpdateSub('purchase')" onkeydown="entryQtyKeydown(event,'purchase')" onfocus="this.select()"></div>
-        <div class="il-field"><label>ক্রয়মূল্য</label><input class="il-price" readonly id="purchEntPrice" tabindex="-1"></div>
+        <div class="il-field"><label>ক্রয়মূল্য (আজকের দাম)</label><input class="il-price" type="number" inputmode="decimal" min="0" step="any" id="purchEntPrice"
+          oninput="entryUpdateSub('purchase')" onkeydown="entryPriceKeydown(event,'purchase')" onfocus="this.select()"></div>
+        <div class="il-field"><label>নতুন বিক্রয়মূল্য</label><input class="il-price" type="number" inputmode="decimal" min="0" step="any" id="purchEntSell" placeholder="অপরিবর্তিত"
+          oninput="entryUpdateSub('purchase')" onkeydown="entryPriceKeydown(event,'purchase')" onfocus="this.select()"></div>
         <div class="il-field"><label>সাবটোটাল</label><input class="il-subtotal" readonly id="purchEntSub" tabindex="-1"></div>
         <button type="button" class="btn btn-gold eb-add" onclick="entryAdd('purchase')">➕ যোগ (Enter)</button>
       </div>
@@ -2123,7 +2189,7 @@ function renderPurchaseLines(){
 function removePurchaseLine(i){ purchaseCart.splice(i,1); renderPurchaseLines(); calcPurchaseTotal(); eEl('purchase','Prod')?.focus(); }
 function calcPurchaseTotal(){
   let total = 0;
-  purchaseCart.forEach(l=>{ if(l.productId){ const p = DB.products.find(x=>x.id==l.productId); if(p) total += p.buyPrice*(l.qty||0); } });
+  purchaseCart.forEach(l=>{ if(l.productId){ const p = DB.products.find(x=>x.id==l.productId); if(p) total += ((l.price!=null)?Number(l.price):p.buyPrice)*(l.qty||0); } });
   const totalEl = document.getElementById('pf2_total');
   if(totalEl) totalEl.value = money(total);
   // বিক্রয়ের মতোই: বেশি টাকা দিলে বাকি ঋণাত্মক হয় না, বাড়তি অংশ "ফেরত পাবেন" হিসেবে আলাদা দেখায়
@@ -2160,12 +2226,20 @@ function savePurchase(){
   // এডিট হলে — আগের সব আইটেমের পরিমাণ প্রথমে "বিয়োগ" হিসেবে ধরা হয় (রিভার্স),
   // তারপর নতুন প্রতিটা লাইনের পরিমাণ "যোগ" হয় — প্রতি পণ্যে একবারেই নিট আপডেট হবে
   const netQtyChange = {};
-  if(original) original.items.forEach(it=>{ netQtyChange[it.productId] = (netQtyChange[it.productId]||0) - it.qty; });
+  const costAdds = {};   // পণ্য আইডি -> {qty, value, lastPrice, sell} — এই ক্রয়ে যা যোগ হচ্ছে
+  const origCost = {};   // এডিট হলে — আগের ক্রয়ের মান (রিভার্সের জন্য)
+  if(original) original.items.forEach(it=>{
+    netQtyChange[it.productId] = (netQtyChange[it.productId]||0) - it.qty;
+    const oc = origCost[it.productId] || (origCost[it.productId] = {qty:0, value:0});
+    oc.qty += it.qty; oc.value += it.qty*it.price;
+  });
 
   for(const line of rawLines){
     const base = DB.products.find(x=>x.id===line.productId);
     const color = (line.color||'').trim();
     const shelf = (line.shelf||'').trim();
+    const linePrice = (line.price!=null && !isNaN(Number(line.price))) ? Number(line.price) : base.buyPrice;
+    const lineSell = Number(line.newSell)||0;
 
     let targetId;
     if(!color && !shelf){
@@ -2182,23 +2256,41 @@ function savePurchase(){
         const newId = genId();
         batch.set(fsDB.collection('erp_products').doc(String(newId)), {
           id:newId, name:base.name, brand:base.brand||'', size:base.size||'', unit:base.unit,
-          buyPrice:base.buyPrice, sellPrice:base.sellPrice, lowStock:base.lowStock,
+          buyPrice:linePrice, sellPrice:(lineSell>0?lineSell:base.sellPrice), lowStock:base.lowStock,
           color, shelf, stock: line.qty
         });
         logStockMove(batch, {productId: newId, qty: line.qty, type:'purchase', refType:'purchase', refId: purId, date});
-        resolvedItems.push({productId: newId, qty: line.qty, price: base.buyPrice});
+        resolvedItems.push({productId: newId, qty: line.qty, price: linePrice});
         continue; // নতুন ভ্যারিয়েন্ট — নেট-চেঞ্জের হিসাবে ঢুকবে না, আলাদাভাবেই তৈরি হলো
       }
     }
     netQtyChange[targetId] = (netQtyChange[targetId]||0) + line.qty;
-    resolvedItems.push({productId: targetId, qty: line.qty, price: base.buyPrice});
+    const ca = costAdds[targetId] || (costAdds[targetId] = {qty:0, value:0, lastPrice:linePrice, sell:0});
+    ca.qty += line.qty; ca.value += line.qty*linePrice; ca.lastPrice = linePrice; if(lineSell>0) ca.sell = lineSell;
+    resolvedItems.push({productId: targetId, qty: line.qty, price: linePrice});
     logStockMove(batch, {productId: targetId, qty: line.qty, type: original?'purchase-edit-apply':'purchase', refType:'purchase', refId: purId, date});
   }
   if(original) original.items.forEach(it=>logStockMove(batch, {productId: it.productId, qty: -it.qty, type:'purchase-edit-revert', refType:'purchase', refId: purId, date: original.date}));
 
+  /* স্টকের পাশাপাশি "গড় ক্রয়মূল্য" (Weighted Average Cost) হালনাগাদ হয়:
+     নতুন গড় = (আগের স্টক-মান − বাতিল হওয়া অংশ + নতুন ক্রয়ের মান) ÷ নতুন স্টক।
+     এভাবে ডিম ১৫০ থেকে ১৬০ হলে একই পণ্যেই স্টক জমা থাকে, আর বিক্রয়ে লাভ গড় দামের
+     ভিত্তিতে হিসাব হয়। চাইলে নতুন বিক্রয়মূল্যও এই ক্রয়ের সাথেই বদলানো যায়। */
   Object.keys(netQtyChange).forEach(pid=>{
-    const p = DB.products.find(x=>x.id==pid);
-    if(p && netQtyChange[pid]!==0) batch.update(fsDB.collection('erp_products').doc(String(pid)), {stock: p.stock + netQtyChange[pid]});
+    const p = DB.products.find(x=>x.id==pid); if(!p) return;
+    const upd = {}, net = netQtyChange[pid], add = costAdds[pid], oc = origCost[pid];
+    if(net!==0) upd.stock = p.stock + net;
+    if(add || oc){
+      const finalStock = p.stock + net;
+      const value = Math.max(0,p.stock)*(p.buyPrice||0) - (oc?oc.value:0) + (add?add.value:0);
+      if(finalStock>0 && value>0) upd.buyPrice = Math.round(value/finalStock*100)/100;
+      else if(add) upd.buyPrice = add.lastPrice;
+    }
+    if(add && add.sell>0 && add.sell!==p.sellPrice){
+      upd.sellPrice = add.sell;
+      logAudit('ক্রয়ের সময় বিক্রয়মূল্য পরিবর্তন', `${p.name}: ${money(p.sellPrice)} → ${money(add.sell)}`);
+    }
+    if(Object.keys(upd).length) batch.update(fsDB.collection('erp_products').doc(String(pid)), upd);
   });
 
   const total = resolvedItems.reduce((s,it)=>s+it.price*it.qty,0);
