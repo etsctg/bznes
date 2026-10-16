@@ -466,6 +466,79 @@ tr:hover td{background:var(--panel-2);}
 .inv-table{width:100%;border-collapse:collapse;margin:14px 0;}
 .inv-table th,.inv-table td{border:1px solid #999;padding:7px 8px;font-size:13px;}
 .inv-table th{background:#eee;}
+
+/* ===================== রেসপন্সিভ: মোবাইল / ট্যাব / ল্যাপটপ ===================== */
+html{-webkit-text-size-adjust:100%;}
+.entry-body{min-height:0;}
+.sum-compact{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:4px;}
+.sum-line{display:flex;justify-content:space-between;align-items:center;font-size:13px;margin-bottom:8px;color:var(--muted);font-weight:600;}
+.sum-line b{color:var(--ink);font-size:14px;}
+.sum-inputs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.sum-inputs.one{grid-template-columns:1fr;}
+.sum-inputs label{font-size:10.5px;color:var(--muted);display:block;margin-bottom:3px;font-weight:700;}
+.sum-inputs input{width:100%;padding:8px;font-size:14px;text-align:center;background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--ink);}
+.entry-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.foot-sum{min-width:0;}
+.fs-total{font-size:13px;color:var(--muted);display:flex;align-items:baseline;gap:6px;font-weight:600;}
+.fs-total b{font-size:21px;color:var(--ink);font-weight:800;}
+.fs-sub{font-size:12px;display:flex;gap:10px;flex-wrap:wrap;color:var(--muted);font-weight:600;}
+.fs-sub b{font-weight:800;}
+.fs-change{color:var(--success);}
+.foot-btns{display:flex;gap:8px;}
+.info-sub{display:none;}
+@media(max-width:900px){ .il-sub-field{display:none;} .info-sub{display:inline;} }
+.sugg-box{max-height:min(240px, calc(var(--vvh,100vh) * .38));}
+.share-img{max-width:100%;border:1px solid var(--line);border-radius:10px;background:#fff;box-shadow:var(--shadow-sm);}
+@media(max-width:1024px) and (min-width:641px){
+  .main{padding:18px 18px 90px;}
+  .topbar h2{font-size:18px;}
+}
+@media(max-width:640px){
+  body{font-size:14px;}
+  .main{padding:10px 10px 92px;}
+  .topbar{margin-bottom:10px;gap:8px;}
+  .topbar h2{font-size:16px;}
+  .topbar .sub{font-size:11.5px;}
+  .card{padding:12px;border-radius:12px;}
+  .grid{gap:8px;}
+  .stat-card{padding:10px 12px;}
+  .stat-card .val{font-size:17px;}
+  .stat-card .lbl{font-size:11px;padding-right:32px;}
+  .stat-card .ic{width:28px;height:28px;font-size:14px;top:8px;right:8px;border-radius:8px;}
+  .btn{padding:9px 13px;font-size:13px;}
+  .toolbar{gap:6px;margin-bottom:10px;}
+  .toolbar input,.toolbar select{font-size:13px;padding:8px 9px;min-width:0;}
+  .toolbar input[type=text],.toolbar input[type=search]{flex:1 1 100%;}
+  .modal{padding:16px;}
+  .app-topbar .tb-title{font-size:14.5px;}
+  .fab-btn{padding:12px 13px;}
+  .set-tab{padding:8px 12px;font-size:12.5px;}
+  .form-row{gap:8px;margin-bottom:8px;}
+  .cr-name{font-size:12.5px;}
+  .eb-prod input{font-size:14px;padding:9px 10px;}
+  .eb-row input{padding:7px 6px;font-size:13.5px;}
+  .eb-row .il-qty{width:62px;}
+  .il-price{width:86px;}
+  .entry-head h3{font-size:15px;}
+  .entry-head{padding:10px 12px 8px;}
+  .fs-total b{font-size:19px;}
+  .help-sec .hb{font-size:13px;padding:2px 12px 12px;}
+  .modal.entry-modal{max-height:100%;}
+  .entry-foot{padding-top:8px;padding-bottom:8px;}
+  .entry-foot .btn{padding:10px 14px;}
+  /* টেবিল → কার্ড (ডানে স্ক্রল ছাড়াই সব তথ্য দেখা যায়) */
+  .tbl-wrap{overflow-x:visible;}
+  table.resp,table.resp tbody{display:block;}
+  table.resp tr{display:block;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 11px;margin-bottom:8px;}
+  table.resp tr.th-row{display:none;}
+  table.resp td{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:4px 0;border:none;text-align:right;font-size:13px;background:transparent !important;}
+  table.resp td::before{content:attr(data-label);color:var(--muted);font-weight:700;font-size:11.5px;text-align:left;flex-shrink:0;}
+  table.resp td:not([data-label])::before,table.resp td[data-label=""]::before{display:none;}
+  table.resp td[data-label=""]{justify-content:flex-end;padding-top:6px;}
+  table.resp td[colspan]{display:block;text-align:center;}
+  table.resp td:empty{display:none;}
+}
+@supports (-webkit-touch-callout:none){ input,select,textarea{font-size:16px !important;} }
 </style>
 </head>
 <body>
@@ -953,7 +1026,7 @@ function syncTopbar(){
 let statsStale = false;
 let pageHostId = 'mainArea';
 function pageHost(){ return document.getElementById(pageHostId) || document.getElementById('mainArea'); }
-const APP_VERSION = '3.1.0';
+const APP_VERSION = '3.2.0';
 (function(){ const e=document.getElementById('appVerTxt'); if(e) e.textContent = APP_VERSION; })();
 const ROLE_LEVEL = {user:1, manager:2, director:3, admin:4};
 function hasAccess(minRole){ return ROLE_LEVEL[currentUser.role] >= ROLE_LEVEL[minRole]; }
@@ -1096,12 +1169,43 @@ function voucherLink(prefix, entry, kind){
 }
 function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 
+/* মোবাইলে কিবোর্ড খুললে ফর্মটা কিবোর্ডের উপরের দৃশ্যমান অংশের মধ্যেই থাকে — পণ্যের তালিকা/সেভ বাটন ঢাকা পড়ে না */
+function fitModalToViewport(){
+  const bg = document.getElementById('modalBg'); if(!bg || !bg.classList.contains('show')) return;
+  const vv = window.visualViewport; if(!vv) return;
+  bg.style.top = vv.offsetTop + 'px'; bg.style.height = vv.height + 'px'; bg.style.bottom = 'auto';
+  document.documentElement.style.setProperty('--vvh', vv.height + 'px');
+}
+if(window.visualViewport){ window.visualViewport.addEventListener('resize', fitModalToViewport); window.visualViewport.addEventListener('scroll', fitModalToViewport); }
 function openModal(html){
   document.getElementById('modalBox').className='modal';
   document.getElementById('modalBox').innerHTML = html;
   document.getElementById('modalBg').classList.add('show');
+  fitModalToViewport();
 }
-function closeModal(){ document.getElementById('modalBox').innerHTML=''; document.getElementById('modalBg').classList.remove('show'); }
+function closeModal(){
+  document.getElementById('modalBox').innerHTML='';
+  const bg = document.getElementById('modalBg'); bg.classList.remove('show');
+  bg.style.top=''; bg.style.height=''; bg.style.bottom='';
+  document.documentElement.style.removeProperty('--vvh');
+}
+/* মোবাইলে টেবিলকে কার্ড-লেআউটে দেখাতে — প্রতিটা ঘরে কলামের নাম বসিয়ে দেওয়া হয় (CSS এ ≤640px এ কার্ড হয়) */
+function labelTables(){
+  document.querySelectorAll('table:not(.resp):not(.inv-table)').forEach(t=>{
+    if(t.closest('#printArea')) return;
+    const rows = [...t.rows]; if(rows.length<2) return;
+    const head = rows[0], cells = [...head.cells];
+    if(cells.length<3 || cells.some(c=>c.tagName!=='TH' || c.colSpan>1)) return;
+    const labels = cells.map(c=>c.textContent.trim());
+    head.classList.add('th-row');
+    rows.slice(1).forEach(r=>{
+      const cs = [...r.cells];
+      if(cs.length===labels.length && cs.every(c=>c.colSpan===1)) cs.forEach((c,i)=>c.setAttribute('data-label', labels[i]));
+    });
+    t.classList.add('resp');
+  });
+}
+(function(){ let tm; new MutationObserver(()=>{ clearTimeout(tm); tm = setTimeout(labelTables, 0); }).observe(document.body, {childList:true, subtree:true}); })();
 /* ইচ্ছাকৃতভাবে ফর্মের বাইরে ক্লিক করলে মডাল বন্ধ হওয়ার ব্যবস্থা রাখা হয়নি —
    ভুলবশত বাইরে ক্লিক পড়লে এন্ট্রি করা তথ্য হারিয়ে যাওয়ার ঝুঁকি থাকে।
    শুধু "বাতিল"/"বন্ধ করুন" বাটনে চাপলে বা Esc চাপলেই মডাল বন্ধ হবে। */
@@ -1505,6 +1609,7 @@ async function renderSalesTable(){
           <td>${s.due<=0?'<span class="pill ok">পরিশোধিত</span>':'<span class="pill warn">বাকি আছে</span>'}</td>
           <td><button class="icon-btn" onclick="viewSaleDetail(${s.id})" title="বিস্তারিত">👁️</button>
               <button class="icon-btn" onclick="printInvoice(${s.id})" title="প্রিন্ট">🖨️</button>
+              <button class="icon-btn" onclick="shareInvoice(${s.id})" title="ছবি শেয়ার">📤</button>
               ${s.due>0?`<button class="icon-btn" onclick="openInvoicePaymentModal('sale',${s.id})" title="বাকি পরিশোধ">💳</button>`:''}
               ${hasAccess('manager')?`<button class="icon-btn" onclick="deleteSale(${s.id})" title="মুছুন">🗑️</button>`:''}</td>
         </tr>`).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--muted);">কোনো বিক্রয় নেই</td></tr>`}
@@ -1541,6 +1646,7 @@ function renderSalesItemReport(rows){
           <td>${esc(l.sale.customerName)}</td><td>${esc(l.sale.createdBy||'-')}</td>
           <td><button class="icon-btn" onclick="viewSaleDetail(${l.sale.id})" title="বিস্তারিত">👁️</button>
               <button class="icon-btn" onclick="printInvoice(${l.sale.id})" title="প্রিন্ট">🖨️</button>
+              <button class="icon-btn" onclick="shareInvoice(${l.sale.id})" title="ছবি শেয়ার">📤</button>
               ${l.sale.due>0?`<button class="icon-btn" onclick="openInvoicePaymentModal('sale',${l.sale.id})" title="বাকি পরিশোধ">💳</button>`:''}
               ${hasAccess('manager')?`<button class="icon-btn" onclick="deleteSale(${l.sale.id})" title="মুছুন">🗑️</button>`:''}</td>
         </tr>`).join('') || `<tr><td colspan="9" style="text-align:center;color:var(--muted);">কোনো বিক্রয় নেই</td></tr>`}
@@ -1565,14 +1671,17 @@ function viewSaleDetail(id){
       ${s.discount ? `<tr><td colspan="3">সাবটোটাল</td><td class="num">${money(s.subtotal||(s.total+s.discount))}</td></tr>
       <tr><td colspan="3" style="color:var(--danger-text);">ডিসকাউন্ট ${s.discountPercent?`(${s.discountPercent}%)`:''}</td><td class="num" style="color:var(--danger-text);">-${money(s.discount)}</td></tr>` : ''}
       <tr><td colspan="3" class="foot-total">সর্বমোট</td><td class="foot-total num">${money(s.total)}</td></tr>
-      <tr><td colspan="3">জমা</td><td class="num">${money(s.paid)}</td></tr>
-      ${s.changeGiven?`<tr><td colspan="3" style="color:var(--success);">গ্রাহককে ফেরত দেওয়া হয়েছে</td><td class="num" style="color:var(--success);">${money(s.changeGiven)}</td></tr>`:''}
+      ${s.changeGiven
+        ? `<tr><td colspan="3">গ্রাহক দিয়েছেন</td><td class="num">${money(r2(s.paid+s.changeGiven))}</td></tr>
+           <tr><td colspan="3" style="color:var(--success);">ফেরত দেওয়া হয়েছে</td><td class="num" style="color:var(--success);">${money(s.changeGiven)}</td></tr>`
+        : `<tr><td colspan="3">জমা</td><td class="num">${money(s.paid)}</td></tr>`}
       <tr><td colspan="3"><b>বাকি</b></td><td class="num"><b>${money(s.due)}</b></td></tr>
     </table></div>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal()">বন্ধ করুন</button>
       ${s.due>0?`<button class="btn btn-outline" onclick="openInvoicePaymentModal('sale',${s.id})">💳 বাকি পরিশোধ</button>`:''}
       ${canEditVoucher(s)?`<button class="btn btn-outline" onclick="openSaleModal(${s.id})">✏️ এডিট করুন</button>`:''}
+      <button class="btn btn-outline" onclick="shareInvoice(${s.id})">📤 শেয়ার</button>
       <button class="btn btn-gold" onclick="printInvoice(${s.id})">🖨️ প্রিন্ট করুন</button>
     </div>
   `);
@@ -1661,37 +1770,31 @@ function openSaleModal(editId){
         <div class="il-field"><label>পরিমাণ</label><div class="qty-unit"><input class="il-qty" type="number" inputmode="decimal" min="0" step="any" id="saleEntQty" placeholder="১"
           oninput="entryUpdateSub('sale')" onkeydown="entryQtyKeydown(event,'sale')" onfocus="this.select()"><select class="il-unit hidden" id="saleEntUnit" onchange="entryUnitChanged('sale')"></select></div></div>
         <div class="il-field"><label>দর</label><input class="il-price" readonly id="saleEntPrice" tabindex="-1"></div>
-        <div class="il-field"><label>সাবটোটাল</label><input class="il-subtotal" readonly id="saleEntSub" tabindex="-1"></div>
+        <div class="il-field il-sub-field"><label>সাবটোটাল</label><input class="il-subtotal" readonly id="saleEntSub" tabindex="-1"></div>
         <button type="button" class="btn btn-gold eb-add" onclick="entryAdd('sale')">➕ যোগ (Enter)</button>
       </div>
       <div class="eb-msg" id="saleEntMsg"></div>
     </div>
     <div class="cart-list" id="saleItemsBox"></div>
-    <div class="sum-box">
-    <div class="form-row">
-      <div><label>সাবটোটাল</label><input id="sf_subtotal" readonly></div>
-      <div><label>সর্বমোট (ডিসকাউন্টের পর)</label><input id="sf_total" readonly style="font-weight:800;"></div>
-    </div>
-    <div class="form-row">
-      <div><label>ডিসকাউন্ট (%)</label><input id="sf_discPct" type="number" min="0" max="100" value="${existing?existing.discountPercent||0:0}" oninput="calcSaleTotal('pct')"></div>
-      <div><label>ডিসকাউন্ট (টাকা)</label><input id="sf_discAmt" type="number" min="0" value="${existing?existing.discount||0:0}" oninput="calcSaleTotal('amt')"></div>
-    </div>
-    <div class="form-row">
-      <div><label>জমা/পরিশোধিত (Enter = সংরক্ষণ)</label><input id="sf_paid" type="number" value="${existing?existing.paid:0}" oninput="calcSaleTotal()" onkeydown="if(event.key==='Enter'){event.preventDefault();saveSale();}"></div>
-      <div><label>বাকি</label><input id="sf_due" readonly></div>
-    </div>
-    <div class="form-row full hidden" id="sf_changeRow">
-      <div style="background:var(--pill-ok-bg);border-radius:8px;padding:9px 12px;">
-        <label style="color:var(--pill-ok-text);">💵 গ্রাহককে ফেরত দিন</label>
-        <input id="sf_change" readonly style="background:transparent;border:none;color:var(--pill-ok-text);font-weight:800;font-size:16px;padding:0;">
+    <div class="sum-compact">
+      <div class="sum-line"><span>সাবটোটাল</span><b id="sf_subtotal">৳0</b></div>
+      <div class="sum-inputs">
+        <div><label>ডিসকাউন্ট %</label><input id="sf_discPct" type="number" inputmode="decimal" min="0" max="100" value="${existing?existing.discountPercent||0:0}" oninput="calcSaleTotal('pct')" onfocus="this.select()"></div>
+        <div><label>ডিসকাউন্ট ৳</label><input id="sf_discAmt" type="number" inputmode="decimal" min="0" value="${existing?existing.discount||0:0}" oninput="calcSaleTotal('amt')" onfocus="this.select()"></div>
+        <div><label>জমা ৳ (Enter=সেভ)</label><input id="sf_paid" type="number" inputmode="decimal" value="${existing?r2(existing.paid+(existing.changeGiven||0)):0}" oninput="calcSaleTotal()" onfocus="this.select()" onkeydown="if(event.key==='Enter'){event.preventDefault();saveSale();}"></div>
       </div>
     </div>
     </div>
+    <div class="entry-foot">
+      <div class="foot-sum">
+        <div class="fs-total"><span>মোট</span><b id="sf_total">৳0</b></div>
+        <div class="fs-sub"><span>বাকি <b id="sf_due">৳0</b></span><span id="sf_changeRow" class="fs-change hidden">💵 ফেরত দিন <b id="sf_change">৳0</b></span></div>
+      </div>
+      <div class="foot-btns">
+        <button class="btn btn-outline" onclick="closeModal()">বাতিল</button>
+        <button class="btn btn-gold" id="modalSaveBtn" onclick="saveSale()">${existing?'সংরক্ষণ':'💾 সংরক্ষণ'}</button>
+      </div>
     </div>
-    <div class="entry-foot"><div class="modal-actions">
-      <button class="btn btn-outline" onclick="closeModal()">বাতিল</button>
-      <button class="btn btn-gold" id="modalSaveBtn" onclick="saveSale()">${existing?'পরিবর্তন সংরক্ষণ করুন':'বিক্রয় সংরক্ষণ করুন'}</button>
-    </div></div>
   `);
   document.getElementById('modalBox').className='modal entry-modal sale-theme';
   renderSaleLines();
@@ -1875,17 +1978,18 @@ function entryInfoHtml(kind){
   const stockColor = p.stock<=0 ? 'var(--danger-text)' : (p.stock<=p.lowStock ? 'var(--amber-2)' : 'var(--success)');
   const altStock = (p.altUnit && p.factor>0) ? ` (≈ ${r2(p.stock/p.factor)} ${esc(p.altUnit)})` : '';
   const stockTxt = `বর্তমান স্টক: <b style="color:${stockColor};">${p.stock} ${esc(p.unit||'')}</b>${altStock}`;
+  const subTxt = qEnt>0 ? `<span class="info-sub"> • সাবটোটাল <b>${money(r2(entryPriceOf(kind)*qEnt*f))}</b></span>` : '';
   const conv = (f!==1 && qEnt>0) ? `<div style="margin-top:3px;">🔁 ${qEnt} ${esc(p.altUnit)} = <b>${r2(qEnt*f)} ${esc(p.unit)}</b> (স্টক/হিসাবে প্রধান এককে যাবে)</div>` : '';
   if(kind==='sale'){
     const loss = p.sellPrice < p.buyPrice, mgr = hasAccess('manager');
-    let h = `বিক্রয়মূল্য: <b>${money(p.sellPrice)}/${esc(p.unit)}</b>${f!==1?` (<b>${money(r2(p.sellPrice*f))}/${esc(p.altUnit)}</b>)`:''} • ${stockTxt}`;
+    let h = `বিক্রয়মূল্য: <b>${money(p.sellPrice)}/${esc(p.unit)}</b>${f!==1?` (<b>${money(r2(p.sellPrice*f))}/${esc(p.altUnit)}</b>)`:''} • ${stockTxt}${subTxt}`;
     if(mgr) h += ` • লাভ/${esc(p.unit)}: <b style="color:${loss?'var(--danger-text)':'var(--success)'};">${money(r2(p.sellPrice-p.buyPrice))}</b>`;
     h += conv;
     if(loss) h += `<div style="color:var(--danger-text);font-weight:700;margin-top:3px;">⚠️ বিক্রয়মূল্য ক্রয়মূল্যের চেয়ে কম — এই দামে বিক্রি করলে লোকসান হবে${mgr?'':' (ম্যানেজারকে জানান)'}</div>`;
     return h;
   }
   const pr = purchaseProjection();
-  let h = `বর্তমান গড় ক্রয়মূল্য: <b>${money(p.buyPrice)}/${esc(p.unit)}</b> • বিক্রয়মূল্য: <b>${money(p.sellPrice)}/${esc(p.unit)}</b> • ${stockTxt}` + conv;
+  let h = `বর্তমান গড় ক্রয়মূল্য: <b>${money(p.buyPrice)}/${esc(p.unit)}</b> • বিক্রয়মূল্য: <b>${money(p.sellPrice)}/${esc(p.unit)}</b> • ${stockTxt}${subTxt}` + conv;
   if(pr && pr.qty>0){
     const col = pr.margin<=0 ? 'var(--danger-text)' : 'var(--success)';
     h += `<div style="margin-top:3px;">এই ক্রয়ের পর নতুন গড় ক্রয়মূল্য ≈ <b>${money(pr.avg)}/${esc(p.unit)}</b> • ${money(pr.sell)}-এ বিক্রি করলে লাভ/${esc(p.unit)}: <b style="color:${col};">${money(pr.margin)} (${pr.pct.toFixed(1)}%)</b></div>`;
@@ -2021,12 +2125,12 @@ function renderSaleLines(){
 function removeSaleLine(i){ saleCart.splice(i,1); renderSaleLines(); calcSaleTotal(); eEl('sale','Prod')?.focus(); }
 /* ডিসকাউন্ট % বা টাকা — দুটো ঘরই আছে, যেকোনো একটায় লিখলে অন্যটা
    স্বয়ংক্রিয়ভাবে হিসাব হয়ে যায় (changedField বলে দেয় কোনটা এইমাত্র বদলালো) */
+function setField(id, val){ const e = document.getElementById(id); if(!e) return; if(e.tagName==='INPUT') e.value = val; else e.textContent = val; }
 function calcSaleTotal(changedField){
   let subtotal = 0;
   saleCart.forEach(l=>{ if(l.productId){ const p = DB.products.find(x=>x.id==l.productId); if(p) subtotal += p.sellPrice * (l.qty||0); } });
   subtotal = r2(subtotal);
-  const subtotalEl = document.getElementById('sf_subtotal');
-  if(subtotalEl) subtotalEl.value = money(subtotal);
+  setField('sf_subtotal', money(subtotal));
 
   const pctEl = document.getElementById('sf_discPct');
   const amtEl = document.getElementById('sf_discAmt');
@@ -2048,8 +2152,7 @@ function calcSaleTotal(changedField){
   }
 
   const grandTotal = Math.max(0, subtotal - amt);
-  const totalEl = document.getElementById('sf_total');
-  if(totalEl) totalEl.value = money(grandTotal);
+  setField('sf_total', money(grandTotal));
 
   /* গ্রাহক সর্বমোটের চেয়ে বড় নোট/বেশি টাকা দিলে — বাকি কখনোই ঋণাত্মক দেখানো হয় না;
      বাড়তি অংশ আলাদাভাবে "ফেরত দিন" হিসেবে দেখানো হয়, আর হিসাবে (due/paid) সবসময়
@@ -2057,14 +2160,10 @@ function calcSaleTotal(changedField){
   const paidRaw = Number(document.getElementById('sf_paid')?.value)||0;
   const due = Math.max(0, grandTotal - paidRaw);
   const changeBack = Math.max(0, paidRaw - grandTotal);
-  const dueEl = document.getElementById('sf_due');
-  if(dueEl) dueEl.value = money(due);
+  setField('sf_due', money(due));
+  const dueNode = document.getElementById('sf_due'); if(dueNode) dueNode.style.color = due>0 ? 'var(--warn-text)' : 'var(--success)';
   const changeRow = document.getElementById('sf_changeRow');
-  const changeEl = document.getElementById('sf_change');
-  if(changeRow && changeEl){
-    if(changeBack>0){ changeRow.classList.remove('hidden'); changeEl.value = money(changeBack); }
-    else { changeRow.classList.add('hidden'); }
-  }
+  if(changeRow){ if(changeBack>0){ changeRow.classList.remove('hidden'); setField('sf_change', money(changeBack)); } else changeRow.classList.add('hidden'); }
 
   return grandTotal;
 }
@@ -2224,6 +2323,7 @@ async function renderPurchaseTable(){
           <td>${s.due<=0?'<span class="pill ok">পরিশোধিত</span>':'<span class="pill warn">বাকি আছে</span>'}</td>
           <td><button class="icon-btn" onclick="viewPurchaseDetail(${s.id})" title="বিস্তারিত">👁️</button>
               <button class="icon-btn" onclick="printPurchaseVoucher(${s.id})" title="প্রিন্ট">🖨️</button>
+              <button class="icon-btn" onclick="sharePurchaseVoucher(${s.id})" title="ছবি শেয়ার">📤</button>
               ${s.due>0?`<button class="icon-btn" onclick="openInvoicePaymentModal('purchase',${s.id})" title="বাকি পরিশোধ">💳</button>`:''}
               ${hasAccess('manager')?`<button class="icon-btn" onclick="deletePurchase(${s.id})" title="মুছুন">🗑️</button>`:''}</td>
         </tr>`).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--muted);">কোনো ক্রয় নেই</td></tr>`}
@@ -2252,6 +2352,7 @@ function renderPurchaseItemReport(rows){
           <td>${esc(l.pur.supplierName)}</td><td>${esc(l.pur.createdBy||'-')}</td>
           <td><button class="icon-btn" onclick="viewPurchaseDetail(${l.pur.id})" title="বিস্তারিত">👁️</button>
               <button class="icon-btn" onclick="printPurchaseVoucher(${l.pur.id})" title="প্রিন্ট">🖨️</button>
+              <button class="icon-btn" onclick="sharePurchaseVoucher(${l.pur.id})" title="ছবি শেয়ার">📤</button>
               ${l.pur.due>0?`<button class="icon-btn" onclick="openInvoicePaymentModal('purchase',${l.pur.id})" title="বাকি পরিশোধ">💳</button>`:''}
               ${hasAccess('manager')?`<button class="icon-btn" onclick="deletePurchase(${l.pur.id})" title="মুছুন">🗑️</button>`:''}</td>
         </tr>`).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--muted);">কোনো ক্রয় নেই</td></tr>`}
@@ -2277,14 +2378,17 @@ function viewPurchaseDetail(id){
       <tr><th>পণ্য</th><th class="num">পরিমাণ</th><th class="num">ক্রয়মূল্য</th><th class="num">সাবটোটাল</th><th></th></tr>
       ${rows}
       <tr><td colspan="3" class="foot-total">সর্বমোট</td><td class="foot-total num">${money(pur.total)}</td><td></td></tr>
-      <tr><td colspan="3">জমা</td><td class="num">${money(pur.paid)}</td><td></td></tr>
-      ${pur.changeGiven?`<tr><td colspan="3" style="color:var(--success);">ফেরত নেওয়া হয়েছে</td><td class="num" style="color:var(--success);">${money(pur.changeGiven)}</td><td></td></tr>`:''}
+      ${pur.changeGiven
+        ? `<tr><td colspan="3">আপনি দিয়েছেন</td><td class="num">${money(r2(pur.paid+pur.changeGiven))}</td><td></td></tr>
+           <tr><td colspan="3" style="color:var(--success);">ফেরত নেওয়া হয়েছে</td><td class="num" style="color:var(--success);">${money(pur.changeGiven)}</td><td></td></tr>`
+        : `<tr><td colspan="3">জমা</td><td class="num">${money(pur.paid)}</td><td></td></tr>`}
       <tr><td colspan="3"><b>বাকি</b></td><td class="num"><b>${money(pur.due)}</b></td><td></td></tr>
     </table></div>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal()">বন্ধ করুন</button>
       ${pur.due>0?`<button class="btn btn-outline" onclick="openInvoicePaymentModal('purchase',${pur.id})">💳 বাকি পরিশোধ</button>`:''}
       ${canEditVoucher(pur)?`<button class="btn btn-outline" onclick="openPurchaseModal(${pur.id})">✏️ এডিট করুন</button>`:''}
+      <button class="btn btn-outline" onclick="sharePurchaseVoucher(${pur.id})">📤 শেয়ার</button>
       <button class="btn btn-gold" onclick="printPurchaseVoucher(${pur.id})">🖨️ প্রিন্ট করুন</button>
     </div>
   `);
@@ -2342,7 +2446,7 @@ function openPurchaseModal(editId){
           oninput="entryUpdateSub('purchase')" onkeydown="entryPriceKeydown(event,'purchase')" onfocus="this.select()"></div>
         <div class="il-field"><label>নতুন বিক্রয়মূল্য</label><input class="il-price" type="number" inputmode="decimal" min="0" step="any" id="purchEntSell" placeholder="অপরিবর্তিত"
           oninput="entryUpdateSub('purchase')" onkeydown="entryPriceKeydown(event,'purchase')" onfocus="this.select()"></div>
-        <div class="il-field"><label>সাবটোটাল</label><input class="il-subtotal" readonly id="purchEntSub" tabindex="-1"></div>
+        <div class="il-field il-sub-field"><label>সাবটোটাল</label><input class="il-subtotal" readonly id="purchEntSub" tabindex="-1"></div>
         <button type="button" class="btn btn-gold eb-add" onclick="entryAdd('purchase')">➕ যোগ (Enter)</button>
       </div>
       <div class="eb-extra">
@@ -2352,24 +2456,22 @@ function openPurchaseModal(editId){
       <div class="eb-msg" id="purchEntMsg"></div>
     </div>
     <div class="cart-list" id="purchaseItemsBox"></div>
-    <div class="sum-box">
-    <div class="form-row">
-      <div><label>সর্বমোট</label><input id="pf2_total" readonly style="font-weight:800;"></div>
-      <div><label>জমা/পরিশোধিত (Enter = সংরক্ষণ)</label><input id="pf2_paid" type="number" value="${existing?existing.paid:0}" oninput="calcPurchaseTotal()" onkeydown="if(event.key==='Enter'){event.preventDefault();savePurchase();}"></div>
-    </div>
-    <div class="form-row">
-      <div><label>বাকি (সাপ্লায়ারকে দেনা)</label><input id="pf2_due" readonly></div>
-      <div class="hidden" id="pf2_changeRow" style="background:var(--pill-ok-bg);border-radius:8px;padding:6px 10px;">
-        <label style="color:var(--pill-ok-text);">💵 সাপ্লায়ারের কাছ থেকে ফেরত নিন</label>
-        <input id="pf2_change" readonly style="background:transparent;border:none;color:var(--pill-ok-text);font-weight:800;font-size:15px;padding:0;">
+    <div class="sum-compact">
+      <div class="sum-inputs one">
+        <div><label>জমা/পরিশোধিত ৳ (Enter = সংরক্ষণ)</label><input id="pf2_paid" type="number" inputmode="decimal" value="${existing?r2(existing.paid+(existing.changeGiven||0)):0}" oninput="calcPurchaseTotal()" onfocus="this.select()" onkeydown="if(event.key==='Enter'){event.preventDefault();savePurchase();}"></div>
       </div>
     </div>
     </div>
+    <div class="entry-foot">
+      <div class="foot-sum">
+        <div class="fs-total"><span>মোট</span><b id="pf2_total">৳0</b></div>
+        <div class="fs-sub"><span>বাকি (দেনা) <b id="pf2_due">৳0</b></span><span id="pf2_changeRow" class="fs-change hidden">💵 ফেরত নিন <b id="pf2_change">৳0</b></span></div>
+      </div>
+      <div class="foot-btns">
+        <button class="btn btn-outline" onclick="closeModal()">বাতিল</button>
+        <button class="btn btn-gold" id="modalSaveBtn" onclick="savePurchase()">${existing?'সংরক্ষণ':'💾 সংরক্ষণ'}</button>
+      </div>
     </div>
-    <div class="entry-foot"><div class="modal-actions">
-      <button class="btn btn-outline" onclick="closeModal()">বাতিল</button>
-      <button class="btn btn-gold" id="modalSaveBtn" onclick="savePurchase()">${existing?'পরিবর্তন সংরক্ষণ করুন':'ক্রয় সংরক্ষণ করুন'}</button>
-    </div></div>
   `);
   document.getElementById('modalBox').className='modal entry-modal purchase-theme';
   renderPurchaseLines();
@@ -2385,20 +2487,15 @@ function calcPurchaseTotal(){
   let total = 0;
   purchaseCart.forEach(l=>{ if(l.productId){ const p = DB.products.find(x=>x.id==l.productId); if(p) total += ((l.price!=null)?Number(l.price):p.buyPrice)*(l.qty||0); } });
   total = r2(total);
-  const totalEl = document.getElementById('pf2_total');
-  if(totalEl) totalEl.value = money(total);
+  setField('pf2_total', money(total));
   // বিক্রয়ের মতোই: বেশি টাকা দিলে বাকি ঋণাত্মক হয় না, বাড়তি অংশ "ফেরত পাবেন" হিসেবে আলাদা দেখায়
   const paidRaw = Number(document.getElementById('pf2_paid')?.value)||0;
   const due = Math.max(0, total - paidRaw);
   const changeBack = Math.max(0, paidRaw - total);
-  const dueEl = document.getElementById('pf2_due');
-  if(dueEl) dueEl.value = money(due);
+  setField('pf2_due', money(due));
+  const dueNode = document.getElementById('pf2_due'); if(dueNode) dueNode.style.color = due>0 ? 'var(--warn-text)' : 'var(--success)';
   const changeRow = document.getElementById('pf2_changeRow');
-  const changeEl = document.getElementById('pf2_change');
-  if(changeRow && changeEl){
-    if(changeBack>0){ changeRow.classList.remove('hidden'); changeEl.value = money(changeBack); }
-    else { changeRow.classList.add('hidden'); }
-  }
+  if(changeRow){ if(changeBack>0){ changeRow.classList.remove('hidden'); setField('pf2_change', money(changeBack)); } else changeRow.classList.add('hidden'); }
   return total;
 }
 /* প্রতিটা লাইনের জন্য: রং খালি থাকলে সরাসরি বাছাই করা পণ্যেরই স্টক বাড়ে (আগের মতো সহজ)।
@@ -2595,7 +2692,7 @@ async function loadRecentDuePayments(){
       <tr><th>তারিখ</th><th>ধরন</th><th>নাম</th><th class="num">পরিমাণ</th><th class="num">নতুন বাকি</th><th>গ্রহণকারী</th><th></th></tr>
       ${rows.map(r=>`<tr><td>${fmtDate(r.date)}</td><td>${r.type==='customer'?'জমা নেওয়া':'পরিশোধ করা'}</td><td>${esc(r.partyName)}</td>
         <td class="num">${money(r.amount)}</td><td class="num">${money(r.dueAfter)}</td><td>${esc(r.by||'-')}</td>
-        <td><button class="icon-btn" onclick='printDuePaymentReceipt(${attrJson(r)})' title="প্রিন্ট">🖨️</button></td></tr>`).join('')
+        <td><button class="icon-btn" onclick='printDuePaymentReceipt(${attrJson(r)})' title="প্রিন্ট">🖨️</button><button class="icon-btn" onclick='shareDuePaymentReceipt(${attrJson(r)})' title="ছবি শেয়ার">📤</button></td></tr>`).join('')
         || `<tr><td colspan="7" style="text-align:center;color:var(--muted);">এখনো কোনো রেকর্ড নেই</td></tr>`}
     </table>
   `;
@@ -2730,20 +2827,10 @@ function showDuePaymentReceiptOption(rec){
     </div>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal()">বন্ধ করুন</button>
+      <button class="btn btn-outline" onclick='shareDuePaymentReceipt(${attrJson(rec)})'>📤 শেয়ার</button>
       <button class="btn btn-gold" onclick='printDuePaymentReceipt(${attrJson(rec)})'>🖨️ রশিদ প্রিন্ট করুন</button>
     </div>
   `);
-}
-function printDuePaymentReceipt(rec){
-  const meta = [['রশিদ #',refNo('PMT',rec.id)],['তারিখ',fmtDate(rec.date)],[rec.type==='customer'?'কাস্টমার':'সাপ্লায়ার',esc(rec.partyName)]];
-  if(rec.voucherRef) meta.push(['সংশ্লিষ্ট ভাউচার', esc(rec.voucherRef)]);
-  printDoc({title: rec.type==='customer'?'জমা রশিদ (Payment Receipt)':'পরিশোধ রশিদ (Payment Voucher)',
-    meta, items:[],
-    totals:[{label:'আগের বাকি', value:money(rec.dueBefore)},
-            {label: rec.type==='customer'?'জমা নেওয়া হলো':'পরিশোধ করা হলো', value:money(rec.amount)},
-            {label:'নতুন বাকি', value:money(rec.dueAfter), bold:true}],
-    note: rec.by?`<p style="margin-top:8px;font-size:11px;">গ্রহণ করেছেন: ${esc(rec.by)}</p>`:'',
-    footer: esc(DB.settings?.footer||'ধন্যবাদান্তে, আপনার ব্যবসা প্রতিষ্ঠান।')});
 }
 /* ================= EXPENSES ================= */
 let expFilter = {from:null, to:null, cat:''};
@@ -3340,6 +3427,7 @@ function openHelp(){
       <li><i>সেটিংস → প্রিন্ট</i> থেকে এই ডিভাইসের কাগজ বাছুন: A4/A5, ৮০মিমি বা ৫৮মিমি থার্মাল। "টেস্ট প্রিন্ট" দিয়ে আগে দেখে নিন। দোকানের ডিফল্ট কাগজ বদলাতে ডাইরেক্টর/এডমিন লাগে।</li>
       <li>ডায়ালগে <b>Margins: None</b> ও <b>Headers and footers: বন্ধ</b> রাখুন; থার্মাল প্রিন্টারের কাগজের সাইজ রোলের মাপ অনুযায়ী দিন।</li>
       <li>প্রিন্টার না থাকলে "Save as PDF" বেছে ফাইল রাখুন বা হোয়াটসঅ্যাপে পাঠান।</li>
+      <li><b>📤 শেয়ার:</b> বিক্রয়/ক্রয়/রশিদের পাশের 📤 বাটনে চাপলে ভাউচারটা রসিদ-ধাঁচের একটা ছবি (PNG) হয়ে আসে। "শেয়ার" চেপে হোয়াটসঅ্যাপ ইত্যাদিতে পাঠান, অথবা "ডাউনলোড" করে attach করুন। "টেক্সট (WhatsApp)" বাটনে কাস্টমারের নম্বরে (থাকলে) সারসংক্ষেপ লেখা সহ হোয়াটসঅ্যাপ খোলে।</li>
     </ul>`],
   ['📶 অফলাইনে কাজ ও সিঙ্ক', `
     <ul>
@@ -3647,6 +3735,194 @@ function setPageStyle(mode){
                  : mode==='thermal58' ? '@media print{@page{size:58mm auto;margin:1.5mm;}}'
                  : '@media print{@page{margin:10mm;}}';
 }
+function plain(h){ const t = document.createElement('textarea'); t.innerHTML = String(h==null?'':h); return t.value; }
+function waNumber(phone){
+  const d = String(phone||'').replace(/\D/g,''); if(!d) return '';
+  if(d.startsWith('880')) return d;
+  if(d.startsWith('0')) return '88'+d;
+  return d;
+}
+function buildInvoiceModel(s){
+  const items = s.items.map(it=>{
+    const p = DB.products.find(pp=>pp.id===it.productId);
+    return {name: esc(p?p.name:'—'), qty: esc(itemQtyText(it,p)), rate: esc(itemRateText(it)), sub: money(r2(it.price*it.qty))};
+  });
+  const totals = [];
+  if(s.discount){
+    totals.push({label:'সাবটোটাল', value: money(s.subtotal||(s.total+s.discount))});
+    totals.push({label:`ডিসকাউন্ট ${s.discountPercent?`(${s.discountPercent}%)`:''}`, value:'-'+money(s.discount)});
+  }
+  totals.push({label:'সর্বমোট', value:money(s.total), bold:true});
+  if(s.changeGiven){   // গ্রাহক মোট কত দিয়েছিলেন ও কত ফেরত পেয়েছেন — স্পষ্ট দেখানো হয়
+    totals.push({label:'গ্রাহক দিয়েছেন', value:money(r2(s.paid+s.changeGiven))});
+    totals.push({label:'ফেরত দেওয়া হয়েছে', value:money(s.changeGiven)});
+  } else totals.push({label:'জমা', value:money(s.paid)});
+  totals.push({label:'বাকি', value:money(s.due), bold:true});
+  const cust = DB.customers.find(c=>c.id===s.customerId);
+  const ref = refNo('INV', s.id);
+  return {title:'ইনভয়েস / রশিদ', file:ref,
+    meta:[['ইনভয়েস #',ref],['তারিখ',fmtDate(s.date)],['কাস্টমার',esc(s.customerName)]],
+    items, totals, rateLabel:'দর', footer: esc(DB.settings?.footer||'ধন্যবাদান্তে, আপনার ব্যবসা প্রতিষ্ঠান।'),
+    waPhone: waNumber(cust&&cust.phone),
+    waText: `${DB.settings?.shopName||'ব্যবসা ম্যানেজার'}\nইনভয়েস ${ref} (${fmtDate(s.date)})\nসর্বমোট: ${money(s.total)}\n${s.changeGiven?`দিয়েছেন: ${money(r2(s.paid+s.changeGiven))}, ফেরত: ${money(s.changeGiven)}`:`জমা: ${money(s.paid)}`}\nবাকি: ${money(s.due)}\nধন্যবাদ।`};
+}
+function buildPurchaseModel(pur){
+  const items = pur.items.map(it=>{
+    const p = DB.products.find(pp=>pp.id===it.productId);
+    return {name: esc(p?p.name+(p.color?' ('+p.color+')':''):'—'), qty: esc(itemQtyText(it,p)), rate: esc(itemRateText(it)), sub: money(r2(it.price*it.qty))};
+  });
+  const totals = [{label:'সর্বমোট', value:money(pur.total), bold:true}];
+  if(pur.changeGiven){
+    totals.push({label:'আপনি দিয়েছেন', value:money(r2(pur.paid+pur.changeGiven))});
+    totals.push({label:'ফেরত নেওয়া হয়েছে', value:money(pur.changeGiven)});
+  } else totals.push({label:'জমা', value:money(pur.paid)});
+  totals.push({label:'বাকি', value:money(pur.due), bold:true});
+  const sup = DB.suppliers.find(c=>c.id===pur.supplierId);
+  const ref = refNo('PUR', pur.id);
+  return {title:'ক্রয় ভাউচার', file:ref,
+    meta:[['ভাউচার #',ref],['তারিখ',fmtDate(pur.date)],['সাপ্লায়ার',esc(pur.supplierName)]],
+    items, totals, rateLabel:'ক্রয়মূল্য', footer: esc(DB.settings?.footer||'ধন্যবাদান্তে।'),
+    waPhone: waNumber(sup&&sup.phone),
+    waText: `${DB.settings?.shopName||'ব্যবসা ম্যানেজার'}\nক্রয় ভাউচার ${ref} (${fmtDate(pur.date)})\nসর্বমোট: ${money(pur.total)}\nজমা: ${money(pur.paid)}\nবাকি: ${money(pur.due)}`};
+}
+function buildDueModel(rec){
+  const meta = [['রশিদ #',refNo('PMT',rec.id)],['তারিখ',fmtDate(rec.date)],[rec.type==='customer'?'কাস্টমার':'সাপ্লায়ার',esc(rec.partyName)]];
+  if(rec.voucherRef) meta.push(['সংশ্লিষ্ট ভাউচার', esc(rec.voucherRef)]);
+  const party = (rec.type==='customer'?DB.customers:DB.suppliers).find(x=>x.id===rec.partyId);
+  return {title: rec.type==='customer'?'জমা রশিদ (Payment Receipt)':'পরিশোধ রশিদ (Payment Voucher)', file:refNo('PMT',rec.id),
+    meta, items:[],
+    totals:[{label:'আগের বাকি', value:money(rec.dueBefore)},
+            {label: rec.type==='customer'?'জমা নেওয়া হলো':'পরিশোধ করা হলো', value:money(rec.amount)},
+            {label:'নতুন বাকি', value:money(rec.dueAfter), bold:true}],
+    by: rec.by||'', footer: esc(DB.settings?.footer||'ধন্যবাদান্তে, আপনার ব্যবসা প্রতিষ্ঠান।'),
+    waPhone: waNumber(party&&party.phone),
+    waText: `${DB.settings?.shopName||'ব্যবসা ম্যানেজার'}\n${rec.type==='customer'?'জমা রশিদ':'পরিশোধ রশিদ'} ${refNo('PMT',rec.id)} (${fmtDate(rec.date)})\nপরিমাণ: ${money(rec.amount)}\nনতুন বাকি: ${money(rec.dueAfter)}\nধন্যবাদ।`};
+}
+function printInvoice(id){ const s = currentSalesRows().find(x=>x.id===id); if(!s){ alert('এন্ট্রিটি খুঁজে পাওয়া যায়নি (হয়তো তালিকা রিফ্রেশ করা দরকার)'); return; } printDoc(buildInvoiceModel(s)); }
+function printPurchaseVoucher(id){ const p = currentPurchaseRows().find(x=>x.id===id); if(!p){ alert('এন্ট্রিটি খুঁজে পাওয়া যায়নি (হয়তো তালিকা রিফ্রেশ করা দরকার)'); return; } printDoc(buildPurchaseModel(p)); }
+function printDuePaymentReceipt(rec){ printDoc(buildDueModel(rec)); }
+function shareInvoice(id){ const s = currentSalesRows().find(x=>x.id===id); if(!s){ alert('এন্ট্রিটি খুঁজে পাওয়া যায়নি'); return; } shareDoc(buildInvoiceModel(s)); }
+function sharePurchaseVoucher(id){ const p = currentPurchaseRows().find(x=>x.id===id); if(!p){ alert('এন্ট্রিটি খুঁজে পাওয়া যায়নি'); return; } shareDoc(buildPurchaseModel(p)); }
+function shareDuePaymentReceipt(rec){ shareDoc(buildDueModel(rec)); }
+
+/* ===== ভাউচারকে ছবি (PNG) বানিয়ে শেয়ার — থার্মাল রসিদের মতো সুন্দর লেআউটে =====
+   ফোনে "শেয়ার" চাপলে হোয়াটসঅ্যাপ/মেসেঞ্জার ইত্যাদি বেছে সরাসরি ছবি পাঠানো যায়।
+   ডিভাইস সরাসরি ফাইল-শেয়ার না করলে ছবি ডাউনলোড হয়, সেটা হোয়াটসঅ্যাপে attach করা যায়। */
+async function renderReceiptCanvas(model){
+  try{ await document.fonts.load('700 16px "Noto Sans Bengali"'); await document.fonts.load('500 16px "Noto Sans Bengali"'); await document.fonts.ready; }catch(e){}
+  const FF = '"Noto Sans Bengali","Segoe UI",Tahoma,Arial,sans-serif';
+  const W = 420, S = 2, PAD = 20, IW = W - PAD*2;
+  const st = DB.settings || {};
+  const m = document.createElement('canvas').getContext('2d');
+  const font = (w,sz)=>`${w} ${sz}px ${FF}`;
+  function wrap(text, maxW, f){
+    m.font = f; const out = [];
+    String(text).split('\n').forEach(par=>{
+      const words = par.split(/\s+/).filter(Boolean); let line = '';
+      if(!words.length){ out.push(''); return; }
+      words.forEach(w=>{
+        const t = line ? line+' '+w : w;
+        if(m.measureText(t).width <= maxW){ line = t; return; }
+        if(line) out.push(line);
+        if(m.measureText(w).width > maxW){
+          let chunk = ''; for(const ch of w){ if(m.measureText(chunk+ch).width > maxW){ out.push(chunk); chunk = ch; } else chunk += ch; }
+          line = chunk;
+        } else line = w;
+      });
+      if(line) out.push(line);
+    });
+    return out;
+  }
+  const cmds = []; let y = PAD + 6;
+  const center = (text, w, sz, color)=>{ wrap(text, IW, font(w,sz)).forEach(l=>{ cmds.push({t:'c', text:l, y:y+sz, f:font(w,sz), color}); y += sz*1.42; }); };
+  const hr = ()=>{ y += 5; cmds.push({t:'hr', y}); y += 11; };
+  const row = (l, r, w, sz, color)=>{
+    m.font = font(w,sz); const rw = m.measureText(r).width;
+    const lines = wrap(l, Math.max(70, IW - rw - 14), font(w,sz));
+    lines.forEach((ln,i)=>{
+      cmds.push({t:'l', text:ln, x:PAD, y:y+sz, f:font(w,sz), color});
+      if(i===0) cmds.push({t:'r', text:r, x:W-PAD, y:y+sz, f:font(w,sz), color});
+      y += sz*1.5;
+    });
+  };
+  center(st.shopName || 'ব্যবসা ম্যানেজার', 800, 22, '#111');
+  if(st.address) center(st.address, 500, 13, '#444');
+  if(st.phone) center('ফোন: '+st.phone, 500, 13, '#444');
+  hr();
+  center(plain(model.title), 800, 16, '#111'); y += 2;
+  (model.meta||[]).forEach(([l,v])=>row(plain(l), plain(v), 500, 13.5, '#222'));
+  if((model.items||[]).length){
+    hr();
+    model.items.forEach(it=>{
+      wrap(plain(it.name), IW, font(800,14.5)).forEach(ln=>{ cmds.push({t:'l', text:ln, x:PAD, y:y+14.5, f:font(800,14.5), color:'#111'}); y += 14.5*1.45; });
+      row(`${plain(it.qty)} × ${plain(it.rate)}`, plain(it.sub), 500, 13.5, '#333');
+      y += 3;
+    });
+  }
+  hr();
+  (model.totals||[]).forEach(t=>row(plain(t.label), plain(t.value), t.bold?800:600, t.bold?16:14, '#111'));
+  if(model.by) { y += 4; center('গ্রহণ করেছেন: '+model.by, 500, 12, '#555'); }
+  hr();
+  center(plain(model.footer||''), 500, 12.5, '#555');
+  const H = Math.ceil(y + PAD);
+  const c = document.createElement('canvas'); c.width = W*S; c.height = H*S;
+  const ctx = c.getContext('2d'); ctx.scale(S,S);
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = '#12805f'; ctx.fillRect(0,0,W,6);
+  ctx.textBaseline = 'alphabetic';
+  cmds.forEach(k=>{
+    if(k.t==='hr'){ ctx.save(); ctx.setLineDash([4,3]); ctx.strokeStyle = '#888'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(PAD,k.y); ctx.lineTo(W-PAD,k.y); ctx.stroke(); ctx.restore(); return; }
+    ctx.font = k.f; ctx.fillStyle = k.color;
+    if(k.t==='c'){ ctx.textAlign='center'; ctx.fillText(k.text, W/2, k.y); }
+    else if(k.t==='l'){ ctx.textAlign='left'; ctx.fillText(k.text, k.x, k.y); }
+    else { ctx.textAlign='right'; ctx.fillText(k.text, k.x, k.y); }
+  });
+  return c;
+}
+let shareState = null;
+async function shareDoc(model){
+  toast('⏳ ছবি তৈরি হচ্ছে...');
+  let canvas;
+  try{ canvas = await renderReceiptCanvas(model); }catch(e){ alert('ছবি তৈরি করা যায়নি: '+e.message); return; }
+  canvas.toBlob(blob=>{
+    if(!blob){ alert('ছবি তৈরি করা যায়নি'); return; }
+    if(shareState && shareState.url) URL.revokeObjectURL(shareState.url);
+    shareState = {blob, url: URL.createObjectURL(blob), model};
+    openModal(`
+      <div class="entry-head"><h3>📤 ভাউচার শেয়ার</h3></div>
+      <div class="entry-body" style="text-align:center;"><img class="share-img" src="${shareState.url}" alt="ভাউচার">
+        <div class="set-note">"শেয়ার" চাপলে হোয়াটসঅ্যাপ/মেসেঞ্জার ইত্যাদি বেছে সরাসরি ছবিটা পাঠানো যায়। সরাসরি শেয়ার না হলে "ডাউনলোড" করে হোয়াটসঅ্যাপে attach করুন।</div></div>
+      <div class="entry-foot"><div class="foot-btns" style="flex-wrap:wrap;width:100%;justify-content:flex-end;">
+        <button class="btn btn-outline" onclick="closeModal()">বন্ধ করুন</button>
+        <button class="btn btn-outline" onclick="downloadShareImage()">⬇️ ডাউনলোড</button>
+        <button class="btn btn-outline" onclick="whatsappText()">💬 টেক্সট (WhatsApp)</button>
+        <button class="btn btn-gold" onclick="doShareImage()">📤 শেয়ার</button>
+      </div></div>`);
+    document.getElementById('modalBox').className = 'modal entry-modal';
+  }, 'image/png');
+}
+function downloadShareImage(){
+  if(!shareState) return;
+  const a = document.createElement('a'); a.href = shareState.url; a.download = (shareState.model.file||'voucher') + '.png';
+  document.body.appendChild(a); a.click(); a.remove();
+  toast('⬇️ ছবি ডাউনলোড হয়েছে');
+}
+async function doShareImage(){
+  if(!shareState) return;
+  const file = new File([shareState.blob], (shareState.model.file||'voucher')+'.png', {type:'image/png'});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file], title: plain(shareState.model.title), text: shareState.model.waText||''}); }
+    catch(e){ if(e.name!=='AbortError') toast('শেয়ার করা যায়নি — ডাউনলোড করে পাঠান'); }
+  } else {
+    downloadShareImage();
+    toast('এই ডিভাইসে সরাসরি ছবি-শেয়ার নেই — ছবি ডাউনলোড হয়েছে, হোয়াটসঅ্যাপে attach করুন');
+  }
+}
+function whatsappText(){
+  if(!shareState) return;
+  const m = shareState.model;
+  window.open(`https://wa.me/${m.waPhone||''}?text=${encodeURIComponent(m.waText||'')}`, '_blank', 'noopener');
+}
 function printDoc(o){
   const mode = paperMode(), pa = document.getElementById('printArea');
   const items = o.items||[], totals = o.totals||[], meta = o.meta||[];
@@ -3664,7 +3940,7 @@ function printDoc(o){
     <table class="inv-table" style="width:300px;margin-inline-start:auto;">
       ${totals.map(t=>`<tr><td>${t.bold?`<b>${t.label}</b>`:t.label}</td><td class="num">${t.bold?`<b>${t.value}</b>`:t.value}</td></tr>`).join('')}
     </table>
-    ${o.note||''}
+    ${o.by?`<p style="margin-top:8px;font-size:11px;">গ্রহণ করেছেন: ${esc(o.by)}</p>`:''}
     <p style="margin-top:20px;font-size:12px;">${o.footer}</p>`;
   } else {
     html = `
@@ -3676,7 +3952,7 @@ function printDoc(o){
       <div class="rc-row"><span>${it.qty} × ${it.rate}</span><span>${it.sub}</span></div></div>`).join('')}`:''}
     <div class="rc-hr"></div>
     ${totals.map(t=>`<div class="rc-row ${t.bold?'rc-big':''}"><span>${t.label}</span><span>${t.value}</span></div>`).join('')}
-    ${o.note||''}
+    ${o.by?`<div style="margin-top:4px;font-size:.9em;">গ্রহণ করেছেন: ${esc(o.by)}</div>`:''}
     <div class="rc-hr"></div>
     <div class="rc-center">${o.footer}</div>
     <div style="height:6mm;"></div>`;
@@ -3686,43 +3962,9 @@ function printDoc(o){
   pa.innerHTML = html;
   window.print();
 }
-function printInvoice(saleId){
-  const s = currentSalesRows().find(x=>x.id===saleId);
-  if(!s){ alert('এন্ট্রিটি খুঁজে পাওয়া যায়নি (হয়তো তালিকা রিফ্রেশ করা দরকার)'); return; }
-  const items = s.items.map(it=>{
-    const p = DB.products.find(pp=>pp.id===it.productId);
-    return {name: esc(p?p.name:'—'), qty: esc(itemQtyText(it,p)), rate: esc(itemRateText(it)), sub: money(r2(it.price*it.qty))};
-  });
-  const totals = [];
-  if(s.discount){
-    totals.push({label:'সাবটোটাল', value: money(s.subtotal||(s.total+s.discount))});
-    totals.push({label:`ডিসকাউন্ট ${s.discountPercent?`(${s.discountPercent}%)`:''}`, value:'-'+money(s.discount)});
-  }
-  totals.push({label:'সর্বমোট', value:money(s.total), bold:true});
-  totals.push({label:'জমা', value:money(s.paid)});
-  if(s.changeGiven) totals.push({label:'ফেরত দেওয়া হয়েছে', value:money(s.changeGiven)});
-  totals.push({label:'বাকি', value:money(s.due), bold:true});
-  printDoc({title:'ইনভয়েস / রশিদ',
-    meta:[['ইনভয়েস #',refNo('INV',s.id)],['তারিখ',fmtDate(s.date)],['কাস্টমার',esc(s.customerName)]],
-    items, totals, rateLabel:'দর', footer: esc(DB.settings?.footer||'ধন্যবাদান্তে, আপনার ব্যবসা প্রতিষ্ঠান।')});
-}
 /* ক্রয় ভাউচার প্রিন্ট — সাপ্লায়ারকে দেওয়ার জন্য বা নিজের রেকর্ডের জন্য।
    বিক্রয় ইনভয়েসের মতোই সম্পূর্ণ ফ্রি — ব্রাউজারের window.print() ব্যবহার করে,
    কোনো পেইড লাইব্রেরি/সার্ভিস লাগে না; প্রিন্টার না থাকলে "Save as PDF"-ও করা যায়। */
-function printPurchaseVoucher(purId){
-  const pur = currentPurchaseRows().find(x=>x.id===purId);
-  if(!pur){ alert('এন্ট্রিটি খুঁজে পাওয়া যায়নি (হয়তো তালিকা রিফ্রেশ করা দরকার)'); return; }
-  const items = pur.items.map(it=>{
-    const p = DB.products.find(pp=>pp.id===it.productId);
-    return {name: esc(p?p.name+(p.color?' ('+p.color+')':''):'—'), qty: esc(itemQtyText(it,p)), rate: esc(itemRateText(it)), sub: money(r2(it.price*it.qty))};
-  });
-  const totals = [{label:'সর্বমোট', value:money(pur.total), bold:true}, {label:'জমা', value:money(pur.paid)}];
-  if(pur.changeGiven) totals.push({label:'ফেরত নেওয়া হয়েছে', value:money(pur.changeGiven)});
-  totals.push({label:'বাকি', value:money(pur.due), bold:true});
-  printDoc({title:'ক্রয় ভাউচার',
-    meta:[['ভাউচার #',refNo('PUR',pur.id)],['তারিখ',fmtDate(pur.date)],['সাপ্লায়ার',esc(pur.supplierName)]],
-    items, totals, rateLabel:'ক্রয়মূল্য', footer: esc(DB.settings?.footer||'ধন্যবাদান্তে।')});
-}
 /* =====================================================================
    CONFIG — এখানে আপনার Firebase তথ্য বসান
    ===================================================================== */
@@ -3750,6 +3992,8 @@ async function bootApp(){
     fbApp = firebase.initializeApp(firebaseConfig);
     fbAuth = firebase.auth();
     fsDB = firebase.firestore();
+    /* কিছু নেটওয়ার্ক/প্রক্সিতে স্ট্রিমিং সংযোগ ('Listen' transport errored) বারবার ভেঙে যায় — সেক্ষেত্রে স্বয়ংক্রিয়ভাবে long-polling এ নেমে আসে */
+    try{ fsDB.settings({experimentalAutoDetectLongPolling:true, merge:true}); }catch(e){ console.warn('Firestore settings:', e); }
 
     try{
       await fsDB.enablePersistence({synchronizeTabs:true});
