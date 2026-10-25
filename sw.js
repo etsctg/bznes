@@ -1,13 +1,28 @@
 /* ব্যবসা ম্যানেজার — Service Worker
-   এটা অ্যাপ-শেল (HTML/CSS/JS/আইকন) এবং বাইরের CDN থেকে লোড হওয়া জরুরি
+   এটা অ্যাপ-শেল (HTML + আলাদা CSS/JS মডিউল ফাইল + আইকন) এবং বাইরের CDN থেকে লোড হওয়া জরুরি
    স্ক্রিপ্ট (Chart.js, Firebase SDK) — দুটোই ক্যাশ করে রাখে, যাতে একবার
    অনলাইনে চালানোর পর অ্যাপ সত্যিকার অর্থে অফলাইনেও (ড্যাশবোর্ডের চার্টসহ)
    ঠিকভাবে খোলে। মনে রাখবেন: ডেটা (Firebase Firestore) সিঙ্ক করতে এখনও
    ইন্টারনেট লাগে — শুধু নতুন এন্ট্রি অফলাইনে লোকালি জমা থাকে, পরে সিঙ্ক হয়। */
 
-const CACHE_NAME = 'business-erp-shell-v9';
+const CACHE_NAME = 'business-erp-shell-v11';
 const SHELL_FILES = [
   './index.html',
+  './style.css',
+  './js/core-data.js',
+  './js/dashboard.js',
+  './js/stock.js',
+  './js/sales.js',
+  './js/entry-bar.js',
+  './js/purchase.js',
+  './js/dues.js',
+  './js/expenses.js',
+  './js/reports.js',
+  './js/settings.js',
+  './js/print-share.js',
+  './js/cashbook.js',
+  './js/returns.js',
+  './js/boot.js',
   './manifest.json',
   './chart.umd.js',
   './icon-192.png',
