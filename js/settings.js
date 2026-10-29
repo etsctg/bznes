@@ -96,6 +96,7 @@ function toggleUserActive(id){
   if(!confirm(turnOff ? `"${u.name}" এর লগইন বন্ধ করবেন? (সে চালু থাকলে সাথে সাথে লগআউট হয়ে যাবে)` : `"${u.name}" এর লগইন আবার চালু করবেন?`)) return;
   fireWrite(fsDB.collection('erp_users').doc(String(id)).update({disabled: turnOff}), 'ইউজার অবস্থা');
   logAudit(turnOff?'ইউজার লগইন বন্ধ':'ইউজার লগইন চালু', `${u.name} (@${u.username})`);
+  bumpUserCounter(turnOff ? -1 : 1);
 }
 function openUserModal(){
   openModal(`
@@ -130,10 +131,12 @@ async function saveUser(){
   if(password.length < 6){ alert('পাসওয়ার্ড কমপক্ষে ৬ ক্যারেক্টার হতে হবে'); return; }
   if(password !== password2){ alert('দুই ঘরের পাসওয়ার্ড মিলছে না'); return; }
   if(DB.users.find(u=>u.username===username)){ alert('এই ইউজারনেম আগে থেকেই আছে'); return; }
+  if(userCapExceeded()){ alert(`এই লাইসেন্সে সর্বোচ্চ ${licenseInfo.maxUsers} জন সক্রিয় ইউজারের অনুমতি আছে। নতুন ইউজার যোগ করতে আগে কাউকে বন্ধ (⛔) করুন অথবা বিক্রেতার সাথে যোগাযোগ করে সীমা বাড়ান।`); return; }
   const newId = genId();
   const hash = await makePasswordRecord(username, password);
   fireWrite(fsDB.collection('erp_users').doc(String(newId)).set({id:newId, name, username, password:hash, role: document.getElementById('uf_role').value}), 'নতুন ইউজার');
   logAudit('নতুন ইউজার তৈরি', `${name} (${username})`);
+  bumpUserCounter(1);
   closeModal();
 }
 function deleteUser(id){
@@ -144,6 +147,7 @@ function deleteUser(id){
   if(!confirm(`"${u.name}" (@${u.username}) কে স্থায়ীভাবে মুছে ফেলবেন?\n(এর করা আগের বিক্রয়/ক্রয়ের রেকর্ডে নাম থেকে যাবে। শুধু লগইন বন্ধ করতে চাইলে ⛔ ব্যবহার করুন।)`)) return;
   fireWrite(fsDB.collection('erp_users').doc(String(id)).delete(), 'ইউজার মোছা');
   logAudit('ইউজার মোছা', `${u.name} (@${u.username})`);
+  if(!u.disabled) bumpUserCounter(-1);
 }
 function openChangePasswordModal(){
   openModal(`
@@ -187,7 +191,8 @@ function settingsTabList(){
     {k:'account', ic:'👤', label:'আমার অ্যাকাউন্ট',      min:'user'},
     {k:'users',   ic:'🔐', label:'ইউজার ম্যানেজমেন্ট',   min:'admin'},
     {k:'backup',  ic:'♻️', label:'ব্যাকআপ / রিস্টোর',    min:'director'},
-    {k:'audit',   ic:'📜', label:'অ্যাক্টিভিটি লগ',      min:'admin'}
+    {k:'audit',   ic:'📜', label:'অ্যাক্টিভিটি লগ',      min:'admin'},
+    {k:'license', ic:'🔑', label:'লাইসেন্স',             min:'admin'}
   ].filter(t=>hasAccess(t.min));
 }
 function renderSettings(){
@@ -208,8 +213,9 @@ function renderSettingsBody(){
     finally{ pageHostId = 'mainArea'; }
     return;
   }
-  host.innerHTML = settingsTab==='shop' ? settingsShopHtml() : (settingsTab==='print' ? settingsPrintHtml() : settingsAccountHtml());
+  host.innerHTML = settingsTab==='shop' ? settingsShopHtml() : (settingsTab==='print' ? settingsPrintHtml() : (settingsTab==='license' ? settingsLicenseHtml() : settingsAccountHtml()));
   if(settingsTab==='shop') updateShopPreview();
+  if(settingsTab==='license') loadLicenseDevices();
 }
 function settingsShopHtml(){
   const st = DB.settings || {};
@@ -308,7 +314,7 @@ function settingsAccountHtml(){
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn btn-outline" onclick="openChangePasswordModal()">🔑 পাসওয়ার্ড পরিবর্তন</button>
       <button class="btn btn-outline" onclick="toggleTheme()">${isLight?'🌙 ডার্ক থিম':'☀️ লাইট থিম'}</button>
-      <button class="btn btn-outline" onclick="logout()">🚪 লগআউট</button>
+      <button class="btn btn-outline" onclick="logoutWithBackupCheck()">🚪 লগআউট</button>
       ${SHOP_AUTH_REQUIRED?`<button class="btn btn-outline" onclick="disconnectShopDevice()">🔌 এই ডিভাইসের দোকান-সংযোগ বিচ্ছিন্ন করুন</button>`:''}
     </div>
     <div class="set-note">অ্যাপ ভার্সন: <b>${APP_VERSION}</b> • নিরাপত্তার জন্য ২০ মিনিট নিষ্ক্রিয় থাকলে নিজে থেকে লগআউট হয়ে যাবে।</div>
@@ -452,6 +458,7 @@ function openHelp(){
       <li><i>সেটিংস → অ্যাক্টিভিটি লগ</i> (এডমিন): লগইন, ডিলিট, এডিট, ব্যাকআপ ইত্যাদি কে কখন করেছে।</li>
       <li><b>ব্যাকআপ:</b> <i>সেটিংস → ব্যাকআপ / রিস্টোর</i> থেকে নিয়মিত (অন্তত সপ্তাহে একবার) JSON ফাইল ডাউনলোড করে পেনড্রাইভ/ক্লাউডে রাখুন। রিস্টোর করলে বর্তমান ডেটা প্রতিস্থাপিত হয়।</li>
       <li>ডেটাবেসের আসল নিরাপত্তার জন্য Firebase Console-এ <b>firestore.rules.txt</b> ফাইলের Rules বসিয়ে রাখুন।</li>
+      <li>অ্যাপ কোনো প্রতিষ্ঠানকে <b>লাইসেন্স দিয়ে বিক্রি</b> করা থাকলে — <i>সেটিংস → লাইসেন্স</i>-এ মেয়াদ, ইউজার/ডিভাইস সীমা দেখা যায়। মেয়াদ শেষ হলে লগইন স্ক্রিনেই আটকে যাবে; ডিভাইস-সীমা পূর্ণ হলে নতুন ডিভাইসে ঢোকা যাবে না (অন্য নিবন্ধিত ডিভাইস থেকে পুরনো একটা সরাতে হবে)। নবায়নের জন্য বিক্রেতার সাথে যোগাযোগ করুন।</li>
     </ul>`],
   ['⌨️ কিবোর্ড শর্টকাট', `
     <table><tr><th>কী</th><th>কাজ</th></tr>

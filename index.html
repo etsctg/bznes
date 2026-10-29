@@ -124,7 +124,7 @@
           <div class="brand-mark" id="userInitial">A</div>
           <div class="tb-user-txt"><b id="curUserName">-</b><span class="role-badge" id="curUserRole">-</span></div>
         </div>
-        <button class="tb-btn tb-logout tb-desk" onclick="logout()" title="লগআউট">🚪<span class="tb-lbl">লগআউট</span></button>
+        <button class="tb-btn tb-logout tb-desk" onclick="logoutWithBackupCheck()" title="লগআউট">🚪<span class="tb-lbl">লগআউট</span></button>
         <div class="tb-menu-wrap">
           <button class="tb-btn tb-icon" id="tbMenuBtn" onclick="toggleTopMenu(event)" title="মেনু">⋮</button>
           <div class="tb-menu" id="tbMenu"></div>
@@ -156,6 +156,7 @@
 
 <!-- অ্যাপের লজিক একাধিক মডিউলে ভাগ করা — নির্ভরতার দিক থেকে এই ক্রমেই লোড হওয়া জরুরি (boot.js সবশেষে, কারণ এটাই bootApp() চালু করে) -->
 <script src="js/core-data.js"></script>
+<script src="js/license.js"></script>
 <script src="js/dashboard.js"></script>
 <script src="js/stock.js"></script>
 <script src="js/sales.js"></script>

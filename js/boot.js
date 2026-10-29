@@ -124,6 +124,19 @@ async function bootApp(){
       await fbAuth.signInAnonymously();
     }
 
+    /* ---- লাইসেন্স/ডিভাইস গেট (ঐচ্ছিক — শুধু erp_license/current ডকুমেন্ট থাকলেই সক্রিয় হয়) ---- */
+    statusEl.textContent = '🔑 লাইসেন্স যাচাই করা হচ্ছে...';
+    const licCheck = await checkLicenseGate();
+    if(!licCheck.ok){
+      showLicenseBlockScreen(licCheck.reason, licCheck.lic);
+      return;
+    }
+    const devCheck = await ensureDeviceRegistered(licCheck.lic);
+    if(!devCheck.ok){
+      showDeviceLimitBlockScreen(devCheck.count, devCheck.max);
+      return;
+    }
+
     statusEl.textContent = '📦 প্রথমবার সেটআপ পরীক্ষা করা হচ্ছে...';
     const usersSnap = await fsDB.collection('erp_users').limit(1).get();
     if(usersSnap.empty){
