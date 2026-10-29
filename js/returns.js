@@ -72,9 +72,9 @@ function saveReturn(){
   const cogsRet = r2(items.reduce((a,i)=>a+i.buyPrice*i.qty,0));
   const batch = fsDB.batch();
   const net = {}; items.forEach(i=>{ net[i.productId] = (net[i.productId]||0) + i.qty; });
-  Object.keys(net).forEach(pid=>{ const p = DB.products.find(x=>x.id==pid); if(p) batch.update(fsDB.collection('erp_products').doc(String(pid)), {stock: r2(p.stock + net[pid])}); });
+  Object.keys(net).forEach(pid=>{ const p = DB.products.find(x=>x.id==pid); if(p) batch.update(fsDB.collection('erp_products').doc(String(pid)), {stock: _inc(net[pid])}); });
   items.forEach(i=>logStockMove(batch, {productId:i.productId, qty:i.qty, type:'sale-return', refType:'return', refId:retId, date}));
-  if(c.applied>0){ const cust = DB.customers.find(x=>x.id===s.customerId); if(cust) batch.update(fsDB.collection('erp_customers').doc(String(s.customerId)), {due: r2((cust.due||0) - c.applied)}); }
+  if(c.applied>0){ const cust = DB.customers.find(x=>x.id===s.customerId); if(cust) batch.update(fsDB.collection('erp_customers').doc(String(s.customerId)), {due: _inc(-c.applied)}); }
   const newRet = {...(s.retQty||{})}; items.forEach(i=>{ newRet[i.productId] = r2((newRet[i.productId]||0) + i.qty); });
   const upd = {retQty:newRet, returnedTotal:r2((s.returnedTotal||0)+c.value), returnedCogs:r2((s.returnedCogs||0)+cogsRet), refundedCash:r2((s.refundedCash||0)+c.cash), due:r2(s.due - c.applied), returnCount:(s.returnCount||0)+1};
   batch.update(fsDB.collection('erp_sales').doc(String(s.id)), upd);
@@ -187,6 +187,10 @@ async function renderReceiptCanvas(model){
   (model.totals||[]).forEach(t=>row(plain(t.label), plain(t.value), t.bold?800:600, t.bold?16:14, '#111'));
   if(model.by) { y += 4; center('গ্রহণ করেছেন: '+model.by, 500, 12, '#555'); }
   hr();
+  if(isVoucherRef(model.file)){
+    const bc = barcodeCanvas(model.file, 44);
+    if(bc){ const bw = Math.min(IW, bc.width/2), bh = bw*bc.height/bc.width; cmds.push({t:'bar', c:bc, x:(W-bw)/2, y, w:bw, h:bh}); y += bh + 8; }
+  }
   center(plain(model.footer||''), 500, 12.5, '#555');
   const H = Math.ceil(y + PAD);
   const c = document.createElement('canvas'); c.width = W*S; c.height = H*S;
@@ -195,6 +199,7 @@ async function renderReceiptCanvas(model){
   ctx.fillStyle = '#12805f'; ctx.fillRect(0,0,W,6);
   ctx.textBaseline = 'alphabetic';
   cmds.forEach(k=>{
+    if(k.t==='bar'){ ctx.drawImage(k.c, k.x, k.y, k.w, k.h); return; }
     if(k.t==='hr'){ ctx.save(); ctx.setLineDash([4,3]); ctx.strokeStyle = '#888'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(PAD,k.y); ctx.lineTo(W-PAD,k.y); ctx.stroke(); ctx.restore(); return; }
     ctx.font = k.f; ctx.fillStyle = k.color;
     if(k.t==='c'){ ctx.textAlign='center'; ctx.fillText(k.text, W/2, k.y); }
@@ -265,6 +270,7 @@ function printDoc(o){
       ${totals.map(t=>`<tr><td>${t.bold?`<b>${t.label}</b>`:t.label}</td><td class="num">${t.bold?`<b>${t.value}</b>`:t.value}</td></tr>`).join('')}
     </table>
     ${o.by?`<p style="margin-top:8px;font-size:11px;">গ্রহণ করেছেন: ${esc(o.by)}</p>`:''}
+    ${isVoucherRef(o.file)?`<div style="text-align:center;margin-top:12px;">${barcodeSvg(o.file,44,true)}</div>`:''}
     <p style="margin-top:20px;font-size:12px;">${o.footer}</p>`;
   } else {
     html = `
@@ -278,6 +284,7 @@ function printDoc(o){
     ${totals.map(t=>`<div class="rc-row ${t.bold?'rc-big':''}"><span>${t.label}</span><span>${t.value}</span></div>`).join('')}
     ${o.by?`<div style="margin-top:4px;font-size:.9em;">গ্রহণ করেছেন: ${esc(o.by)}</div>`:''}
     <div class="rc-hr"></div>
+    ${isVoucherRef(o.file)?`<div class="rc-center" style="margin:3px 0;">${barcodeSvg(o.file,32,true)}</div>`:''}
     <div class="rc-center">${o.footer}</div>
     <div style="height:6mm;"></div>`;
   }

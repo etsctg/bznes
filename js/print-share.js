@@ -66,7 +66,13 @@ function buildPurchaseModel(pur){
     const p = DB.products.find(pp=>pp.id===it.productId);
     return {name: esc(p?p.name+(p.color?' ('+p.color+')':''):'—'), qty: esc(itemQtyText(it,p)), rate: esc(itemRateText(it)), sub: money(r2(it.price*it.qty))};
   });
-  const totals = [{label:'সর্বমোট', value:money(pur.total), bold:true}];
+  const totals = [];
+  if(pur.extraBill>0){
+    totals.push({label:'পণ্যের মূল্য', value:money(pur.goodsTotal!=null?pur.goodsTotal:r2(pur.total-pur.extraBill))});
+    (pur.extras||[]).filter(e=>e.onBill).forEach(e=>totals.push({label:'+ '+(e.label||'অতিরিক্ত খরচ'), value:money(e.amount)}));
+  }
+  totals.push({label:'সর্বমোট', value:money(pur.total), bold:true});
+  if(pur.returnedTotal>0) totals.push({label:'ক্রয় ফেরত', value:'-'+money(pur.returnedTotal)});
   if(pur.changeGiven){
     totals.push({label:'আপনি দিয়েছেন', value:money(r2(pur.paid+pur.changeGiven))});
     totals.push({label:'ফেরত নেওয়া হয়েছে', value:money(pur.changeGiven)});

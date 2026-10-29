@@ -32,18 +32,20 @@ function nextDateStr(d){
 }
 
 async function loadCashbookData(date){
-  const [salesSnap, purchSnap, dueSnap, retSnap, openSnap] = await Promise.all([
+  const [salesSnap, purchSnap, dueSnap, retSnap, openSnap, pretSnap] = await Promise.all([
     fsDB.collection('erp_sales').where('date','==',date).get(),
     fsDB.collection('erp_purchases').where('date','==',date).get(),
     fsDB.collection('erp_due_payments').where('date','==',date).get(),
     fsDB.collection('erp_returns').where('date','==',date).get(),
-    fsDB.collection('erp_cash_opening').doc(date).get()
+    fsDB.collection('erp_cash_opening').doc(date).get(),
+    fsDB.collection('erp_purchase_returns').where('date','==',date).get().catch(()=>({docs:[]}))
   ]);
   return {
     sales: salesSnap.docs.map(d=>d.data()),
     purchases: purchSnap.docs.map(d=>d.data()),
     duePayments: dueSnap.docs.map(d=>d.data()),
     returns: retSnap.docs.map(d=>d.data()),
+    purReturns: pretSnap.docs.map(d=>d.data()),
     expenses: DB.expenses.filter(e=>e.date===date),
     opening: openSnap.exists ? Number(openSnap.data().amount)||0 : null
   };
@@ -56,6 +58,8 @@ function cbLines(d){
   d.purchases.forEach(p=>{ if(p.paid>0) outLines.push({t:p.id, desc:`ক্রয় ${refNo('PUR',p.id)} — ${p.supplierName}`, amount:p.paid}); });
   d.duePayments.filter(p=>p.type==='supplier').forEach(p=>{ outLines.push({t:p.id, desc:`বাকি পরিশোধ — ${p.partyName}${p.voucherRef?` (${p.voucherRef})`:''}`, amount:p.amount}); });
   d.expenses.forEach(e=>{ outLines.push({t:e.id, desc:`খরচ — ${e.category}${e.note?': '+e.note:''}`, amount:Number(e.amount)}); });
+  d.purchases.forEach(p=>(p.extras||[]).filter(e=>!e.onBill).forEach((e,i)=>outLines.push({t:p.id+i/100, desc:`ক্রয়-সংশ্লিষ্ট খরচ — ${e.label||'অতিরিক্ত'}${e.note?': '+e.note:''} (${refNo('PUR',p.id)})`, amount:e.amount})));
+  (d.purReturns||[]).forEach(r=>{ if(r.cashRefund>0) inLines.push({t:r.id, desc:`ক্রয় ফেরত নগদ — ${r.supplierName} (${r.purRef})`, amount:r.cashRefund}); });
   d.returns.forEach(r=>{ if(r.cashRefund>0) outLines.push({t:r.id, desc:`বিক্রয় ফেরত নগদ — ${r.customerName} (${r.saleRef})`, amount:r.cashRefund}); });
   inLines.sort((a,b)=>a.t-b.t); outLines.sort((a,b)=>a.t-b.t);
   return {inLines, outLines};

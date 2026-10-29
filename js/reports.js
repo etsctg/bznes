@@ -85,6 +85,7 @@ async function renderRepSummary(){
   const grossProfit = r2(totalSales - cogs);
   const totalPurchase = r2(dayRows.reduce((s,x)=>s+(x.totalPurchase||0),0));
   const totalReturns = r2(dayRows.reduce((s,x)=>s+(x.totalReturns||0),0));
+  const totalPurExtra = r2(dayRows.reduce((s,x)=>s+(x.totalPurchaseExtra||0),0)), totalPurRet = r2(dayRows.reduce((s,x)=>s+(x.totalPurchaseReturns||0),0));
   const expenses = DB.expenses.filter(e=>inRepRange(e.date));
   const totalExpense = r2(expenses.reduce((s,x)=>s+Number(x.amount),0));
   const netProfit = r2(grossProfit - totalExpense);
@@ -104,7 +105,7 @@ async function renderRepSummary(){
       <div class="stat-card blue"><div class="lbl">মোট ক্রয়</div><div class="val">${money(totalPurchase)}</div></div>
       <div class="stat-card ${netProfit>=0?'teal':'danger'}"><div class="lbl">নীট লাভ/ক্ষতি</div><div class="val" style="color:${netProfit>=0?'var(--success)':'var(--danger-text)'}">${money(netProfit)}</div></div>
     </div>
-    <div class="set-note" style="max-width:none;">সময়: <b>${repRangeText()}</b>${totalReturns>0?` • বিক্রয় ফেরত (নীট বিক্রয় থেকে বাদ): <b>${money(totalReturns)}</b>`:''} • গ্রস মার্জিন <b>${gm.toFixed(1)}%</b> • নীট মার্জিন <b>${nm.toFixed(1)}%</b>। বিস্তারিত দেখতে উপরের ট্যাব — <b>দিনভিত্তিক</b>, <b>পণ্যভিত্তিক লাভ</b>, <b>পার্টি/ইউজার</b>।</div>
+    <div class="set-note" style="max-width:none;">সময়: <b>${repRangeText()}</b>${totalReturns>0?` • বিক্রয় ফেরত (নীট বিক্রয় থেকে বাদ): <b>${money(totalReturns)}</b>`:''}${totalPurRet>0?` • ক্রয় ফেরত (নীট ক্রয় থেকে বাদ): <b>${money(totalPurRet)}</b>`:''}${totalPurExtra>0?` • ক্রয়ের অতিরিক্ত খরচ (পণ্যের ল্যান্ডেড মূল্যে যুক্ত, আলাদা খরচ নয়): <b>${money(totalPurExtra)}</b>`:''} • গ্রস মার্জিন <b>${gm.toFixed(1)}%</b> • নীট মার্জিন <b>${nm.toFixed(1)}%</b>। বিস্তারিত দেখতে উপরের ট্যাব — <b>দিনভিত্তিক</b>, <b>পণ্যভিত্তিক লাভ</b>, <b>পার্টি/ইউজার</b>।</div>
     <div class="card" style="margin-top:16px;">
       <h3>খাতভিত্তিক খরচ বিশ্লেষণ</h3>
       <div class="tbl-wrap"><table>

@@ -115,7 +115,7 @@ function saveCollectDue(type, id){
     date: todayStr(), at: new Date().toISOString(), by: currentUser?currentUser.name:''
   };
   const batch = fsDB.batch();
-  batch.update(fsDB.collection(coll).doc(String(id)), {due: dueAfter});
+  batch.update(fsDB.collection(coll).doc(String(id)), {due: _inc(-val)});
   batch.set(fsDB.collection('erp_due_payments').doc(String(payId)), paymentRec);
   fireWrite(batch.commit(), 'বাকি আপডেট');
   showDuePaymentReceiptOption(paymentRec);
@@ -171,7 +171,7 @@ function saveInvoicePayment(voucherType, id){
 
   const batch = fsDB.batch();
   batch.update(fsDB.collection(voucherColl).doc(String(id)), {paid:newPaid, due:newDue});
-  if(party) batch.update(fsDB.collection(partyColl).doc(String(partyId)), {due: Math.max(0,(party.due||0) - val)});
+  if(party) batch.update(fsDB.collection(partyColl).doc(String(partyId)), {due: _inc(-val)});
   batch.set(fsDB.collection('erp_due_payments').doc(String(payId)), paymentRec);
   fireWrite(batch.commit(), 'ভাউচার বাকি পরিশোধ');
   logAudit('ভাউচার বাকি পরিশোধ', `${voucherRef} — ${money(val)}`);

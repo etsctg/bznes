@@ -2,17 +2,7 @@
    সবশেষে লোড হয় — কারণ শেষ লাইনে bootApp() চালু হয়, যার আগে বাকি সব
    মডিউলের ফাংশন (listenCollection, renderDashboard, ইত্যাদি) থাকা লাগে। */
 
-/* =====================================================================
-   CONFIG — এখানে আপনার Firebase তথ্য বসান
-   ===================================================================== */
-const firebaseConfig = {
-  apiKey: "AIzaSyDrFR9Ycw4xpeaueNn92wWrT3c2diD1cLM",
-  authDomain: "bzneserp.firebaseapp.com",
-  projectId: "bzneserp",
-  storageBucket: "bzneserp.firebasestorage.app",
-  messagingSenderId: "412722396147",
-  appId: "1:412722396147:web:ddbf530520c5b662f67086"
-};
+/* Firebase কনফিগ এখন আলাদা ফাইলে — config.js (প্রতি ক্লায়েন্টের জন্য শুধু ওই ফাইলটা বদলান) */
 
 /* =====================================================================
    নিরাপত্তা সেটিং

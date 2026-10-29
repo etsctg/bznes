@@ -19,7 +19,7 @@ function productSuggestMatches(query){
   else {
     const words = q.split(/\s+/).filter(Boolean);
     res = DB.products.filter(p=>{
-      const hay = [p.name, p.brand, p.size, p.color, p.shelf].filter(Boolean).join(' ').toLowerCase();
+      const hay = [p.name, p.brand, p.size, p.color, p.shelf, p.code].filter(Boolean).join(' ').toLowerCase();
       return words.every(w=>hay.includes(w));
     });
   }
@@ -76,7 +76,7 @@ function entryRenderSugg(kind){
     return `<div class="sugg-row ${idx===st.active?'active':''}" data-idx="${idx}"
         onmousedown="event.preventDefault();entryPick('${kind}',${p.id})"
         onmouseenter="entrySetActive('${kind}',${idx},false)">
-      <div class="sugg-name">${esc(p.name)}${bits?` <span class="sugg-bits">— ${esc(bits)}</span>`:''}</div>
+      <div class="sugg-name">${esc(p.name)}${bits?` <span class="sugg-bits">— ${esc(bits)}</span>`:''}${p.code?` <span class="sugg-bits">#${esc(p.code)}</span>`:''}</div>
       <div class="sugg-meta"><span class="sugg-price">${cfg.priceLbl} ${money(cfg.price(p))}</span><span class="sugg-stock" style="color:${stockColor};">স্টক: ${p.stock} ${esc(p.unit||'')}</span></div>
     </div>`;
   }).join('') + (st.matches.more ? '<div class="sugg-empty">আরও পণ্য আছে — নাম লিখে খুঁজুন</div>' : '');
@@ -112,7 +112,7 @@ function openQuickProduct(){
 function closeQuickProduct(){
   const panel = document.getElementById('purchNewProd'); if(!panel) return;
   panel.classList.add('hidden');
-  ['np_name','np_buy','np_sell','np_brand','np_size','np_color','np_shelf','np_alt','np_factor'].forEach(i=>{ const e = document.getElementById(i); if(e) e.value=''; });
+  ['np_name','np_buy','np_sell','np_brand','np_size','np_color','np_shelf','np_alt','np_factor','np_code'].forEach(i=>{ const e = document.getElementById(i); if(e) e.value=''; });
   document.getElementById('np_unit').value = 'পিস'; document.getElementById('np_low').value = 5;
   eEl('purchase','Prod').focus();
 }
@@ -126,7 +126,10 @@ function saveQuickProduct(){
   const dup = DB.products.find(x=>x.name.trim().toLowerCase()===name.toLowerCase() && (x.brand||'').toLowerCase()===brand.toLowerCase() && (x.size||'').toLowerCase()===size.toLowerCase() && (x.color||'').toLowerCase()===color.toLowerCase());
   if(dup){ toast('✅ এই পণ্য আগে থেকেই আছে — সেটাই বাছাই করা হলো'); closeQuickProduct(); entryPick('purchase', dup.id); return; }
   const id = genId();
-  const data = {id, name, brand, size, color, shelf:v('np_shelf'), unit: v('np_unit')||'পিস', altUnit: alt, factor: alt?factor:0,
+  let code = v('np_code');
+  if(code && codeTaken(code)){ alert('এই কোড ('+code+') আরেকটা পণ্যে আছে — অন্য কোড দিন বা খালি রাখুন (নিজে তৈরি হবে)'); document.getElementById('np_code').focus(); return; }
+  if(!code) code = reserveProductCode();
+  const data = {id, name, code, brand, size, color, shelf:v('np_shelf'), unit: v('np_unit')||'পিস', altUnit: alt, factor: alt?factor:0,
     stock:0, buyPrice: Number(v('np_buy'))||0, sellPrice: Number(v('np_sell'))||0, lowStock: Number(v('np_low'))||5};
   DB.products.push(data);                                   // সাথে সাথে তালিকায় আসে
   fireWrite(fsDB.collection('erp_products').doc(String(id)).set(data), 'নতুন পণ্য');
@@ -156,6 +159,7 @@ function entryKeydown(e, kind){
     if(open){ e.preventDefault(); entrySetActive(kind, (st.active-1+st.matches.length)%st.matches.length, true); }
   } else if(e.key==='Enter'){
     e.preventDefault();
+    if(txt && !st.productId && typeof findProductByCode==='function' && findProductByCode(txt)){ entryScanCode(kind, txt); return; }   // বারকোড-গান/কোড লিখে Enter
     if(open && (txt || st.navigated)){ entryPick(kind, st.matches[st.active].id); }
     else if(st.productId){ const q = eEl(kind,'Qty'); q.focus(); q.select(); }
     else if(kind==='purchase' && txt && !st.matches.length){ openQuickProduct(); }
@@ -343,7 +347,7 @@ function cartRowsHtml(kind, cart){
     const price = (kind==='purchase' && l.price!=null) ? Number(l.price) : (p ? cfg.price(p) : 0);
     const bits = p ? [p.brand, p.size, p.color].filter(Boolean).join(' ') : '';
     const extra = kind==='purchase'
-      ? [l.color?('রং: '+l.color):'', l.shelf?('শেলফ: '+l.shelf):'', l.newSell>0?('নতুন বিক্রয়মূল্য: '+money(l.newSell)):''].filter(Boolean).join(' • ') : '';
+      ? [l.color?('রং: '+l.color):'', l.shelf?('শেলফ: '+l.shelf):'', (l._landed!=null && Math.abs(l._landed-price)>0.005)?('ল্যান্ডেড দর: '+money(r2(l._landed))):'', l.newSell>0?('নতুন বিক্রয়মূল্য: '+money(l.newSell)):''].filter(Boolean).join(' • ') : '';
     return `<div class="cart-row">
       <div>
         <div class="cr-name">${i+1}. ${esc(p?p.name:'মুছে ফেলা পণ্য')}${bits?` <span class="sugg-bits">— ${esc(bits)}</span>`:''}</div>
@@ -451,7 +455,7 @@ function saveSale(){
   items.forEach(it=>{ netQtyChange[it.productId] = (netQtyChange[it.productId]||0) - it.qty; });
   Object.keys(netQtyChange).forEach(pid=>{
     const p = DB.products.find(x=>x.id==pid);
-    if(p && netQtyChange[pid]!==0) batch.update(fsDB.collection('erp_products').doc(String(pid)), {stock: p.stock + netQtyChange[pid]});
+    if(p && netQtyChange[pid]!==0) batch.update(fsDB.collection('erp_products').doc(String(pid)), {stock: _inc(netQtyChange[pid])});
   });
   // স্বচ্ছতার জন্য স্টক-লেজারে রিভার্স ও নতুন এন্ট্রি আলাদাভাবে লগ হয়
   if(original) original.items.forEach(it=>logStockMove(batch, {productId:it.productId, qty:it.qty, type:'sale-edit-revert', refType:'sale', refId:saleId, date:original.date}));
@@ -459,13 +463,13 @@ function saveSale(){
 
   // ---- কাস্টমার বাকি: পুরনো কাস্টমার থেকে রিভার্স (যদি থাকে), নতুন কাস্টমারে প্রয়োগ ----
   if(original && original.customerId===custId){
-    batch.update(fsDB.collection('erp_customers').doc(String(custId)), {due: cust.due - original.due + due});
+    batch.update(fsDB.collection('erp_customers').doc(String(custId)), {due: _inc(due - original.due)});
   } else {
     if(original){
       const oldCust = DB.customers.find(c=>c.id===original.customerId);
-      if(oldCust) batch.update(fsDB.collection('erp_customers').doc(String(original.customerId)), {due: oldCust.due - original.due});
+      if(oldCust) batch.update(fsDB.collection('erp_customers').doc(String(original.customerId)), {due: _inc(-original.due)});
     }
-    batch.update(fsDB.collection('erp_customers').doc(String(custId)), {due: (cust.due||0) + due});
+    batch.update(fsDB.collection('erp_customers').doc(String(custId)), {due: _inc(due)});
   }
 
   batch.set(fsDB.collection('erp_sales').doc(String(saleId)), {
@@ -499,11 +503,11 @@ function deleteSale(id){
   const batch = fsDB.batch();
   s.items.forEach(it=>{
     const p = DB.products.find(x=>x.id===it.productId);
-    if(p) batch.update(fsDB.collection('erp_products').doc(String(it.productId)), {stock: p.stock + it.qty});
+    if(p) batch.update(fsDB.collection('erp_products').doc(String(it.productId)), {stock: _inc(it.qty)});
     logStockMove(batch, {productId:it.productId, qty:it.qty, type:'sale-void', refType:'sale', refId:id, date: s.date});
   });
   const cust = DB.customers.find(c=>c.id===s.customerId);
-  if(cust) batch.update(fsDB.collection('erp_customers').doc(String(s.customerId)), {due: (cust.due||0) - s.due});
+  if(cust) batch.update(fsDB.collection('erp_customers').doc(String(s.customerId)), {due: _inc(-s.due)});
   batch.delete(fsDB.collection('erp_sales').doc(String(id)));
   applyStatsDelta(batch, s.date, {totalSales: -s.total, totalCogs: -(s.cogs||0), salesCount: -1});
   logAudit('বিক্রয় এন্ট্রি মোছা', refNo('INV', id) + ' — ' + money(s.total));

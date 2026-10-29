@@ -409,7 +409,7 @@ function syncTopbar(){
 let statsStale = false;
 let pageHostId = 'mainArea';
 function pageHost(){ return document.getElementById(pageHostId) || document.getElementById('mainArea'); }
-const APP_VERSION = '3.7.0';
+const APP_VERSION = '3.8.0';
 (function(){ const e=document.getElementById('appVerTxt'); if(e) e.textContent = APP_VERSION; })();
 const ROLE_LEVEL = {user:1, manager:2, director:3, admin:4};
 function hasAccess(minRole){ return ROLE_LEVEL[currentUser.role] >= ROLE_LEVEL[minRole]; }

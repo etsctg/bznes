@@ -15,6 +15,7 @@ function renderPurchase(){
       <span style="color:var(--muted);font-size:12px;">থেকে</span>
       <input type="date" id="purTo" value="${todayStr()}" onchange="renderPurchaseTable()">
       <button class="btn btn-outline small-btn" onclick="document.getElementById('purFrom').value='';document.getElementById('purTo').value='';renderPurchaseTable();">সব সময়</button>
+      ${voucherSearchHtml('purchase')}
       <select id="purViewMode" onchange="renderPurchaseTable()">
         <option value="invoice">ভিউ: ভাউচার-ভিত্তিক</option>
         <option value="items">ভিউ: পণ্য-ভিত্তিক রিপোর্ট</option>
@@ -28,20 +29,22 @@ function renderPurchase(){
   rangePurchaseRows = null;
   renderPurchaseTable();
 }
-async function renderPurchaseTable(){
+async function renderPurchaseTable(keep){
   const from = document.getElementById('purFrom')?.value;
   const to = document.getElementById('purTo')?.value;
   const isToday = from===todayStr() && to===todayStr();
   let truncated = false;
   if(isToday){
     rangePurchaseRows = null;
+  } else if(keep===true && rangePurchaseRows){
+    /* সার্চ লেখার সময় আগের লোড করা সারিই ব্যবহার হয় */
   } else {
     document.getElementById('purchaseTableWrap').innerHTML = `<div style="padding:30px;text-align:center;color:var(--muted);">লোড হচ্ছে...</div>`;
     const res = await loadPurchaseRange(from||null, to||null);
     if(document.getElementById('purFrom')===null) return;
     rangePurchaseRows = res.rows; truncated = res.truncated;
   }
-  const rows = [...currentPurchaseRows()].sort((a,b)=>b.id-a.id);
+  const rows = voucherFilter([...currentPurchaseRows()].sort((a,b)=>b.id-a.id), 'purchase');
   const countLbl = document.getElementById('purCountLbl');
   if(countLbl) countLbl.textContent = `দেখানো হচ্ছে: ${rows.length} টি` + (truncated?` (সাম্প্রতিক সর্বোচ্চ ${RANGE_LOAD_LIMIT}টি — তারিখ রেঞ্জ ছোট করে আরও নির্দিষ্টভাবে দেখুন)`:'');
   const viewMode = document.getElementById('purViewMode')?.value||'invoice';
@@ -53,8 +56,9 @@ async function renderPurchaseTable(){
         <tr>
           <td>${voucherLink('PUR', s, 'purchase')}</td><td>${fmtDate(s.date)}</td><td>${esc(s.supplierName)}</td>
           <td class="num">${money(s.total)}</td><td class="num">${money(s.paid)}</td><td class="num">${money(s.due)}</td>
-          <td>${s.due<=0?'<span class="pill ok">পরিশোধিত</span>':'<span class="pill warn">বাকি আছে</span>'}</td>
+          <td>${s.due<=0?'<span class="pill ok">পরিশোধিত</span>':'<span class="pill warn">বাকি আছে</span>'}${s.returnedTotal>0?' <span class="pill warn">↩️ ফেরত</span>':''}${s.extraTotal>0||(s.extras&&s.extras.length)?' <span class="pill" title="অতিরিক্ত খরচ যুক্ত">🚚</span>':''}</td>
           <td><button class="icon-btn" onclick="viewPurchaseDetail(${s.id})" title="বিস্তারিত">👁️</button>
+              ${hasAccess('manager')?`<button class="icon-btn" onclick="openPurchaseReturnModal(${s.id})" title="ক্রয় ফেরত (সাপ্লায়ারকে)">↩️</button>`:''}
               <button class="icon-btn" onclick="printPurchaseVoucher(${s.id})" title="প্রিন্ট">🖨️</button>
               <button class="icon-btn" onclick="sharePurchaseVoucher(${s.id})" title="ছবি শেয়ার">📤</button>
               ${s.due>0?`<button class="icon-btn" onclick="openInvoicePaymentModal('purchase',${s.id})" title="বাকি পরিশোধ">💳</button>`:''}
@@ -110,7 +114,10 @@ function viewPurchaseDetail(id){
     <div class="tbl-wrap"><table>
       <tr><th>পণ্য</th><th class="num">পরিমাণ</th><th class="num">ক্রয়মূল্য</th><th class="num">সাবটোটাল</th><th></th></tr>
       ${rows}
-      <tr><td colspan="3" class="foot-total">সর্বমোট</td><td class="foot-total num">${money(pur.total)}</td><td></td></tr>
+      ${(pur.extras&&pur.extras.length)?`<tr><td colspan="3" style="color:var(--muted);">পণ্যের মূল্য</td><td class="num">${money(pur.goodsTotal!=null?pur.goodsTotal:pur.total)}</td><td></td></tr>
+        ${pur.extras.map(e=>`<tr><td colspan="3">🚚 ${esc(e.label||extraLabel(e.type))}${e.note?' — '+esc(e.note):''} <span style="font-size:11px;color:var(--muted);">(${e.onBill?'সাপ্লায়ারের বিলে':'নগদ আলাদা'}, পণ্যের দামে ভাগ হয়েছে)</span></td><td class="num">${money(e.amount)}</td><td></td></tr>`).join('')}`:''}
+      <tr><td colspan="3" class="foot-total">${pur.extraBill>0?'সাপ্লায়ারকে মোট':'সর্বমোট'}</td><td class="foot-total num">${money(pur.total)}</td><td></td></tr>
+      ${pur.returnedTotal>0?`<tr><td colspan="3" style="color:var(--warn-text);">↩️ ক্রয় ফেরত (সাপ্লায়ারকে)</td><td class="num">-${money(pur.returnedTotal)}</td><td></td></tr>${pur.refundedCash>0?`<tr><td colspan="3">নগদ ফেরত পাওয়া গেছে</td><td class="num">${money(pur.refundedCash)}</td><td></td></tr>`:''}`:''}
       ${pur.changeGiven
         ? `<tr><td colspan="3">আপনি দিয়েছেন</td><td class="num">${money(r2(pur.paid+pur.changeGiven))}</td><td></td></tr>
            <tr><td colspan="3" style="color:var(--success);">ফেরত নেওয়া হয়েছে</td><td class="num" style="color:var(--success);">${money(pur.changeGiven)}</td><td></td></tr>`
@@ -120,7 +127,8 @@ function viewPurchaseDetail(id){
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal()">বন্ধ করুন</button>
       ${pur.due>0?`<button class="btn btn-outline" onclick="openInvoicePaymentModal('purchase',${pur.id})">💳 বাকি পরিশোধ</button>`:''}
-      ${canEditVoucher(pur)?`<button class="btn btn-outline" onclick="openPurchaseModal(${pur.id})">✏️ এডিট করুন</button>`:''}
+      ${hasAccess('manager')?`<button class="btn btn-outline" onclick="closeModal();openPurchaseReturnModal(${pur.id})">↩️ ক্রয় ফেরত</button>`:''}
+      ${(canEditVoucher(pur) && !(pur.returnedTotal>0))?`<button class="btn btn-outline" onclick="openPurchaseModal(${pur.id})">✏️ এডিট করুন</button>`:''}
       <button class="btn btn-outline" onclick="sharePurchaseVoucher(${pur.id})">📤 শেয়ার</button>
       <button class="btn btn-gold" onclick="printPurchaseVoucher(${pur.id})">🖨️ প্রিন্ট করুন</button>
     </div>
@@ -136,7 +144,10 @@ function openPurchaseModal(editId){
     existing = currentPurchaseRows().find(x=>x.id===editId);
     if(!existing){ alert('এই এন্ট্রি বর্তমান তালিকায় লোড নেই — তারিখ রেঞ্জ "আজ" করে বা সেই তারিখ বেছে আবার চেষ্টা করুন।'); return; }
     if(!canEditVoucher(existing)){ alert('আপনি শুধু নিজের তৈরি করা এন্ট্রি এডিট করতে পারবেন (ম্যানেজার/এডমিন সবগুলো করতে পারবেন)।'); return; }
+    if(existing.returnedTotal>0){ alert('এই ভাউচারে পণ্য ফেরত দেওয়া হয়েছে — তাই এডিট করা যায় না (স্টক/হিসাব গোলমাল হয়ে যেত)।'); return; }
   }
+  purchaseExtras = existing && existing.extras ? existing.extras.map(e=>({type:e.type, note:e.note||'', amount:e.amount, onBill:!!e.onBill})) : [];
+  purchaseAllocBy = (existing && existing.allocBy) || 'value';
   editingPurchaseId = editId || null;
   purchaseCart = existing ? existing.items.map(it=>({productId:it.productId, qty:it.qty, color:'', shelf:'', price:it.price, newSell:0, ...(it.dispUnit?{dispQty:it.dispQty,dispUnit:it.dispUnit,dispPrice:it.dispPrice}:{})})) : [];
   entryReset('purchase');
@@ -167,10 +178,10 @@ function openPurchaseModal(editId){
       <div class="eb-prod">
         <label>পণ্য</label>
         <div class="eb-inrow">
-          <input type="text" id="purchEntProd" autocomplete="off" placeholder="🔍 পণ্যের নাম লিখুন (না থাকলে ＋ চাপুন)"
+          <input type="text" id="purchEntProd" autocomplete="off" placeholder="🔍 নাম / কোড লিখুন বা স্ক্যান করুন (না থাকলে ＋)"
             oninput="entryTyped('purchase')" onkeydown="entryKeydown(event,'purchase')" onfocus="this.select();entryOpenList('purchase')" onclick="entryOpenList('purchase')"
             onblur="setTimeout(()=>entryHideSugg('purchase'),200)">
-          <button type="button" class="np-btn" onclick="openQuickProduct()" title="তালিকায় নেই? এখান থেকেই নতুন পণ্য যোগ করুন">＋</button>
+          <button type="button" class="np-btn" onclick="scanForEntry('purchase')" title="ক্যামেরায় বারকোড স্ক্যান">📷</button><button type="button" class="np-btn" onclick="openQuickProduct()" title="তালিকায় নেই? এখান থেকেই নতুন পণ্য যোগ করুন">＋</button>
         </div>
         <div class="sugg-box hidden" id="purchEntSugg"></div>
       </div>
@@ -200,8 +211,9 @@ function openPurchaseModal(editId){
         <input id="np_buy" type="number" inputmode="decimal" step="any" placeholder="ক্রয়মূল্য (প্রতি একক)" title="প্রতি প্রধান এককের ক্রয়মূল্য">
         <input id="np_sell" type="number" inputmode="decimal" step="any" placeholder="বিক্রয়মূল্য (প্রতি একক)" title="প্রতি প্রধান এককের বিক্রয়মূল্য" onkeydown="if(event.key==='Enter'){event.preventDefault();saveQuickProduct();}">
       </div>
-      <details class="np-more"><summary>আরও (ব্র্যান্ড, সাইজ, রং, শেলফ, বিকল্প একক)</summary>
+      <details class="np-more"><summary>আরও (কোড/বারকোড, ব্র্যান্ড, সাইজ, রং, শেলফ, বিকল্প একক)</summary>
         <div class="np-grid">
+          <input id="np_code" placeholder="কোড/বারকোড (খালি = নিজে তৈরি)" title="কোম্পানির বারকোড স্ক্যান/লিখতে পারেন; খালি রাখলে ইউনিক নম্বর নিজে বসবে">
           <input id="np_brand" placeholder="ব্র্যান্ড" title="কোম্পানি/ব্র্যান্ড">
           <input id="np_size" placeholder="সাইজ/ওজন" title="সাইজ বা ওজন">
           <input id="np_color" placeholder="রং" title="রং (ঐচ্ছিক)">
@@ -216,6 +228,7 @@ function openPurchaseModal(editId){
       </div>
     </div>
     <div class="cart-list" id="purchaseItemsBox"></div>
+    ${extrasPanelHtml()}
     <div class="sum-compact">
       <div class="sum-inputs one">
         <div><label>জমা/পরিশোধিত ৳ (Enter = সংরক্ষণ)</label><input id="pf2_paid" type="number" inputmode="decimal" value="${existing?r2(existing.paid+(existing.changeGiven||0)):0}" oninput="calcPurchaseTotal()" onfocus="this.select()" onkeydown="if(event.key==='Enter'){event.preventDefault();savePurchase();}"></div>
@@ -225,7 +238,7 @@ function openPurchaseModal(editId){
     <div class="entry-foot">
       <div class="foot-sum">
         <div class="fs-total"><span>মোট</span><b id="pf2_total">৳0</b></div>
-        <div class="fs-sub"><span>বাকি (দেনা) <b id="pf2_due">৳0</b></span><span id="pf2_changeRow" class="fs-change hidden">💵 ফেরত নিন <b id="pf2_change">৳0</b></span></div>
+        <div class="fs-sub"><span>বাকি (দেনা) <b id="pf2_due">৳0</b></span><span id="pf2_cashExtraRow" class="fs-change hidden">🧾 নগদ অতিরিক্ত খরচ <b id="pf2_cashExtra">৳0</b></span><span id="pf2_changeRow" class="fs-change hidden">💵 ফেরত নিন <b id="pf2_change">৳0</b></span></div>
       </div>
       <div class="foot-btns">
         <button class="btn btn-outline" onclick="closeModal()">বাতিল</button>
@@ -235,6 +248,7 @@ function openPurchaseModal(editId){
   `);
   document.getElementById('modalBox').className='modal entry-modal purchase-theme';
   renderPurchaseLines();
+  purRenderExtras();
   calcPurchaseTotal();
   setTimeout(()=>document.getElementById('purchEntProd')?.focus(), 0);
 }
@@ -244,9 +258,10 @@ function renderPurchaseLines(){
 }
 function removePurchaseLine(i){ purchaseCart.splice(i,1); renderPurchaseLines(); calcPurchaseTotal(); eEl('purchase','Prod')?.focus(); }
 function calcPurchaseTotal(){
-  let total = 0;
-  purchaseCart.forEach(l=>{ if(l.productId){ const p = DB.products.find(x=>x.id==l.productId); if(p) total += ((l.price!=null)?Number(l.price):p.buyPrice)*(l.qty||0); } });
-  total = r2(total);
+  let goods = 0;
+  purchaseCart.forEach(l=>{ if(l.productId){ const p = DB.products.find(x=>x.id==l.productId); if(p) goods += ((l.price!=null)?Number(l.price):p.buyPrice)*(l.qty||0); } });
+  const sp = extrasSplit(cleanExtras());
+  const total = r2(goods + sp.bill);          // সাপ্লায়ারকে দেয় মোট = পণ্য + বিলে-যুক্ত খরচ
   setField('pf2_total', money(total));
   // বিক্রয়ের মতোই: বেশি টাকা দিলে বাকি ঋণাত্মক হয় না, বাড়তি অংশ "ফেরত পাবেন" হিসেবে আলাদা দেখায়
   const paidRaw = Number(document.getElementById('pf2_paid')?.value)||0;
@@ -256,6 +271,7 @@ function calcPurchaseTotal(){
   const dueNode = document.getElementById('pf2_due'); if(dueNode) dueNode.style.color = due>0 ? 'var(--warn-text)' : 'var(--success)';
   const changeRow = document.getElementById('pf2_changeRow');
   if(changeRow){ if(changeBack>0){ changeRow.classList.remove('hidden'); setField('pf2_change', money(changeBack)); } else changeRow.classList.add('hidden'); }
+  purRefreshExtraUI();
   return total;
 }
 /* প্রতিটা লাইনের জন্য: রং খালি থাকলে সরাসরি বাছাই করা পণ্যেরই স্টক বাড়ে (আগের মতো সহজ)।
@@ -271,27 +287,35 @@ function savePurchase(){
   const date = document.getElementById('pf2_date').value || todayStr();
   const paidRaw = Number(document.getElementById('pf2_paid').value)||0;
   const original = editingPurchaseId ? currentPurchaseRows().find(x=>x.id===editingPurchaseId) : null;
+  if(original && original.returnedTotal>0){ alert('এই ভাউচারে ফেরত আছে — এডিট করা যায় না।'); return; }
   const purId = original ? original.id : genId();
 
-  const resolvedItems = []; // {productId, qty, price}
+  /* অতিরিক্ত খরচ → প্রতিটা লাইনের ল্যান্ডেড দর (দাম + খরচের ভাগ) */
+  const extras = cleanExtras(), sp = extrasSplit(extras);
+  const linePrices = rawLines.map(l=>{ const b0 = DB.products.find(x=>x.id===l.productId); return (l.price!=null && !isNaN(Number(l.price))) ? Number(l.price) : b0.buyPrice; });
+  const landedArr = computeLanded(rawLines.map((l,i)=>({qty:l.qty, price:linePrices[i]})), sp.all, purchaseAllocBy);
+
+  const resolvedItems = []; // {productId, qty, price, landed}
   const batch = fsDB.batch();
   // এডিট হলে — আগের সব আইটেমের পরিমাণ প্রথমে "বিয়োগ" হিসেবে ধরা হয় (রিভার্স),
   // তারপর নতুন প্রতিটা লাইনের পরিমাণ "যোগ" হয় — প্রতি পণ্যে একবারেই নিট আপডেট হবে
   const netQtyChange = {};
-  const costAdds = {};   // পণ্য আইডি -> {qty, value, lastPrice, sell} — এই ক্রয়ে যা যোগ হচ্ছে
+  const costAdds = {};   // পণ্য আইডি -> {qty, value, lastPrice, sell} — এই ক্রয়ে যা যোগ হচ্ছে (value ল্যান্ডেড মূল্যে)
   const origCost = {};   // এডিট হলে — আগের ক্রয়ের মান (রিভার্সের জন্য)
   if(original) original.items.forEach(it=>{
     netQtyChange[it.productId] = (netQtyChange[it.productId]||0) - it.qty;
     const oc = origCost[it.productId] || (origCost[it.productId] = {qty:0, value:0});
-    oc.qty += it.qty; oc.value += it.qty*it.price;
+    oc.qty += it.qty; oc.value += it.qty*(it.landed!=null ? it.landed : it.price);
   });
 
-  for(const line of rawLines){
+  for(let li=0; li<rawLines.length; li++){
+    const line = rawLines[li];
     const base = DB.products.find(x=>x.id===line.productId);
     const color = (line.color||'').trim();
     const shelf = (line.shelf||'').trim();
-    const linePrice = (line.price!=null && !isNaN(Number(line.price))) ? Number(line.price) : base.buyPrice;
+    const linePrice = linePrices[li], landed = landedArr[li];
     const lineSell = Number(line.newSell)||0;
+    const dispExtra = line.dispUnit ? {dispQty:line.dispQty,dispUnit:line.dispUnit,dispPrice:line.dispPrice} : {};
 
     let targetId;
     if(!color && !shelf){
@@ -307,36 +331,37 @@ function savePurchase(){
       } else {
         const newId = genId();
         batch.set(fsDB.collection('erp_products').doc(String(newId)), {
-          id:newId, name:base.name, brand:base.brand||'', size:base.size||'', unit:base.unit,
-          buyPrice:linePrice, sellPrice:(lineSell>0?lineSell:base.sellPrice), lowStock:base.lowStock,
+          id:newId, code:reserveProductCode(), name:base.name, brand:base.brand||'', size:base.size||'', unit:base.unit,
+          altUnit:base.altUnit||'', factor:base.factor||0,
+          buyPrice:Math.round(landed*100)/100, sellPrice:(lineSell>0?lineSell:base.sellPrice), lowStock:base.lowStock,
           color, shelf, stock: line.qty
         });
         logStockMove(batch, {productId: newId, qty: line.qty, type:'purchase', refType:'purchase', refId: purId, date});
-        resolvedItems.push({productId: newId, qty: line.qty, price: linePrice, ...(line.dispUnit?{dispQty:line.dispQty,dispUnit:line.dispUnit,dispPrice:line.dispPrice}:{})});
+        resolvedItems.push({productId: newId, qty: line.qty, price: linePrice, landed, ...dispExtra});
         continue; // নতুন ভ্যারিয়েন্ট — নেট-চেঞ্জের হিসাবে ঢুকবে না, আলাদাভাবেই তৈরি হলো
       }
     }
     netQtyChange[targetId] = (netQtyChange[targetId]||0) + line.qty;
-    const ca = costAdds[targetId] || (costAdds[targetId] = {qty:0, value:0, lastPrice:linePrice, sell:0});
-    ca.qty += line.qty; ca.value += line.qty*linePrice; ca.lastPrice = linePrice; if(lineSell>0) ca.sell = lineSell;
-    resolvedItems.push({productId: targetId, qty: line.qty, price: linePrice, ...(line.dispUnit?{dispQty:line.dispQty,dispUnit:line.dispUnit,dispPrice:line.dispPrice}:{})});
+    const ca = costAdds[targetId] || (costAdds[targetId] = {qty:0, value:0, lastPrice:landed, sell:0});
+    ca.qty += line.qty; ca.value += line.qty*landed; ca.lastPrice = landed; if(lineSell>0) ca.sell = lineSell;
+    resolvedItems.push({productId: targetId, qty: line.qty, price: linePrice, landed, ...dispExtra});
     logStockMove(batch, {productId: targetId, qty: line.qty, type: original?'purchase-edit-apply':'purchase', refType:'purchase', refId: purId, date});
   }
   if(original) original.items.forEach(it=>logStockMove(batch, {productId: it.productId, qty: -it.qty, type:'purchase-edit-revert', refType:'purchase', refId: purId, date: original.date}));
 
-  /* স্টকের পাশাপাশি "গড় ক্রয়মূল্য" (Weighted Average Cost) হালনাগাদ হয়:
-     নতুন গড় = (আগের স্টক-মান − বাতিল হওয়া অংশ + নতুন ক্রয়ের মান) ÷ নতুন স্টক।
-     এভাবে ডিম ১৫০ থেকে ১৬০ হলে একই পণ্যেই স্টক জমা থাকে, আর বিক্রয়ে লাভ গড় দামের
-     ভিত্তিতে হিসাব হয়। চাইলে নতুন বিক্রয়মূল্যও এই ক্রয়ের সাথেই বদলানো যায়। */
+  /* স্টকের পাশাপাশি "গড় ক্রয়মূল্য" (Weighted Average Cost) হালনাগাদ হয় — এখন ল্যান্ডেড মূল্যে
+     (পণ্যের দাম + লোডিং/পরিবহন/প্যাকিংয়ের ভাগ):
+     নতুন গড় = (আগের স্টক-মান − বাতিল হওয়া অংশ + নতুন ক্রয়ের ল্যান্ডেড মান) ÷ নতুন স্টক।
+     স্টক বাড়ানো/কমানো increment দিয়ে — তাই একসাথে একাধিক ডিভাইসে এন্ট্রি দিলেও গোলমাল হয় না। */
   Object.keys(netQtyChange).forEach(pid=>{
     const p = DB.products.find(x=>x.id==pid); if(!p) return;
     const upd = {}, net = netQtyChange[pid], add = costAdds[pid], oc = origCost[pid];
-    if(net!==0) upd.stock = p.stock + net;
+    if(net!==0) upd.stock = _inc(net);
     if(add || oc){
       const finalStock = p.stock + net;
       const value = Math.max(0,p.stock)*(p.buyPrice||0) - (oc?oc.value:0) + (add?add.value:0);
       if(finalStock>0 && value>0) upd.buyPrice = Math.round(value/finalStock*100)/100;
-      else if(add) upd.buyPrice = add.lastPrice;
+      else if(add) upd.buyPrice = Math.round(add.lastPrice*100)/100;
     }
     if(add && add.sell>0 && add.sell!==p.sellPrice){
       upd.sellPrice = add.sell;
@@ -345,34 +370,37 @@ function savePurchase(){
     if(Object.keys(upd).length) batch.update(fsDB.collection('erp_products').doc(String(pid)), upd);
   });
 
-  const total = r2(resolvedItems.reduce((s,it)=>s+it.price*it.qty,0));
-  const paid = Math.min(paidRaw, total);   // বেশি দিলে বাড়তি অংশ ফেরত — due কখনো ঋণাত্মক হবে না
+  const goodsTotal = r2(resolvedItems.reduce((s,it)=>s+it.price*it.qty,0));
+  const total = r2(goodsTotal + sp.bill);     // সাপ্লায়ারের কাছে মোট দেনা (পণ্য + বিলে-যুক্ত খরচ)
+  const paid = Math.min(paidRaw, total);      // বেশি দিলে বাড়তি অংশ ফেরত — due কখনো ঋণাত্মক হবে না
   const changeGiven = Math.max(0, paidRaw - total);
-  const due = total - paid;
+  const due = r2(total - paid);
 
-  // ---- সাপ্লায়ার বাকি: পুরনো সাপ্লায়ার থেকে রিভার্স (যদি থাকে), নতুনে প্রয়োগ ----
+  // ---- সাপ্লায়ার বাকি: পুরনো সাপ্লায়ার থেকে রিভার্স (যদি থাকে), নতুনে প্রয়োগ (increment) ----
   if(original && original.supplierId===supId){
-    batch.update(fsDB.collection('erp_suppliers').doc(String(supId)), {due: sup.due - original.due + due});
+    batch.update(fsDB.collection('erp_suppliers').doc(String(supId)), {due: _inc(due - original.due)});
   } else {
     if(original){
       const oldSup = DB.suppliers.find(c=>c.id===original.supplierId);
-      if(oldSup) batch.update(fsDB.collection('erp_suppliers').doc(String(original.supplierId)), {due: oldSup.due - original.due});
+      if(oldSup) batch.update(fsDB.collection('erp_suppliers').doc(String(original.supplierId)), {due: _inc(-original.due)});
     }
-    batch.update(fsDB.collection('erp_suppliers').doc(String(supId)), {due: (sup.due||0) + due});
+    batch.update(fsDB.collection('erp_suppliers').doc(String(supId)), {due: _inc(due)});
   }
 
   batch.set(fsDB.collection('erp_purchases').doc(String(purId)), {
-    id:purId, date, supplierId:supId, supplierName: sup.name, items: resolvedItems, total, paid, due, changeGiven,
+    id:purId, date, supplierId:supId, supplierName: sup.name, items: resolvedItems, total, goodsTotal, paid, due, changeGiven,
+    extras, extraBill:sp.bill, extraCash:sp.cash, allocBy:purchaseAllocBy,
     createdBy: original?original.createdBy:(currentUser?currentUser.name:''),
     createdByUsername: original?original.createdByUsername:(currentUser?currentUser.username:''),
     ...(original?{editedBy: currentUser?currentUser.name:'', editedAt: new Date().toISOString()}:{})
   });
 
+  const oExtra = original ? (original.extraCash||0) : 0;
   if(original && original.date===date){
-    applyStatsDelta(batch, date, {totalPurchase: total-original.total});
+    applyStatsDelta(batch, date, {totalPurchase: total-original.total, totalPurchaseExtra: sp.cash-oExtra});
   } else {
-    if(original) applyStatsDelta(batch, original.date, {totalPurchase:-original.total, purchaseCount:-1});
-    applyStatsDelta(batch, date, {totalPurchase: total, purchaseCount: 1});
+    if(original) applyStatsDelta(batch, original.date, {totalPurchase:-original.total, totalPurchaseExtra:-oExtra, purchaseCount:-1});
+    applyStatsDelta(batch, date, {totalPurchase: total, totalPurchaseExtra: sp.cash, purchaseCount: 1});
   }
 
   if(original) logAudit('ক্রয় এন্ট্রি এডিট', `${refNo('PUR', purId)} — ${money(original.total)} → ${money(total)}`);
@@ -381,20 +409,20 @@ function savePurchase(){
   editingPurchaseId = null;
 }
 function deletePurchase(id){
-  if(!confirm('এই ক্রয় এন্ট্রি মুছে ফেলতে চান? (স্টক থেকে বাদ যাবে)')) return;
   const pur = currentPurchaseRows().find(x=>x.id===id);
   if(!pur) return;
+  if(pur.returnedTotal>0){ alert('এই ভাউচারে পণ্য ফেরত দেওয়া হয়েছে — তাই মোছা যায় না (স্টক দু-বার কমে যেত)।'); return; }
+  if(!confirm('এই ক্রয় এন্ট্রি মুছে ফেলতে চান? (স্টক থেকে বাদ যাবে)')) return;
   const batch = fsDB.batch();
   pur.items.forEach(it=>{
     const p = DB.products.find(x=>x.id===it.productId);
-    if(p) batch.update(fsDB.collection('erp_products').doc(String(it.productId)), {stock: p.stock - it.qty});
+    if(p) batch.update(fsDB.collection('erp_products').doc(String(it.productId)), {stock: _inc(-it.qty)});
     logStockMove(batch, {productId: it.productId, qty: -it.qty, type:'purchase-void', refType:'purchase', refId: id, date: pur.date});
   });
   const sup = DB.suppliers.find(c=>c.id===pur.supplierId);
-  if(sup) batch.update(fsDB.collection('erp_suppliers').doc(String(pur.supplierId)), {due: (sup.due||0) - pur.due});
+  if(sup) batch.update(fsDB.collection('erp_suppliers').doc(String(pur.supplierId)), {due: _inc(-pur.due)});
   batch.delete(fsDB.collection('erp_purchases').doc(String(id)));
-  applyStatsDelta(batch, pur.date, {totalPurchase: -pur.total, purchaseCount: -1});
+  applyStatsDelta(batch, pur.date, {totalPurchase: -pur.total, totalPurchaseExtra: -(pur.extraCash||0), purchaseCount: -1});
   logAudit('ক্রয় এন্ট্রি মোছা', refNo('PUR', id) + ' — ' + money(pur.total));
   fireWrite(batch.commit(), 'ক্রয় মোছা');
 }
-

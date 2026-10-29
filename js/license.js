@@ -47,8 +47,8 @@ function showLicenseBlockScreen(reason, lic){
         অ্যাপ আবার ব্যবহার করতে লাইসেন্স নবায়ন/সক্রিয় করা প্রয়োজন — নিচের ঠিকানায় যোগাযোগ করুন।
       </div>
       <div class="about-links" style="max-width:320px;margin:0 auto;">
-        <a class="about-link" href="tel:01869866899">📞 01869866899</a>
-        <a class="about-link" href="mailto:info.wasbd@gmail.com">✉️ ইমেইল</a>
+        <a class="about-link" href="tel:${VENDOR.phone}">📞 ${VENDOR.phone}</a>
+        <a class="about-link" href="mailto:${VENDOR.email}">✉️ ইমেইল</a>
       </div>
     </div>`;
 }
@@ -112,8 +112,8 @@ function showDeviceLimitBlockScreen(count, max){
         এই ডিভাইসে চালাতে — ইতিমধ্যে-নিবন্ধিত অন্য কোনো ডিভাইসে গিয়ে <b>সেটিংস → লাইসেন্স</b> থেকে একটা পুরনো/অব্যবহৃত ডিভাইস সরান, অথবা বিক্রেতার সাথে যোগাযোগ করে সীমা বাড়ান।
       </div>
       <div class="about-links" style="max-width:320px;margin:0 auto;">
-        <a class="about-link" href="tel:01869866899">📞 01869866899</a>
-        <a class="about-link" href="mailto:info.wasbd@gmail.com">✉️ ইমেইল</a>
+        <a class="about-link" href="tel:${VENDOR.phone}">📞 ${VENDOR.phone}</a>
+        <a class="about-link" href="mailto:${VENDOR.email}">✉️ ইমেইল</a>
       </div>
     </div>`;
 }
@@ -144,6 +144,8 @@ function settingsLicenseHtml(){
     <h3>🔑 লাইসেন্স</h3>
     <div class="sum-compact">
       <div class="sum-line"><span>প্রতিষ্ঠান</span><b>${esc(lic.clientName||'-')}</b></div>
+      <div class="sum-line"><span>লাইসেন্স নম্বর</span><b style="user-select:all;">${esc(lic.licenseNo||LICENSE_NO||'-')}</b></div>
+      ${(lic.licenseNo && LICENSE_NO && lic.licenseNo!==LICENSE_NO)?'<div class="help-warn" style="font-size:12px;">⚠️ এই ইনস্টলেশনের লাইসেন্স নম্বর (config.js) ডেটাবেসের নম্বরের সাথে মেলে না — সম্ভবত অন্য ক্লায়েন্টের কপি।</div>':''}
       <div class="sum-line"><span>অবস্থা</span>${lic.status==='active'?'<span class="pill ok">সক্রিয়</span>':'<span class="pill bad">বন্ধ</span>'}</div>
       <div class="sum-line"><span>মেয়াদ</span><b>${lic.expiryDateStr?fmtDate(lic.expiryDateStr):'-'}</b></div>
       <div class="sum-line"><span>বাকি দিন</span><b style="color:${leftColor};">${left==null?'-':(left<0?'মেয়াদ শেষ':left+' দিন')}</b></div>
@@ -151,7 +153,7 @@ function settingsLicenseHtml(){
       <div class="sum-line"><span>ডিভাইস</span><b>${lic.activeDeviceCount||0} / ${lic.maxDevices||'∞'}</b></div>
     </div>
     <div class="set-note">মেয়াদ, সর্বোচ্চ ইউজার/ডিভাইস সংখ্যা শুধু বিক্রেতা বদলাতে পারেন। নবায়ন বা সীমা বাড়াতে যোগাযোগ করুন:
-      <b>01869866899</b> / <b>info.wasbd@gmail.com</b></div>
+      <b>${esc(VENDOR.phone)}</b> / <b>${esc(VENDOR.email)}</b></div>
   </div>
   <div class="card set-card" style="margin-top:16px;" id="licDevicesCard"><h3>💻 নিবন্ধিত ডিভাইস</h3><div style="color:var(--muted);padding:12px;text-align:center;">লোড হচ্ছে...</div></div>`;
 }

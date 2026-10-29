@@ -16,6 +16,7 @@ function renderSales(){
       <span style="color:var(--muted);font-size:12px;">থেকে</span>
       <input type="date" id="saleTo" value="${todayStr()}" onchange="renderSalesTable()">
       <button class="btn btn-outline small-btn" onclick="document.getElementById('saleFrom').value='';document.getElementById('saleTo').value='';renderSalesTable();">সব সময়</button>
+      ${voucherSearchHtml('sale')}
       <select id="saleViewMode" onchange="renderSalesTable()">
         <option value="invoice">ভিউ: ইনভয়েস-ভিত্তিক</option>
         <option value="items">ভিউ: পণ্য-ভিত্তিক রিপোর্ট</option>
@@ -50,20 +51,22 @@ function renderUserBreakdownCard(rows, elId, label){
     </table></div>
   `;
 }
-async function renderSalesTable(){
+async function renderSalesTable(keep){
   const from = document.getElementById('saleFrom')?.value;
   const to = document.getElementById('saleTo')?.value;
   const isToday = from===todayStr() && to===todayStr();
   let truncated = false;
   if(isToday){
     rangeSalesRows = null; // লাইভ আজকের ডেটা ব্যবহার হবে
+  } else if(keep===true && rangeSalesRows){
+    /* সার্চ লেখার সময় একই তারিখ-রেঞ্জ বারবার সার্ভার থেকে না এনে আগের লোড করা সারিই ব্যবহার হয় */
   } else {
     document.getElementById('salesTableWrap').innerHTML = `<div style="padding:30px;text-align:center;color:var(--muted);">লোড হচ্ছে...</div>`;
     const res = await loadSalesRange(from||null, to||null);
     if(document.getElementById('saleFrom')===null) return; // ততক্ষণে অন্য পেজে চলে গেলে থামুন
     rangeSalesRows = res.rows; truncated = res.truncated;
   }
-  const rows = [...currentSalesRows()].sort((a,b)=>b.id-a.id);
+  const rows = voucherFilter([...currentSalesRows()].sort((a,b)=>b.id-a.id), 'sale');
   const countLbl = document.getElementById('saleCountLbl');
   if(countLbl) countLbl.textContent = `দেখানো হচ্ছে: ${rows.length} টি` + (truncated?` (সাম্প্রতিক সর্বোচ্চ ${RANGE_LOAD_LIMIT}টি — তারিখ রেঞ্জ ছোট করে আরও নির্দিষ্টভাবে দেখুন)`:'');
   const viewMode = document.getElementById('saleViewMode')?.value||'invoice';
@@ -236,9 +239,9 @@ function openSaleModal(editId){
     <div class="entry-bar">
       <div class="eb-prod">
         <label>পণ্য (নাম লিখুন → ↑↓ দিয়ে বাছাই → Enter)</label>
-        <input type="text" id="saleEntProd" autocomplete="off" placeholder="🔍 পণ্যের নাম লিখে খুঁজুন..."
+        <div class="eb-inrow"><input type="text" id="saleEntProd" autocomplete="off" placeholder="🔍 নাম / কোড লিখুন বা বারকোড-গান চালান..."
           oninput="entryTyped('sale')" onkeydown="entryKeydown(event,'sale')" onfocus="this.select();entryOpenList('sale')" onclick="entryOpenList('sale')"
-          onblur="setTimeout(()=>entryHideSugg('sale'),200)">
+          onblur="setTimeout(()=>entryHideSugg('sale'),200)"><button type="button" class="np-btn" onclick="scanForEntry('sale')" title="ক্যামেরায় বারকোড স্ক্যান">📷</button></div>
         <div class="sugg-box hidden" id="saleEntSugg"></div>
       </div>
       <div class="eb-info" id="saleEntInfo"></div>

@@ -11,7 +11,7 @@ function renderStock(){
       ${canEdit?`<button class="btn btn-gold" onclick="openProductModal()">+ নতুন পণ্য যোগ করুন</button>`:''}
     </div>
     <div class="toolbar">
-      <input type="text" id="stockSearch" placeholder="🔍 নাম/ব্র্যান্ড/শেলফ দিয়ে খুঁজুন..." oninput="renderStockTable()">
+      <input type="text" id="stockSearch" placeholder="🔍 নাম / কোড / রং / শেলফ / ব্র্যান্ড..." oninput="renderStockTable()">
       <select id="stockFilter" onchange="renderStockTable()">
         <option value="all">সব অবস্থা</option>
         <option value="ok">✅ ঠিক আছে</option>
@@ -23,7 +23,12 @@ function renderStock(){
         <option value="stock_asc">স্টক (কম → বেশি)</option>
         <option value="stock_desc">স্টক (বেশি → কম)</option>
         <option value="status">অবস্থা (আগে সমস্যাযুক্ত)</option>
+        <option value="code">কোড নম্বর</option>
+        <option value="shelf">শেলফ</option>
       </select>
+      ${canEdit?`<button class="btn btn-outline small-btn" onclick="assignMissingCodes()" title="কোড নেই এমন সব পণ্যে কোড বসান">🔢 কোড বসান</button>`:''}
+      <button class="btn btn-outline small-btn" onclick="openLabelModal()">🏷️ লেবেল প্রিন্ট</button>
+      <button class="btn btn-outline small-btn" onclick="scanToStockSearch()" title="বারকোড স্ক্যান করে পণ্য খুঁজুন">📷 স্ক্যান</button>
       <div class="spacer"></div>
       <span style="color:var(--muted);font-size:12.5px;" id="stockCountLbl">মোট পণ্য: ${DB.products.length}</span>
     </div>
@@ -37,14 +42,15 @@ function renderStockTable(){
   const sortVal = document.getElementById('stockSort')?.value||'name';
   const statusOf = p=> p.stock<=0?'out':(p.stock<=p.lowStock?'low':'ok');
   let rows = DB.products.filter(p=>
-    p.name.toLowerCase().includes(q) || (p.brand||'').toLowerCase().includes(q) ||
-    (p.shelf||'').toLowerCase().includes(q) || (p.color||'').toLowerCase().includes(q)
+    q.split(/\s+/).filter(Boolean).every(w=>[p.name,p.brand,p.size,p.shelf,p.color,p.code].filter(Boolean).join(' ').toLowerCase().includes(w))
   );
   if(filterVal!=='all') rows = rows.filter(p=>statusOf(p)===filterVal);
   const statusRank = {out:0, low:1, ok:2};
   if(sortVal==='stock_asc') rows = [...rows].sort((a,b)=>a.stock-b.stock);
   else if(sortVal==='stock_desc') rows = [...rows].sort((a,b)=>b.stock-a.stock);
   else if(sortVal==='status') rows = [...rows].sort((a,b)=>statusRank[statusOf(a)]-statusRank[statusOf(b)] || a.name.localeCompare(b.name,'bn'));
+  else if(sortVal==='code') rows = [...rows].sort((a,b)=>String(a.code||'~').localeCompare(String(b.code||'~'),undefined,{numeric:true}));
+  else if(sortVal==='shelf') rows = [...rows].sort((a,b)=>String(a.shelf||'~').localeCompare(String(b.shelf||'~'),'bn',{numeric:true}) || a.name.localeCompare(b.name,'bn'));
   else rows = [...rows].sort((a,b)=>a.name.localeCompare(b.name,'bn'));
   const countLbl = document.getElementById('stockCountLbl');
   if(countLbl) countLbl.textContent = `দেখানো হচ্ছে: ${rows.length} / মোট পণ্য: ${DB.products.length}`;
@@ -54,7 +60,7 @@ function renderStockTable(){
       <tr><th>পণ্যের নাম / বিস্তারিত</th><th>শেলফ</th><th>একক</th><th class="num">গড় ক্রয়মূল্য (প্রতি প্রধান একক)</th><th class="num">বিক্রয়মূল্য</th><th class="num">স্টক</th><th>অবস্থা</th><th></th></tr>
       ${rows.map(p=>{
         const status = p.stock<=0?'<span class="pill bad">স্টক শেষ</span>':(p.stock<=p.lowStock?'<span class="pill warn">কম স্টক</span>':'<span class="pill ok">ঠিক আছে</span>');
-        const detailBits = [p.brand, p.size, p.color].filter(Boolean).join(' • ');
+        const detailBits = [p.code?('#'+p.code):'', p.brand, p.size, p.color].filter(Boolean).join(' • ');
         return `<tr>
           <td>
             <div>${esc(p.name)}</div>
@@ -63,7 +69,7 @@ function renderStockTable(){
           <td>${p.shelf?`<span class="pill" style="background:var(--panel-2);color:var(--gold-2);">${esc(p.shelf)}</span>`:'-'}</td>
           <td>${esc(p.unit)}</td><td class="num">${money(p.buyPrice)}</td><td class="num">${money(p.sellPrice)}</td>
           <td class="num"><b>${p.stock}</b>${(p.altUnit&&p.factor>0)?`<div style="font-size:10.5px;color:var(--muted);font-weight:600;">≈ ${r2(p.stock/p.factor)} ${esc(p.altUnit)}</div>`:''}</td><td>${status}</td>
-          <td><button class="icon-btn" onclick="openStockLedger(${p.id})" title="ক্রয়/বিক্রয় হিস্টোরি (স্টক ট্রেস)">🕓</button>${canEdit?`<button class="icon-btn" onclick="openProductModal(${p.id})">✏️</button><button class="icon-btn" onclick="deleteProduct(${p.id})">🗑️</button>`:''}</td>
+          <td><button class="icon-btn" onclick="openStockLedger(${p.id})" title="ক্রয়/বিক্রয় হিস্টোরি (স্টক ট্রেস)">🕓</button><button class="icon-btn" onclick="openLabelModal([${p.id}])" title="বারকোড লেবেল প্রিন্ট">🏷️</button>${canEdit?`<button class="icon-btn" onclick="openProductModal(${p.id})">✏️</button><button class="icon-btn" onclick="deleteProduct(${p.id})">🗑️</button>`:''}</td>
         </tr>`;
       }).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--muted);">কোনো পণ্য নেই</td></tr>`}
     </table>
@@ -97,9 +103,9 @@ async function openStockLedger(productId){
     const typeLabel = {
       'purchase':'✅ ক্রয় (স্টক বৃদ্ধি)', 'sale':'🔻 বিক্রয় (স্টক হ্রাস)',
       'purchase-void':'↩️ ক্রয় বাতিল/মোছা', 'sale-void':'↩️ বিক্রয় বাতিল/মোছা',
-      'adjustment':'🛠️ ম্যানুয়াল সমন্বয়', 'opening':'🏁 ওপেনিং স্টক', 'sale-return':'↩️ বিক্রয় ফেরত (স্টকে যোগ)'
+      'adjustment':'🛠️ ম্যানুয়াল সমন্বয়', 'opening':'🏁 ওপেনিং স্টক', 'sale-return':'↩️ বিক্রয় ফেরত (স্টকে যোগ)', 'purchase-return':'↩️ ক্রয় ফেরত (সাপ্লায়ারকে)'
     }[m.type] || m.type;
-    const refLabel = m.refType==='purchase' ? refNo('PUR', m.refId) : (m.refType==='sale' ? refNo('INV', m.refId) : (m.refType==='return' ? refNo('RET', m.refId) : '-'));
+    const refLabel = m.refType==='purchase' ? refNo('PUR', m.refId) : (m.refType==='sale' ? refNo('INV', m.refId) : (m.refType==='return' ? refNo('RET', m.refId) : (m.refType==='preturn' ? refNo('PRT', m.refId) : '-')));
     return `<tr><td>${fmtDate(m.date||m.at)}</td><td>${typeLabel}</td><td>${refLabel}</td>
       <td class="num" style="color:${m.qty>=0?'var(--success)':'var(--danger-text)'}">${m.qty>=0?'+':''}${m.qty}</td>
       <td class="num"><b>${bal}</b></td><td style="font-size:11px;color:var(--muted);">${esc(m.by||'-')}</td></tr>`;
@@ -116,6 +122,8 @@ function openProductModal(id){
     <div class="entry-head"><h3>${p?'✏️ পণ্য এডিট':'📦 নতুন পণ্য'}</h3></div>
     <div class="entry-body">
       <div class="form-row full"><label>পণ্যের নাম *</label><input id="pf_name" value="${p?esc(p.name):''}" placeholder="যেমন: সাবান"></div>
+      <div class="form-row full"><label>পণ্য কোড / বারকোড ${hintIc('প্রতিটা পণ্যের ইউনিক নম্বর। খালি রাখলে সেভের সময় নিজে বসবে। প্যাকেটে কোম্পানির বারকোড থাকলে 📷 দিয়ে স্ক্যান করে এখানে বসাতে পারেন — তাহলে নতুন স্টিকার না লাগিয়েই স্ক্যান চলবে।')}</label>
+        <div style="display:flex;gap:6px;"><input id="pf_code" value="${p?esc(p.code||''):''}" placeholder="খালি = নিজে তৈরি হবে" style="flex:1;"><button type="button" class="btn btn-outline small-btn" onclick="openScanner(c=>{document.getElementById('pf_code').value=c;},{title:'পণ্যের বারকোড স্ক্যান'})">📷</button></div></div>
       <div class="form-row">
         <div><label>ব্র্যান্ড</label><input id="pf_brand" value="${p?esc(p.brand||''):''}" placeholder="যেমন: লাক্স"></div>
         <div><label>সাইজ/ওজন</label><input id="pf_size" value="${p?esc(p.size||''):''}" placeholder="যেমন: ৭৫ গ্রাম"></div>
@@ -152,8 +160,11 @@ function saveProduct(id){
   const altUnit = document.getElementById('pf_altUnit').value.trim();
   const factor = Number(document.getElementById('pf_factor').value)||0;
   if(altUnit && !(factor>0)){ alert('বিকল্প একক দিলে কনভার্সন ফ্যাক্টর (১ '+altUnit+' = কত প্রধান একক) অবশ্যই দিতে হবে'); document.getElementById('pf_factor').focus(); return; }
+  let code = document.getElementById('pf_code').value.trim();
+  if(code && codeTaken(code, id||null)){ alert('এই কোড ('+code+') আরেকটা পণ্যে আছে — অন্য কোড দিন'); document.getElementById('pf_code').focus(); return; }
+  if(!code) code = (id && DB.products.find(x=>x.id===id)?.code) || reserveProductCode();
   const data = {
-    name,
+    name, code,
     brand: document.getElementById('pf_brand').value.trim(),
     size: document.getElementById('pf_size').value.trim(),
     color: document.getElementById('pf_color').value.trim(),
@@ -193,3 +204,8 @@ function purchaseProductLabel(p){
   return `${p.name}${bits?' — '+bits:''} (ক্রয়মূল্য:৳${p.buyPrice}, স্টক:${p.stock})`;
 }
 
+
+/* স্টক পেজ থেকে ক্যামেরা-স্ক্যান: বারকোড পড়ে সার্চ বক্সে বসিয়ে দেয় */
+function scanToStockSearch(){
+  openScanner(code=>{ const i = document.getElementById('stockSearch'); if(i){ i.value = code; renderStockTable(); } }, {title:'পণ্যের বারকোড স্ক্যান'});
+}

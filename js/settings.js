@@ -335,8 +335,8 @@ function openAbout(){
         <div class="co">Easy Tech Solution &amp; Web App Solution, BD.</div>
       </div>
       <div class="about-links">
-        <a class="about-link" href="tel:01869866899">📞 01869866899</a>
-        <a class="about-link" href="mailto:info.wasbd@gmail.com">✉️ info.wasbd@gmail.com</a>
+        <a class="about-link" href="tel:${VENDOR.phone}">📞 ${VENDOR.phone}</a>
+        <a class="about-link" href="mailto:${VENDOR.email}">✉️ ${VENDOR.email}</a>
         <a class="about-link" href="https://wasbd.github.io/appbazar/" target="_blank" rel="noopener">🌐 Web</a>
         <a class="about-link" href="https://web.facebook.com/etsctg" target="_blank" rel="noopener">📘 Facebook</a>
       </div>
@@ -553,7 +553,7 @@ async function wipeAllData(){
   const typed = prompt('নিশ্চিত করতে নিচের ঘরে ঠিক এই কথাটা লিখুন: মুছে ফেলুন');
   if(typed !== 'মুছে ফেলুন'){ alert('লেখাটা মিলেনি — বাতিল করা হলো, কোনো ডেটা মোছা হয়নি।'); return; }
   try{
-    const collections = ['erp_products','erp_customers','erp_suppliers','erp_sales','erp_purchases','erp_expenses','erp_stock_moves','erp_daystats'];
+    const collections = ['erp_products','erp_customers','erp_suppliers','erp_sales','erp_purchases','erp_expenses','erp_stock_moves','erp_daystats','erp_returns','erp_purchase_returns','erp_due_payments','erp_cash_opening'];
     for(const collName of collections){
       const snap = await fsDB.collection(collName).get();
       const docs = snap.docs;
@@ -589,7 +589,10 @@ async function downloadBackup(){
     const allPurchases = []; purchSnap.forEach(d=>allPurchases.push(d.data()));
     const allReturns = [];
     try{ const rs = await fsDB.collection('erp_returns').get(); rs.forEach(d=>allReturns.push(d.data())); }catch(e){ console.warn('erp_returns ব্যাকআপে যায়নি:', e); }
+    const readAll = async (coll, keepDocId)=>{ try{ const sn = await fsDB.collection(coll).get(); return sn.docs.map(d=>keepDocId ? {_docId:d.id, ...d.data()} : d.data()); }catch(e){ console.warn(coll+' ব্যাকআপে যায়নি:', e); return []; } };
+    const purchaseReturns = await readAll('erp_purchase_returns'), duePayments = await readAll('erp_due_payments'), cashOpening = await readAll('erp_cash_opening', true);
     const exportObj = {
+      purchaseReturns, duePayments, cashOpening,
       products: DB.products, customers: DB.customers, suppliers: DB.suppliers,
       sales: allSales, purchases: allPurchases, returns: allReturns, expenses: DB.expenses, users: DB.users,
       settings: DB.settings,
@@ -612,9 +615,9 @@ async function downloadBackup(){
    হিসাব করে নেওয়া হয়, যাতে ড্যাশবোর্ড/রিপোর্ট রিস্টোর হওয়া ডেটার সাথে মিলে যায়।
    পুরনো erp_stock_moves (ভাউচার-ভিত্তিক স্টক ট্রেস) ব্যাকআপ ফাইলে থাকে না বলে
    রিস্টোরের পর সেটা খালি করে দেওয়া হয় (নাহলে ভুল/অসংগত ট্রেস দেখাবে)। */
-function computeAggregates(sales, purchases, expenses, returns){
+function computeAggregates(sales, purchases, expenses, returns, pRets){
   const byDate = {};
-  const T = {totalSales:0, totalPurchase:0, totalExpense:0, totalCogs:0, salesCount:0, purchaseCount:0, totalReturns:0, returnCount:0};
+  const T = {totalSales:0, totalPurchase:0, totalExpense:0, totalCogs:0, salesCount:0, purchaseCount:0, totalReturns:0, returnCount:0, totalPurchaseExtra:0, totalPurchaseReturns:0, purchaseReturnCount:0};
   const add = (date, key, val)=>{ if(!date) return; const d = byDate[date] || (byDate[date] = {}); d[key] = r2((d[key]||0) + val); };
   sales.forEach(s=>{
     // খুব পুরনো এন্ট্রিতে cogs/buyPrice সেভ না থাকলে বর্তমান পণ্য-ক্রয়মূল্য দিয়ে আনুমানিক ধরা হয়
@@ -626,7 +629,9 @@ function computeAggregates(sales, purchases, expenses, returns){
     add(s.date,'totalSales',s.total||0); add(s.date,'totalCogs',cogs); add(s.date,'salesCount',1);
     T.totalSales += s.total||0; T.totalCogs += cogs; T.salesCount++;
   });
-  purchases.forEach(p=>{ add(p.date,'totalPurchase',p.total||0); add(p.date,'purchaseCount',1); T.totalPurchase += p.total||0; T.purchaseCount++; });
+  purchases.forEach(p=>{ add(p.date,'totalPurchase',p.total||0); add(p.date,'purchaseCount',1); T.totalPurchase += p.total||0; T.purchaseCount++; if(p.extraCash>0){ add(p.date,'totalPurchaseExtra',p.extraCash); T.totalPurchaseExtra += p.extraCash; } });
+  // ক্রয় ফেরত: নীট ক্রয় থেকে বাদ; ফেরত হওয়া পণ্যের অতিরিক্ত-খরচের অংশ (wasted) COGS-এ যায়
+  (pRets||[]).forEach(r=>{ const w = r.wasted||0; add(r.date,'totalPurchase',-(r.amount||0)); add(r.date,'totalPurchaseReturns',r.amount||0); add(r.date,'purchaseReturnCount',1); if(w){ add(r.date,'totalCogs',w); T.totalCogs += w; } T.totalPurchase -= r.amount||0; T.totalPurchaseReturns += r.amount||0; T.purchaseReturnCount++; });
   expenses.forEach(e=>{ add(e.date,'totalExpense',Number(e.amount)||0); T.totalExpense += Number(e.amount)||0; });
   // বিক্রয় ফেরত: নীট বিক্রয়/COGS থেকে বাদ — ফেরতের তারিখে (erp_returns থাকলে তা থেকে, নাহলে ভাউচারের তথ্য থেকে)
   const rets = returns ? returns.map(r=>({date:r.date, amount:r.amount||0, cogs:r.cogs||0}))
@@ -658,8 +663,8 @@ async function writeAggregates(agg, alsoClearMoves){
   await fsDB.collection('erp_stats').doc('alltime').set(agg.totals);
 }
 /* রিস্টোরের পর হিসাব নতুন করে বসানো (সাথে ভাউচার-ভিত্তিক স্টক-ট্রেস খালি করা, কারণ ব্যাকআপে সেটা থাকে না) */
-async function rebuildAggregatesAfterRestore(sales, purchases, expenses, returns){
-  await writeAggregates(computeAggregates(sales, purchases, expenses, returns||null), true);
+async function rebuildAggregatesAfterRestore(sales, purchases, expenses, returns, pRets){
+  await writeAggregates(computeAggregates(sales, purchases, expenses, returns||null, pRets||[]), true);
 }
 /* পুরনো এন্ট্রির সারসংক্ষেপ না থাকলে ড্যাশবোর্ড/রিপোর্টে ০ আসে — এই বাটন সব বিক্রয়/ক্রয়/খরচ আবার পড়ে সারসংক্ষেপ নতুন করে বানায় */
 async function rebuildStatsFromData(){
@@ -675,7 +680,9 @@ async function rebuildStatsFromData(){
     let returns = null;
     try{ const rs = await fsDB.collection('erp_returns').get(); returns = rs.docs.map(d=>d.data()); }
     catch(e){ console.warn('erp_returns পড়া যায়নি (Firestore Rules-এ erp_returns এর অনুমতি দিন):', e); }
-    await writeAggregates(computeAggregates(sales, purchases, expenses, returns), false);
+    let pRets = [];
+    try{ const ps = await fsDB.collection('erp_purchase_returns').get(); pRets = ps.docs.map(d=>d.data()); }catch(e){ console.warn('erp_purchase_returns পড়া যায়নি (Rules-এ অনুমতি দিন):', e); }
+    await writeAggregates(computeAggregates(sales, purchases, expenses, returns, pRets), false);
     statsStale = false;
     logAudit('হিসাব পুনঃগণনা', `${sales.length} বিক্রয়, ${purchases.length} ক্রয়, ${expenses.length} খরচ`);
     toast(`✅ হয়েছে — ${sales.length} বিক্রয়, ${purchases.length} ক্রয়, ${expenses.length} খরচ`);
@@ -716,11 +723,14 @@ async function restoreBackup(){
         erp_sales: data.sales||[], erp_purchases: data.purchases||[], erp_expenses: data.expenses||[], erp_users: data.users||[]
       };
       if(data.returns) collections.erp_returns = data.returns;
+      if(data.purchaseReturns) collections.erp_purchase_returns = data.purchaseReturns;
+      if(data.duePayments) collections.erp_due_payments = data.duePayments;
+      if(data.cashOpening) collections.erp_cash_opening = data.cashOpening;
       for(const [collName, items] of Object.entries(collections)){
         const existing = await fsDB.collection(collName).get();
         const ops = [];
         existing.forEach(d=>ops.push({type:'delete', ref:d.ref}));
-        items.forEach(item=>ops.push({type:'set', ref:fsDB.collection(collName).doc(String(item.id)), data:item}));
+        items.forEach(item=>{ const {_docId, ...rest} = item; ops.push({type:'set', ref:fsDB.collection(collName).doc(String(_docId!=null?_docId:item.id)), data:rest}); });
         for(let i=0;i<ops.length;i+=400){
           const batch = fsDB.batch();
           ops.slice(i,i+400).forEach(op=>{ op.type==='delete' ? batch.delete(op.ref) : batch.set(op.ref, op.data); });
@@ -729,7 +739,7 @@ async function restoreBackup(){
       }
       if(data.settings){ await fsDB.collection('erp_settings').doc('business').set(data.settings, {merge:true}); }
       btn.textContent = 'হিসাব পুনরায় গণনা হচ্ছে...';
-      await rebuildAggregatesAfterRestore(collections.erp_sales, collections.erp_purchases, collections.erp_expenses, collections.erp_returns||null);
+      await rebuildAggregatesAfterRestore(collections.erp_sales, collections.erp_purchases, collections.erp_expenses, collections.erp_returns||null, collections.erp_purchase_returns||[]);
       logAudit('ব্যাকআপ রিস্টোর', file.name);
       alert('রিস্টোর সফল হয়েছে! পেজ রিলোড হচ্ছে...');
       location.reload();
