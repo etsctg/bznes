@@ -14,6 +14,6 @@ const firebaseConfig = {
   messagingSenderId: "412722396147",
   appId: "1:412722396147:web:ddbf530520c5b662f67086"
 };
-
-const LICENSE_NO = '';          // যেমন: 'BERP-2610-0001-K7' (খালি থাকলে শুধু Firestore-এর নম্বর দেখানো হবে)
-const VENDOR = { name:'ব্যবসা ম্যানেজার — বিক্রেতা', phone:'01869866899', email:'info.wasbd@gmail.com' };
+const firebaseConfig = "AIzaSyDrFR9Ycw4xpeaueNn92wWrT3c2diD1cLM";
+const LICENSE_NO = 'BERP-2610-0001-P';
+const VENDOR = { name:'Md. Shakhawat Hossain Khan', phone:'01869866899', email:'info.wasbd@gmail.com' };
