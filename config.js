@@ -1,14 +1,21 @@
-/* config.js — alif shope (BERP-2610-0001-P) */
+/* =====================================================================
+   config.js — প্রতি ক্লায়েন্টের জন্য শুধু এই ফাইলটাই বদলাতে হয়
+   ---------------------------------------------------------------------
+   ১) firebaseConfig  → ক্লায়েন্টের নিজস্ব Firebase প্রজেক্টের তথ্য
+   ২) LICENSE_NO      → ক্লায়েন্টের লাইসেন্স নম্বর (vendor-tools/license-manager.html থেকে নিন)
+      (আসল মেয়াদ/সীমা Firestore-এর erp_license/current-এ থাকে — এটা শুধু দেখানোর জন্য ও মিলিয়ে দেখার জন্য)
+   ৩) VENDOR          → বিক্রেতার (আপনার) যোগাযোগের তথ্য — লাইসেন্স-বন্ধ/মেয়াদ-শেষ স্ক্রিনে দেখায়
+   ===================================================================== */
 const firebaseConfig = {
-  "apiKey": "AIzaSyDrFR9Ycw4xpeaueNn92wWrT3c2diD1cLM",
-  "authDomain": "bzneserp.firebaseapp.com",
-  "projectId": "bzneserp",
-  "storageBucket": "bzneserp.firebasestorage.app",
-  "messagingSenderId": "412722396147",
-  "appId": "1:412722396147:web:ddbf530520c5b662f67086"
+  apiKey: "AIzaSyDrFR9Ycw4xpeaueNn92wWrT3c2diD1cLM",
+  authDomain: "bzneserp.firebaseapp.com",
+  projectId: "bzneserp",
+  storageBucket: "bzneserp.firebasestorage.app",
+  messagingSenderId: "412722396147",
+  appId: "1:412722396147:web:ddbf530520c5b662f67086"
 };
 
-const LICENSE_NO = 'BERP-2610-0001-P';
-const LICENSE_REQUIRED = true;
-const LICENSE_PUBLIC_KEY = {"kty":"EC","crv":"P-256","x":"MZimCuRaxcRctC95KZEoLFvw_mcCrpx1GfCaMl5rVxY","y":"t6_S3a8Wfc4Mns-mLanoH7VasFKCsjlpu7EQ7P-ES3M"};
-const VENDOR = {"name":"Md. Shakhawat Hossain Khan","phone":"01869866899","email":"nispap@gmail.com"};
+const LICENSE_NO = '';
+const LICENSE_PUBLIC_KEY = null;   // license-manager থেকে config.js ডাউনলোড করলে নিজে বসে যায়
+const LICENSE_REQUIRED = false;    // true হলে বৈধ লাইসেন্স কী ছাড়া অ্যাপ চলে না          // যেমন: 'BERP-2610-0001-K7' (খালি থাকলে শুধু Firestore-এর নম্বর দেখানো হবে)
+const VENDOR = { name:'ব্যবসা ম্যানেজার — বিক্রেতা', phone:'01869866899', email:'info.wasbd@gmail.com' };

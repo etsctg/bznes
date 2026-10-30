@@ -170,14 +170,15 @@ async function ensureDeviceRegistered(lic){
 function showDeviceLimitBlockScreen(count, max){
   const statusEl = document.getElementById('bootStatus');
   statusEl.innerHTML = `
-    <div style="text-align:center;max-width:380px;margin:0 auto;">
+    <div style="text-align:center;max-width:400px;margin:0 auto;">
       <div style="font-size:34px;margin-bottom:8px;">📵</div>
       <div style="font-weight:800;font-size:16px;margin-bottom:10px;">এই লাইসেন্সে ডিভাইসের সীমা শেষ</div>
       <div style="font-size:13px;color:var(--muted);line-height:1.9;margin-bottom:16px;">
         সর্বোচ্চ <b style="color:var(--ink);">${max}</b> টি ডিভাইসের অনুমতি আছে, বর্তমানে <b style="color:var(--ink);">${count}</b> টি ব্যবহৃত হচ্ছে।<br>
         এই ডিভাইসে চালাতে — ইতিমধ্যে-নিবন্ধিত অন্য কোনো ডিভাইসে গিয়ে <b>সেটিংস → লাইসেন্স</b> থেকে একটা পুরনো/অব্যবহৃত ডিভাইস সরান, অথবা বিক্রেতার সাথে যোগাযোগ করে সীমা বাড়ান।
       </div>
-      <div class="about-links" style="max-width:320px;margin:0 auto;">
+      ${(typeof LICENSE_PUBLIC_KEY!=='undefined' && LICENSE_PUBLIC_KEY)?`<div style="font-size:12.5px;margin:6px 0;">বিক্রেতা বেশি ডিভাইসের নতুন লাইসেন্স কী দিলে এখানেই পেস্ট করুন:</div>${licenseKeyBoxHtml()}`:''}
+      <div class="about-links" style="max-width:320px;margin:12px auto 0;">
         <a class="about-link" href="tel:${VENDOR.phone}">📞 ${VENDOR.phone}</a>
         <a class="about-link" href="mailto:${VENDOR.email}">✉️ ইমেইল</a>
       </div>
