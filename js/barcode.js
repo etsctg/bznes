@@ -189,6 +189,7 @@ function openScanner(onResult, opts){
       <div style="position:absolute;left:10%;right:10%;top:36%;height:28%;border:2px solid #4ade80;border-radius:8px;pointer-events:none;"></div>
     </div>
     <div id="scanMsg" style="font-size:12.5px;color:var(--muted);margin:8px 0;text-align:center;">ক্যামেরা চালু হচ্ছে...</div>
+    <div id="scanLog"></div>
     <div style="display:flex;gap:6px;"><input id="scanManual" type="text" placeholder="অথবা কোড হাতে লিখুন" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault();scanManualGo();}"><button class="btn btn-gold small-btn" onclick="scanManualGo()">ঠিক আছে</button></div>
   </div>`;
   document.body.appendChild(ov);
@@ -228,6 +229,21 @@ function openScanner(onResult, opts){
 /* ---------- ৫) এন্ট্রি বারে স্ক্যান / বারকোড-গান ---------- */
 function scanForEntry(kind){
   openScanner(code=>entryScanCode(kind, code), {continuous: kind==='sale', title:'পণ্যের বারকোড স্ক্যান'});
+  scanLogUpdate(kind);
+}
+/* স্ক্যানারের নিচেই চলতি স্লিপ দেখায় — স্ক্যান করে পণ্য যোগ হলো কিনা সাথে সাথে বোঝা যায় */
+function scanLogUpdate(kind){
+  const host = document.getElementById('scanLog'); if(!host) return;
+  const cart = kind==='sale' ? saleCart : purchaseCart;
+  if(!cart.length){ host.innerHTML = '<div style="font-size:12px;color:var(--muted);text-align:center;">স্লিপ এখনো খালি</div>'; return; }
+  let tot = 0;
+  const rows = cart.map(l=>{
+    const p = DB.products.find(x=>x.id==l.productId);
+    const price = kind==='sale' ? (p?p.sellPrice:0) : (l.price!=null ? Number(l.price) : (p?p.buyPrice:0));
+    const sub = price*(l.qty||0); tot += sub;
+    return `<div style="display:flex;justify-content:space-between;gap:8px;"><span>${esc(p?p.name:'?')} × ${l.qty}</span><b>${money(r2(sub))}</b></div>`;
+  }).join('');
+  host.innerHTML = `<div style="font-size:12.5px;max-height:24vh;overflow:auto;border-top:1px solid var(--line);padding-top:6px;margin-bottom:8px;">${rows}<div style="display:flex;justify-content:space-between;border-top:1px dashed var(--line);margin-top:4px;padding-top:4px;"><b>স্লিপ মোট (${cart.length}টি)</b><b>${money(r2(tot))}</b></div></div>`;
 }
 function entryScanCode(kind, code){
   const p = findProductByCode(code);
@@ -239,8 +255,10 @@ function entryScanCode(kind, code){
   entryPick(kind, p.id);
   if(kind==='sale'){
     const ok = entryAdd('sale');
-    const msg = eEl('sale','Msg'); 
-    if(ok) toast('✅ '+p.name); else if(msg && msg.textContent) toast('⚠️ '+msg.textContent);
+    const msg = eEl('sale','Msg');
+    if(ok){ toast('✅ '+p.name); scanSetMsg('✔ যোগ হলো: '+p.name+' — আরও স্ক্যান করুন, শেষ হলে "বন্ধ" চাপুন', 'var(--success)'); }
+    else if(msg && msg.textContent){ toast('⚠️ '+msg.textContent); scanSetMsg('⚠️ '+msg.textContent, 'var(--danger-text)'); }
+    scanLogUpdate('sale');
   }
 }
 

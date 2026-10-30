@@ -254,8 +254,8 @@ function logStockMove(batch, {productId, qty, type, refType, refId, date}){
 }
 async function loadStockMoves(productId){
   try{
-    const snap = await fsDB.collection('erp_stock_moves').where('productId','==',productId).orderBy('at','desc').limit(300).get();
-    return snap.docs.map(d=>d.data());
+    const snap = await fsDB.collection('erp_stock_moves').where('productId','==',productId).limit(1000).get();   // orderBy বাদ — কম্পোজিট ইনডেক্স লাগে না; ক্লায়েন্টে সাজানো হয়
+    return snap.docs.map(d=>d.data()).sort((a,b)=>String(b.at).localeCompare(String(a.at))).slice(0,300);
   }catch(e){
     console.warn('stock moves লোড ব্যর্থ (হয়তো ইনডেক্স তৈরি হচ্ছে):', e);
     return null;
@@ -409,7 +409,7 @@ function syncTopbar(){
 let statsStale = false;
 let pageHostId = 'mainArea';
 function pageHost(){ return document.getElementById(pageHostId) || document.getElementById('mainArea'); }
-const APP_VERSION = '3.8.0';
+const APP_VERSION = '3.9.2';
 (function(){ const e=document.getElementById('appVerTxt'); if(e) e.textContent = APP_VERSION; })();
 const ROLE_LEVEL = {user:1, manager:2, director:3, admin:4};
 function hasAccess(minRole){ return ROLE_LEVEL[currentUser.role] >= ROLE_LEVEL[minRole]; }
@@ -493,14 +493,14 @@ function toggleTopMenu(e){
   if(e) e.stopPropagation();
   const m = document.getElementById('tbMenu'); if(!m || !currentUser) return;
   if(m.classList.contains('show')){ closeTopMenu(); return; }
-  const isLight = document.documentElement.getAttribute('data-theme')==='light';
+  const nextTheme = {dark:'☀️ লাইট থিম', light:'🪟 Windows XP থিম', xp:'🌙 ডার্ক থিম'}[currentTheme()];
   m.innerHTML = `
     <div class="tbm-user"><div class="brand-mark">${esc(currentUser.name.charAt(0))}</div>
       <div><b>${esc(currentUser.name)}</b><span class="role-badge" style="margin:0;font-size:10px;">${ROLE_NAME_BN[currentUser.role]}</span>
       <div class="tbm-conn" id="connBadgeMenu"></div></div></div>
     <button class="tbm-item" onclick="topMenuDo('help')">❓ Help — ব্যবহার নির্দেশিকা</button>
     <button class="tbm-item" onclick="topMenuDo('about')">ℹ️ About</button>
-    <button class="tbm-item" onclick="topMenuDo('theme')">${isLight?'🌙 ডার্ক থিম':'☀️ লাইট থিম'}</button>
+    <button class="tbm-item" onclick="topMenuDo('theme')">${nextTheme}</button>
     <button class="tbm-item" onclick="topMenuDo('pass')">🔑 পাসওয়ার্ড পরিবর্তন</button>
     <button class="tbm-item danger" onclick="topMenuDo('logout')">🚪 লগআউট</button>`;
   m.classList.add('show');
@@ -543,20 +543,20 @@ window.addEventListener('online', ()=>{
 window.addEventListener('offline', updateConnBadge);
 
 /* ================= THEME ================= */
-function applyThemeIcon(){
-  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-  ['themeToggleBtn','themeToggleBtn2'].forEach(id=>{ const btn = document.getElementById(id); if(btn) btn.textContent = isLight ? '☀️' : '🌙'; });
-}
-function toggleTheme(){
-  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-  if(isLight){
-    document.documentElement.removeAttribute('data-theme');
-    try{ localStorage.setItem('erp_theme','dark'); }catch(e){}
-  } else {
-    document.documentElement.setAttribute('data-theme','light');
-    try{ localStorage.setItem('erp_theme','light'); }catch(e){}
-  }
+const THEMES = ['dark','light','xp'];
+function currentTheme(){ const t = document.documentElement.getAttribute('data-theme'); return t==='light'||t==='xp' ? t : 'dark'; }
+function applyTheme(t){
+  if(t==='dark') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t);
+  try{ localStorage.setItem('erp_theme', t); }catch(e){}
   applyThemeIcon();
+}
+function applyThemeIcon(){
+  const ic = {dark:'🌙', light:'☀️', xp:'🪟'}[currentTheme()];
+  ['themeToggleBtn','themeToggleBtn2'].forEach(id=>{ const btn = document.getElementById(id); if(btn) btn.textContent = ic; });
+}
+/* থিম ঘোরে: ডার্ক → লাইট → Windows XP → ডার্ক */
+function toggleTheme(){
+  applyTheme(THEMES[(THEMES.indexOf(currentTheme())+1)%THEMES.length]);
   if(currentUser) renderPage(currentPage); // চার্টের রং রিফ্রেশ করতে পুনরায় আঁকা হয়
 }
 applyThemeIcon();
@@ -566,7 +566,9 @@ function itemQtyText(it,p){ const u = p?p.unit:''; return it.dispUnit ? `${it.di
 function itemRateText(it){ return (it.dispUnit && it.dispPrice!=null) ? `${money(it.dispPrice)}/${it.dispUnit}` : money(it.price); }
 function r2(x){ return Math.round((Number(x)||0)*100)/100; }
 function money(n){ n = Number(n)||0; return '৳' + n.toLocaleString('en-BD', {maximumFractionDigits:2}); }
-function todayStr(){ return new Date().toISOString().slice(0,10); }
+/* স্থানীয় (ডিভাইসের) তারিখ — আগে UTC ধরা হতো, তাই বাংলাদেশে রাত ১২টা–ভোর ৬টায় আগের দিনের তারিখ আসত */
+function localDateStr(d){ d = d||new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function todayStr(){ return localDateStr(new Date()); }
 function daysAgoStr(n){ const d = new Date(); d.setDate(d.getDate()-n); return d.toISOString().slice(0,10); }
 function fmtDate(d){ const dt = new Date(d); return dt.toLocaleDateString('bn-BD', {year:'numeric',month:'short',day:'numeric'}); }
 function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }

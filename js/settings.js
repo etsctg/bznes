@@ -304,7 +304,7 @@ function testPrint(){
 }
 function settingsAccountHtml(){
   const u = currentUser;
-  const isLight = document.documentElement.getAttribute('data-theme')==='light';
+  const themeNow = currentTheme();
   return `<div class="card set-card">
     <h3>👤 আমার অ্যাকাউন্ট</h3>
     <div class="acct-row">
@@ -313,7 +313,7 @@ function settingsAccountHtml(){
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn btn-outline" onclick="openChangePasswordModal()">🔑 পাসওয়ার্ড পরিবর্তন</button>
-      <button class="btn btn-outline" onclick="toggleTheme()">${isLight?'🌙 ডার্ক থিম':'☀️ লাইট থিম'}</button>
+      <select onchange="applyTheme(this.value);renderPage(currentPage)" title="থিম" style="max-width:190px;"><option value="dark" ${themeNow==='dark'?'selected':''}>🌙 ডার্ক থিম</option><option value="light" ${themeNow==='light'?'selected':''}>☀️ লাইট থিম</option><option value="xp" ${themeNow==='xp'?'selected':''}>🪟 Windows XP থিম</option></select>
       <button class="btn btn-outline" onclick="logoutWithBackupCheck()">🚪 লগআউট</button>
       ${SHOP_AUTH_REQUIRED?`<button class="btn btn-outline" onclick="disconnectShopDevice()">🔌 এই ডিভাইসের দোকান-সংযোগ বিচ্ছিন্ন করুন</button>`:''}
     </div>

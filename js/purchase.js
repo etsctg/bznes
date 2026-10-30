@@ -154,6 +154,7 @@ function openPurchaseModal(editId){
   openModal(`
     <div class="entry-head"><h3>${existing?`ক্রয় এডিট করুন — ${refNo('PUR', existing.id)}`:'🛒 নতুন ক্রয় এন্ট্রি'}</h3></div>
     <div class="entry-body">
+    <div id="holdBar"></div>
     ${existing?`<div style="font-size:11.5px;color:var(--amber-2);margin-bottom:8px;">⚠️ এডিট করলে প্রতিটা লাইনের আগের ক্রয়মূল্যই থাকবে (বদলাতে লাইনের ✏️ চাপুন)। পণ্যের গড় ক্রয়মূল্য নতুন করে হিসাব হবে।</div>`:''}
     <div class="form-row">
       <div><label>তারিখ</label><input id="pf2_date" type="date" value="${existing?existing.date:todayStr()}"></div>
@@ -241,7 +242,8 @@ function openPurchaseModal(editId){
         <div class="fs-sub"><span>বাকি (দেনা) <b id="pf2_due">৳0</b></span><span id="pf2_cashExtraRow" class="fs-change hidden">🧾 নগদ অতিরিক্ত খরচ <b id="pf2_cashExtra">৳0</b></span><span id="pf2_changeRow" class="fs-change hidden">💵 ফেরত নিন <b id="pf2_change">৳0</b></span></div>
       </div>
       <div class="foot-btns">
-        <button class="btn btn-outline" onclick="closeModal()">বাতিল</button>
+        ${existing?'':`<button class="btn btn-outline" onclick="holdCurrent('purchase')" title="এই স্লিপ জমা রেখে নতুন স্লিপ শুরু করুন">⏸️ হোল্ড</button>`}
+        <button class="btn btn-outline" onclick="entryCancel('purchase')">বাতিল</button>
         <button class="btn btn-gold" id="modalSaveBtn" onclick="savePurchase()">${existing?'সংরক্ষণ':'💾 সংরক্ষণ'}</button>
       </div>
     </div>
@@ -250,6 +252,7 @@ function openPurchaseModal(editId){
   renderPurchaseLines();
   purRenderExtras();
   calcPurchaseTotal();
+  if(!existing) holdBarInit('purchase');
   setTimeout(()=>document.getElementById('purchEntProd')?.focus(), 0);
 }
 function renderPurchaseLines(){

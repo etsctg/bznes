@@ -216,6 +216,7 @@ function openSaleModal(editId){
   openModal(`
     <div class="entry-head"><h3>${existing?`বিক্রয় এডিট করুন — ${refNo('INV', existing.id)}`:'🧾 নতুন বিক্রয় এন্ট্রি'}</h3></div>
     <div class="entry-body">
+    <div id="holdBar"></div>
     ${existing?`<div style="font-size:11.5px;color:var(--amber-2);margin-bottom:8px;">⚠️ এডিট করলে বর্তমান বিক্রয়মূল্য অনুযায়ী পুনঃগণনা হবে (মূল্য পরিবর্তিত হয়ে থাকলে টোটাল বদলে যেতে পারে)।</div>`:''}
     <div class="form-row">
       <div><label>তারিখ</label><input id="sf_date" type="date" value="${existing?existing.date:todayStr()}"></div>
@@ -270,7 +271,8 @@ function openSaleModal(editId){
         <div class="fs-sub"><span>বাকি <b id="sf_due">৳0</b></span><span id="sf_changeRow" class="fs-change hidden">💵 ফেরত দিন <b id="sf_change">৳0</b></span></div>
       </div>
       <div class="foot-btns">
-        <button class="btn btn-outline" onclick="closeModal()">বাতিল</button>
+        ${existing?'':`<button class="btn btn-outline" onclick="holdCurrent('sale')" title="এই স্লিপ জমা রেখে নতুন স্লিপ শুরু করুন">⏸️ হোল্ড</button>`}
+        <button class="btn btn-outline" onclick="entryCancel('sale')">বাতিল</button>
         <button class="btn btn-gold" id="modalSaveBtn" onclick="saveSale()">${existing?'সংরক্ষণ':'💾 সংরক্ষণ'}</button>
       </div>
     </div>
@@ -278,5 +280,6 @@ function openSaleModal(editId){
   document.getElementById('modalBox').className='modal entry-modal sale-theme';
   renderSaleLines();
   calcSaleTotal();
+  if(!existing) holdBarInit('sale');
   setTimeout(()=>document.getElementById('saleEntProd')?.focus(), 0);
 }

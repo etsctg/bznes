@@ -17,6 +17,20 @@ const APP_CHECK_SITE_KEY = '';
 /* ---------- দোকান-সংযোগ (গেট) ---------- */
 let shopGateResolve = null;
 let firstRunInfo = null;
+/* "Missing or insufficient permissions" এলে কারণ ও সমাধান পরিষ্কার দেখায় — কোন ইমেইলে ঢুকেছে সেটাও */
+function permissionHelpHtml(){
+  const em = ((fbAuth && fbAuth.currentUser && fbAuth.currentUser.email) || '(অজানা)').toLowerCase();
+  return `<div style="text-align:left;max-width:440px;margin:0 auto;font-size:13px;line-height:1.8;">
+    <b style="font-size:15px;">❌ Firestore ডেটাবেস অনুমতি দিচ্ছে না</b><br>
+    এই ডিভাইস Firebase-এ ঢুকেছে এই ইমেইলে: <b style="user-select:all;">${esc(em)}</b><br>
+    প্রজেক্ট: <b>${esc(firebaseConfig.projectId||'-')}</b><br><br>
+    <b>যা দেখবেন (এই ক্রমে):</b><br>
+    ১) Firestore Rules Publish হয়েছে কিনা — লাইসেন্স-ম্যানেজার থেকে "Rules কপি" করে Firebase Console → Firestore Database → Rules-এ সব মুছে পেস্ট করে <b>Publish</b> করুন।<br>
+    ২) Rules-এর <code>shopEmails()</code> তালিকায় ওপরের ইমেইলটি আছে কিনা (বানান ঠিক, ছোট হাতের অক্ষরে)।<br>
+    ৩) config.js-এর projectId ওপরের প্রজেক্টের সাথে মেলে কিনা (অন্য ক্লায়েন্টের config.js বসে যায়নি তো?)।<br>
+    ৪) Rules Publish-এর পর ১-২ মিনিট অপেক্ষা করে পেজ রিলোড দিন।<br><br>
+    <button class="btn btn-gold" onclick="location.reload()">🔄 আবার চেষ্টা করুন</button></div>`;
+}
 function authErrMsg(e){
   const c = (e && e.code) || '';
   if(['auth/invalid-credential','auth/wrong-password','auth/user-not-found','auth/invalid-login-credentials'].includes(c)) return 'ইমেইল বা পাসওয়ার্ড ভুল!';
@@ -160,6 +174,8 @@ async function bootApp(){
     console.error(err);
     if(!navigator.onLine){
       statusEl.innerHTML = '📴 ইন্টারনেট সংযোগ নেই।<br><br>এই ডিভাইসে প্রথমবার চালু করতে অন্তত একবার ইন্টারনেট সংযোগ প্রয়োজন (এরপর থেকে অফলাইনেও কাজ করবে)।';
+    } else if(err && (err.code==='permission-denied' || /insufficient permissions/i.test(err.message||''))){
+      statusEl.innerHTML = permissionHelpHtml();
     } else {
       statusEl.innerHTML = '❌ সংযোগ ব্যর্থ হয়েছে: ' + esc(err.message) +
         '<br><br>' + (SHOP_AUTH_REQUIRED ? 'Firebase Authentication-এ "Email/Password" পদ্ধতি চালু আছে কিনা এবং Firestore rules ঠিক আছে কিনা যাচাই করুন।' : 'Firebase Authentication-এ "Anonymous" পদ্ধতি চালু আছে কিনা এবং Firestore rules ঠিক আছে কিনা যাচাই করুন।');

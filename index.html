@@ -18,7 +18,7 @@
 (function(){
   try{
     const saved = localStorage.getItem('erp_theme');
-    if(saved === 'light') document.documentElement.setAttribute('data-theme','light');
+    if(saved === 'light' || saved === 'xp') document.documentElement.setAttribute('data-theme', saved);
   }catch(e){}
 })();
 </script>
@@ -172,6 +172,7 @@
 <script src="js/cashbook.js"></script>
 <script src="js/returns.js"></script>
 <script src="js/barcode.js"></script>
+<script src="js/holds.js"></script>
 <script src="js/purchase-extra.js"></script>
 <script src="js/boot.js"></script>
 </body>

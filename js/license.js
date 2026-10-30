@@ -20,8 +20,69 @@ function daysUntil(dateStr){
   return Math.round((b-a)/86400000);
 }
 
-/* লাইসেন্স ডকুমেন্ট পড়ে মেয়াদ/অবস্থা যাচাই করে — ডকুমেন্ট না থাকলে unrestricted ধরা হয় */
+/* =============== ৩.৯: সাইন-করা "লাইসেন্স কী" (সবচেয়ে সহজ পদ্ধতি) ===============
+   বিক্রেতা license-manager থেকে একটা লম্বা কী-লেখা তৈরি করে (WhatsApp/ইমেইলে পাঠায়)। ক্লায়েন্টের এডমিন সেটা
+   অ্যাপে বসায় (প্রথমবার বা নবায়নে)। কী-তে ডিজিটাল সিগনেচার থাকে — তাই বিক্রেতার প্রাইভেট-কী ছাড়া মেয়াদ/সীমা
+   বানানো বা বদলানো যায় না। Firebase Console, Rules বা config.js বারবার এডিট করা লাগে না।
+   পাবলিক কী ও LICENSE_REQUIRED config.js-এ থাকে (license-manager থেকে config.js ডাউনলোড করলে নিজে বসে যায়)। */
+function b64uToBytes(s){ s = String(s).replace(/-/g,'+').replace(/_/g,'/'); while(s.length%4) s += '='; return Uint8Array.from(atob(s), c=>c.charCodeAt(0)); }
+async function verifyLicenseKey(key){
+  try{
+    if(typeof LICENSE_PUBLIC_KEY==='undefined' || !LICENSE_PUBLIC_KEY || !crypto || !crypto.subtle) return null;
+    const parts = String(key||'').trim().replace(/\s+/g,'').split('.');
+    if(parts.length!==2) return null;
+    const pub = await crypto.subtle.importKey('jwk', LICENSE_PUBLIC_KEY, {name:'ECDSA', namedCurve:'P-256'}, false, ['verify']);
+    const ok = await crypto.subtle.verify({name:'ECDSA', hash:'SHA-256'}, pub, b64uToBytes(parts[1]), b64uToBytes(parts[0]));
+    if(!ok) return null;
+    return JSON.parse(new TextDecoder().decode(b64uToBytes(parts[0])));
+  }catch(e){ console.warn('লাইসেন্স কী যাচাই ব্যর্থ:', e); return null; }
+}
+async function readStoredLicenseKey(){
+  try{ const sn = await fsDB.collection('erp_settings').doc('license').get(); if(sn.exists && sn.data().key) return sn.data().key; }catch(e){}
+  try{ return localStorage.getItem('erp_license_key')||''; }catch(e){ return ''; }
+}
+async function activateLicenseKey(){
+  const ta = document.getElementById('licKeyInput'), msg = document.getElementById('licKeyMsg');
+  const say = (t, ok)=>{ if(msg){ msg.textContent = t; msg.style.color = ok ? 'var(--success)' : 'var(--danger-text)'; } };
+  const key = (ta ? ta.value : '').trim().replace(/\s+/g,'');
+  if(!key){ say('কী-টা পেস্ট করুন'); return; }
+  const lic = await verifyLicenseKey(key);
+  if(!lic){ say('❌ কী সঠিক নয় — পুরোটা কপি হয়েছে কিনা দেখুন, অথবা বিক্রেতার কাছ থেকে নতুন কী নিন।'); return; }
+  if(typeof LICENSE_NO!=='undefined' && LICENSE_NO && lic.licenseNo!==LICENSE_NO){ say('❌ এই কী অন্য ক্লায়েন্টের জন্য তৈরি।'); return; }
+  const left = daysUntil(lic.expiryDateStr);
+  if(left!=null && left<0){ say('❌ এই কী-এর মেয়াদ শেষ ('+lic.expiryDateStr+') — নতুন কী নিন।'); return; }
+  try{ await fsDB.collection('erp_settings').doc('license').set({key, at:new Date().toISOString()}); }
+  catch(e){
+    try{ localStorage.setItem('erp_license_key', key); }catch(_){}
+    if(e && e.code==='permission-denied'){ say('⚠️ কী ঠিক আছে, তবে ডেটাবেসে সংরক্ষণ হয়নি — Firestore Rules/দোকান-ইমেইল সমস্যা। কী শুধু এই ডিভাইসে রাখা হলো; বিক্রেতাকে Rules ঠিক করতে বলুন।'); setTimeout(()=>location.reload(), 2500); return; }
+  }
+  say('✅ সক্রিয় হয়েছে — অ্যাপ রিলোড হচ্ছে...', true);
+  setTimeout(()=>location.reload(), 700);
+}
+function licenseKeyBoxHtml(){
+  return `<div style="margin-top:6px;text-align:left;">
+    <label style="font-size:12px;">লাইসেন্স কী পেস্ট করুন</label>
+    <textarea id="licKeyInput" rows="4" placeholder="বিক্রেতার পাঠানো লম্বা কী-টা এখানে পেস্ট করুন" style="width:100%;font-size:12px;word-break:break-all;"></textarea>
+    <div id="licKeyMsg" style="font-size:12.5px;min-height:18px;margin:4px 0;"></div>
+    <button class="btn btn-gold" onclick="activateLicenseKey()">🔑 সক্রিয় করুন</button>
+  </div>`;
+}
+
+/* লাইসেন্স যাচাই: ১) সাইন-করা কী (থাকলে) ২) পুরনো erp_license/current ডকুমেন্ট ৩) কিছুই না থাকলে ও LICENSE_REQUIRED না হলে — সীমাহীন */
 async function checkLicenseGate(){
+  const hasPub = typeof LICENSE_PUBLIC_KEY!=='undefined' && LICENSE_PUBLIC_KEY;
+  if(hasPub){
+    const key = await readStoredLicenseKey();
+    const lic = key ? await verifyLicenseKey(key) : null;
+    if(lic){
+      if(typeof LICENSE_NO!=='undefined' && LICENSE_NO && lic.licenseNo!==LICENSE_NO) return {ok:false, reason:'mismatch', lic};
+      licenseInfo = {...lic, status:'active', viaKey:true};
+      const left = daysUntil(lic.expiryDateStr);
+      if(left!=null && left<0) return {ok:false, reason:'expired', lic};
+      return {ok:true, lic:licenseInfo, daysLeft:left};
+    }
+    if(typeof LICENSE_REQUIRED!=='undefined' && LICENSE_REQUIRED) return {ok:false, reason: key?'invalid':'missing'};
+  }
   let snap;
   try{ snap = await fsDB.collection('erp_license').doc('current').get(); }
   catch(err){ console.warn('লাইসেন্স পড়া যায়নি (রুলস/ইন্টারনেট সমস্যা হতে পারে):', err); licenseInfo = null; return {ok:true}; }
@@ -34,19 +95,24 @@ async function checkLicenseGate(){
   return {ok:true, lic, daysLeft:left};
 }
 
-/* মেয়াদ শেষ/বন্ধ হলে বুট-স্ক্রিনেই আটকে দেওয়া হয় — লগইন স্ক্রিন পর্যন্ত যাওয়া যায় না */
+/* মেয়াদ শেষ/বন্ধ/কী-নেই হলে বুট-স্ক্রিনেই আটকে দেওয়া হয় — এখানেই নতুন কী বসানো যায় */
 function showLicenseBlockScreen(reason, lic){
   const statusEl = document.getElementById('bootStatus');
-  const title = reason==='expired' ? '⏳ লাইসেন্সের মেয়াদ শেষ হয়ে গেছে' : '⛔ লাইসেন্স বন্ধ আছে';
+  const T = {
+    expired:['⏳','লাইসেন্সের মেয়াদ শেষ হয়ে গেছে'], suspended:['⛔','লাইসেন্স বন্ধ আছে'],
+    missing:['🔑','লাইসেন্স কী দিন'], invalid:['⚠️','লাইসেন্স কী সঠিক নয়'], mismatch:['⚠️','এই লাইসেন্স কী অন্য ক্লায়েন্টের']
+  }[reason] || ['⛔','লাইসেন্স সমস্যা'];
+  const canKey = typeof LICENSE_PUBLIC_KEY!=='undefined' && LICENSE_PUBLIC_KEY && reason!=='suspended';
   statusEl.innerHTML = `
-    <div style="text-align:center;max-width:380px;margin:0 auto;">
-      <div style="font-size:34px;margin-bottom:8px;">${reason==='expired'?'⏳':'⛔'}</div>
-      <div style="font-weight:800;font-size:16px;margin-bottom:10px;">${title}</div>
-      <div style="font-size:13px;color:var(--muted);line-height:1.9;margin-bottom:16px;">
+    <div style="text-align:center;max-width:400px;margin:0 auto;">
+      <div style="font-size:34px;margin-bottom:8px;">${T[0]}</div>
+      <div style="font-weight:800;font-size:16px;margin-bottom:10px;">${T[1]}</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.9;margin-bottom:12px;">
         ${lic?`প্রতিষ্ঠান: <b style="color:var(--ink);">${esc(lic.clientName||'-')}</b><br>মেয়াদ ছিল: <b style="color:var(--ink);">${lic.expiryDateStr?fmtDate(lic.expiryDateStr):'-'}</b><br>`:''}
-        অ্যাপ আবার ব্যবহার করতে লাইসেন্স নবায়ন/সক্রিয় করা প্রয়োজন — নিচের ঠিকানায় যোগাযোগ করুন।
+        ${canKey?'বিক্রেতার কাছ থেকে নতুন লাইসেন্স কী নিয়ে নিচে পেস্ট করুন।':'অ্যাপ আবার ব্যবহার করতে লাইসেন্স নবায়ন/সক্রিয় করা প্রয়োজন — নিচের ঠিকানায় যোগাযোগ করুন।'}
       </div>
-      <div class="about-links" style="max-width:320px;margin:0 auto;">
+      ${canKey?licenseKeyBoxHtml():''}
+      <div class="about-links" style="max-width:320px;margin:12px auto 0;">
         <a class="about-link" href="tel:${VENDOR.phone}">📞 ${VENDOR.phone}</a>
         <a class="about-link" href="mailto:${VENDOR.email}">✉️ ইমেইল</a>
       </div>
@@ -154,6 +220,7 @@ function settingsLicenseHtml(){
     </div>
     <div class="set-note">মেয়াদ, সর্বোচ্চ ইউজার/ডিভাইস সংখ্যা শুধু বিক্রেতা বদলাতে পারেন। নবায়ন বা সীমা বাড়াতে যোগাযোগ করুন:
       <b>${esc(VENDOR.phone)}</b> / <b>${esc(VENDOR.email)}</b></div>
+    ${(lic.viaKey && hasAccess('admin'))?`<details style="margin-top:10px;"><summary style="cursor:pointer;font-weight:700;">🔄 নবায়ন — নতুন লাইসেন্স কী বসান</summary>${licenseKeyBoxHtml()}</details>`:''}
   </div>
   <div class="card set-card" style="margin-top:16px;" id="licDevicesCard"><h3>💻 নিবন্ধিত ডিভাইস</h3><div style="color:var(--muted);padding:12px;text-align:center;">লোড হচ্ছে...</div></div>`;
 }
