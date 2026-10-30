@@ -7,12 +7,12 @@
    ৩) VENDOR          → বিক্রেতার (আপনার) যোগাযোগের তথ্য — লাইসেন্স-বন্ধ/মেয়াদ-শেষ স্ক্রিনে দেখায়
    ===================================================================== */
 const firebaseConfig = {
-    apiKey: "AIzaSyAvR4gXtAr5BTtsx8c1j66SU-QC0vuQMnk",
-    authDomain: "shopbznes.firebaseapp.com",
-    projectId: "shopbznes",
-    storageBucket: "shopbznes.firebasestorage.app",
-    messagingSenderId: "767874249802",
-    appId: "1:767874249802:web:54cfbd3832e430986222b3"
+  apiKey: "AIzaSyDrFR9Ycw4xpeaueNn92wWrT3c2diD1cLM",
+  authDomain: "bzneserp.firebaseapp.com",
+  projectId: "bzneserp",
+  storageBucket: "bzneserp.firebasestorage.app",
+  messagingSenderId: "412722396147",
+  appId: "1:412722396147:web:ddbf530520c5b662f67086"
 };
 
 const LICENSE_NO = '';          // যেমন: 'BERP-2610-0001-K7' (খালি থাকলে শুধু Firestore-এর নম্বর দেখানো হবে)
