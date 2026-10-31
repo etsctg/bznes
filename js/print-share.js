@@ -95,7 +95,7 @@ function buildDueModel(rec){
     totals:[{label:'আগের বাকি', value:money(rec.dueBefore)},
             {label: rec.type==='customer'?'জমা নেওয়া হলো':'পরিশোধ করা হলো', value:money(rec.amount)},
             {label:'নতুন বাকি', value:money(rec.dueAfter), bold:true}],
-    by: rec.by||'', footer: esc(DB.settings?.footer||'ধন্যবাদান্তে, আপনার ব্যবসা প্রতিষ্ঠান।'),
+    by: maskUser(rec.by)||'', footer: esc(DB.settings?.footer||'ধন্যবাদান্তে, আপনার ব্যবসা প্রতিষ্ঠান।'),
     waPhone: waNumber(party&&party.phone),
     waText: `${DB.settings?.shopName||'ব্যবসা ম্যানেজার'}\n${rec.type==='customer'?'জমা রশিদ':'পরিশোধ রশিদ'} ${refNo('PMT',rec.id)} (${fmtDate(rec.date)})\nপরিমাণ: ${money(rec.amount)}\nনতুন বাকি: ${money(rec.dueAfter)}\nধন্যবাদ।`};
 }

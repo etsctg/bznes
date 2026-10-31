@@ -55,7 +55,7 @@ async function loadRecentDuePayments(){
     <table>
       <tr><th>তারিখ</th><th>ধরন</th><th>নাম</th><th class="num">পরিমাণ</th><th class="num">নতুন বাকি</th><th>গ্রহণকারী</th><th></th></tr>
       ${rows.map(r=>`<tr><td>${fmtDate(r.date)}</td><td>${r.type==='customer'?'জমা নেওয়া':'পরিশোধ করা'}</td><td>${esc(r.partyName)}</td>
-        <td class="num">${money(r.amount)}</td><td class="num">${money(r.dueAfter)}</td><td>${esc(r.by||'-')}</td>
+        <td class="num">${money(r.amount)}</td><td class="num">${money(r.dueAfter)}</td><td>${esc(maskUser(r.by)||'-')}</td>
         <td><button class="icon-btn" onclick='printDuePaymentReceipt(${attrJson(r)})' title="প্রিন্ট">🖨️</button><button class="icon-btn" onclick='shareDuePaymentReceipt(${attrJson(r)})' title="ছবি শেয়ার">📤</button></td></tr>`).join('')
         || `<tr><td colspan="7" style="text-align:center;color:var(--muted);">এখনো কোনো রেকর্ড নেই</td></tr>`}
     </table>

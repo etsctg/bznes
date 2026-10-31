@@ -409,7 +409,7 @@ function syncTopbar(){
 let statsStale = false;
 let pageHostId = 'mainArea';
 function pageHost(){ return document.getElementById(pageHostId) || document.getElementById('mainArea'); }
-const APP_VERSION = '3.9.3';
+const APP_VERSION = '3.11.0';
 (function(){ const e=document.getElementById('appVerTxt'); if(e) e.textContent = APP_VERSION; })();
 const ROLE_LEVEL = {user:1, manager:2, director:3, admin:4};
 function hasAccess(minRole){ return ROLE_LEVEL[currentUser.role] >= ROLE_LEVEL[minRole]; }
@@ -425,7 +425,31 @@ const PAGES = [
   {key:'reports', label:'লাভ-ক্ষতির রিপোর্ট', ic:'📈', minView:'director'},
   {key:'settings', label:'সেটিংস', ic:'⚙️', minView:'user'},
 ];
-const ROLE_NAME_BN = {user:'ইউজার', manager:'ম্যানেজার', director:'ডাইরেক্টর', admin:'এডমিন'};
+/* রোলের ভেতরের কী (admin/director) আগের মতোই — শুধু দেখানোর নাম বদলেছে: admin = সুপার এডমিন, director = এডমিন */
+const ROLE_NAME_BN = {user:'ইউজার', manager:'ম্যানেজার', director:'এডমিন', admin:'সুপার এডমিন'};
+/* এডমিন (director) রোলের দায়িত্ব — সুপার এডমিন সেটিংস → "এডমিনের দায়িত্ব" থেকে টিকমার্ক দিয়ে ঠিক করেন */
+const ADMIN_PERM_DEFS = [
+  {k:'users',         label:'ইউজার ম্যানেজমেন্ট',                 hint:'নতুন ইউজার, রোল বদল, পাসওয়ার্ড রিসেট, লগইন বন্ধ/মোছা — সুপার এডমিন বাদে সবার',   def:true},
+  {k:'backup',        label:'ব্যাকআপ ডাউনলোড ও হিসাব পুনঃগণনা',   hint:'রিস্টোর ও সম্পূর্ণ ডেটা মোছা সবসময় শুধু সুপার এডমিন',                         def:true},
+  {k:'log',           label:'অ্যাক্টিভিটি লগ দেখা',                hint:'সুপার এডমিনের নিজের কাজ এডমিনের লগে দেখায় না',                                 def:true},
+  {k:'license',       label:'লাইসেন্সের তথ্য দেখা',                hint:'মেয়াদ, সীমা ও নিবন্ধিত ডিভাইসের তালিকা',                                       def:true},
+  {k:'licenseManage', label:'লাইসেন্স কী বসানো ও ডিভাইস সরানো',   hint:'নবায়নের কী পেস্ট এবং পুরনো ডিভাইস মুছে দেওয়া',                                 def:false},
+  {k:'reports',       label:'লাভ-ক্ষতির রিপোর্ট দেখা',             hint:'মেনুর "রিপোর্ট" পেজ',                                                           def:true}
+];
+function can(perm){
+  if(!currentUser) return false;
+  if(currentUser.role==='admin') return true;                 // সুপার এডমিনের সব ক্ষমতা
+  if(currentUser.role!=='director') return false;
+  const d = ADMIN_PERM_DEFS.find(x=>x.k===perm); if(!d) return false;
+  const v = DB.settings && DB.settings.adminPerms ? DB.settings.adminPerms[perm] : undefined;
+  return v===undefined ? d.def : !!v;
+}
+/* সুপার এডমিনের নাম/কাজ অন্য কোনো রোলের কাছে দেখানো হয় না (ভাউচারের "এন্ট্রি করেছেন", রসিদের "গ্রহণ করেছেন", স্টক-হিস্টোরি ইত্যাদিতে) */
+function maskUser(name){
+  if(!name || !currentUser || currentUser.role==='admin') return name||'';
+  return DB.users.some(u=>u.role==='admin' && u.name===name) ? '' : name;
+}
+function canViewPage(p){ return p.key==='reports' && currentUser.role==='director' ? can('reports') : hasAccess(p.minView); }
 
 function enterApp(){
   document.getElementById('loginScreen').style.display='none';
@@ -438,15 +462,25 @@ function enterApp(){
   resetInactivityTimer();
   document.body.classList.add('in-app');
   try{ syncTopbar(); if(hasAccess('director')) checkStatsHealth(); }catch(e){}
+  try{ updateLicenseChip(); }catch(e){}
   document.getElementById('fabSale').classList.remove('hidden');
   document.getElementById('fabPurchase').classList.toggle('hidden', !hasAccess('manager'));
+  positionFab();
   renderPage('dashboard');
 }
+/* ক্রয়-বিক্রয় বাটন সংযোগ-ব্যাজের ঠিক উপরে বসে — থিম/ফন্ট/স্ক্রিন যাই হোক, ভার্সনের উপর উঠে আসে না */
+function positionFab(){
+  const ref = document.getElementById('connBadge') || document.querySelector('.app-ver'); if(!ref) return;
+  const r = ref.getBoundingClientRect(); if(!r.width && !r.height) return;   // সাইডবার লুকানো (মোবাইল) হলে CSS-এর মানই থাকে
+  document.documentElement.style.setProperty('--fabbottom', Math.max(8, Math.round(window.innerHeight - r.top + 6))+'px');
+}
+window.addEventListener('resize', ()=>{ try{ positionFab(); }catch(e){} });
+if(window.ResizeObserver){ const _ro = new ResizeObserver(()=>{ try{ positionFab(); }catch(e){} }); document.addEventListener('DOMContentLoaded', ()=>{ const f = document.querySelector('.sidebar-foot'); if(f) _ro.observe(f); const s = document.querySelector('.sidebar'); if(s) _ro.observe(s); }); }
 function buildNav(){
   const nav = document.getElementById('navList');
   nav.innerHTML = '';
   PAGES.forEach(p=>{
-    if(!hasAccess(p.minView)) return;
+    if(!canViewPage(p)) return;
     const div = document.createElement('div');
     div.className = 'nav-item' + (p.key===currentPage?' active':'');
     div.id = 'nav-'+p.key;
@@ -462,7 +496,7 @@ function setActiveNav(key){
 }
 function renderPage(key){
   const page = PAGES.find(p=>p.key===key);
-  if(!page || !hasAccess(page.minView)){
+  if(!page || !canViewPage(page)){
     document.getElementById('mainArea').innerHTML = `<div class="access-denied"><div class="ic">🔒</div><h3>এই সেকশনে প্রবেশের অনুমতি নেই</h3><p>আপনার রোল: ${ROLE_NAME_BN[currentUser.role]}</p></div>`;
     return;
   }
@@ -493,7 +527,7 @@ function toggleTopMenu(e){
   if(e) e.stopPropagation();
   const m = document.getElementById('tbMenu'); if(!m || !currentUser) return;
   if(m.classList.contains('show')){ closeTopMenu(); return; }
-  const nextTheme = {dark:'☀️ লাইট থিম', light:'🪟 Windows XP থিম', xp:'🌙 ডার্ক থিম'}[currentTheme()];
+  const nextTheme = THEME_LABEL[THEMES[(THEMES.indexOf(currentTheme())+1)%THEMES.length]];
   m.innerHTML = `
     <div class="tbm-user"><div class="brand-mark">${esc(currentUser.name.charAt(0))}</div>
       <div><b>${esc(currentUser.name)}</b><span class="role-badge" style="margin:0;font-size:10px;">${ROLE_NAME_BN[currentUser.role]}</span>
@@ -544,20 +578,22 @@ window.addEventListener('offline', updateConnBadge);
 
 /* ================= THEME ================= */
 const THEMES = ['dark','light','xp'];
-function currentTheme(){ const t = document.documentElement.getAttribute('data-theme'); return t==='light'||t==='xp' ? t : 'dark'; }
+const THEME_LABEL = {dark:'🌙 ডার্ক থিম', light:'☀️ লাইট থিম', xp:'🪟 Windows XP (Luna)'};
+function currentTheme(){ const t = document.documentElement.getAttribute('data-theme'); return THEMES.indexOf(t)>0 ? t : 'dark'; }
 function applyTheme(t){
   if(t==='dark') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t);
   try{ localStorage.setItem('erp_theme', t); }catch(e){}
   applyThemeIcon();
+  requestAnimationFrame(()=>{ try{ positionFab(); }catch(e){} });   // থিম বদলালে সাইডবারের নিচের অংশের মাপ বদলায়
 }
 function applyThemeIcon(){
-  const ic = {dark:'🌙', light:'☀️', xp:'🪟'}[currentTheme()];
+  const cur = currentTheme(), ic = cur==='dark' ? '🌙' : (cur==='light' ? '☀️' : '🪟');
   ['themeToggleBtn','themeToggleBtn2'].forEach(id=>{ const btn = document.getElementById(id); if(btn) btn.textContent = ic; });
 }
-/* থিম ঘোরে: ডার্ক → লাইট → Windows XP → ডার্ক */
+/* থিম ঘোরে: ডার্ক → লাইট → Windows XP (Luna) → ডার্ক */
 function toggleTheme(){
   applyTheme(THEMES[(THEMES.indexOf(currentTheme())+1)%THEMES.length]);
-  if(currentUser) renderPage(currentPage); // চার্টের রং রিফ্রেশ করতে পুনরায় আঁকা হয়
+  if(currentUser) renderPage(currentPage);
 }
 applyThemeIcon();
 

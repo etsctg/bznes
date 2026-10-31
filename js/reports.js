@@ -211,14 +211,14 @@ function aggregateParties(sales, purchases){
     const c = cust[s.customerId] || (cust[s.customerId] = {name:s.customerName||'—', n:0, total:0, paid:0, due:0, profit:0});
     const netT = (s.total||0) - (s.returnedTotal||0), netC = saleCogs(s) - (s.returnedCogs||0);
     c.n++; c.total += netT; c.paid += s.paid||0; c.due += s.due||0; c.profit += netT - netC;
-    const un = s.createdBy || 'অজানা';
+    const un = maskUser(s.createdBy) || 'অজানা';
     const u = usr[un] || (usr[un] = {name:un, sn:0, stotal:0, sprofit:0, pn:0, ptotal:0});
     u.sn++; u.stotal += netT; u.sprofit += netT - netC;
   });
   purchases.forEach(p=>{
     const c = sup[p.supplierId] || (sup[p.supplierId] = {name:p.supplierName||'—', n:0, total:0, paid:0, due:0});
     c.n++; c.total += p.total||0; c.paid += p.paid||0; c.due += p.due||0;
-    const un = p.createdBy || 'অজানা';
+    const un = maskUser(p.createdBy) || 'অজানা';
     const u = usr[un] || (usr[un] = {name:un, sn:0, stotal:0, sprofit:0, pn:0, ptotal:0});
     u.pn++; u.ptotal += p.total||0;
   });

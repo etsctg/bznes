@@ -96,7 +96,7 @@ function buildReturnModel(rec){
   const ref = refNo('RET', rec.id);
   return {title:'বিক্রয় ফেরত রশিদ', file:ref,
     meta:[['রশিদ #',ref],['তারিখ',fmtDate(rec.date)],['কাস্টমার',esc(rec.customerName)],['মূল ইনভয়েস',esc(rec.saleRef)]],
-    items, totals, rateLabel:'দর', by: rec.createdBy||'', footer: esc(DB.settings?.footer||'ধন্যবাদ।'),
+    items, totals, rateLabel:'দর', by: maskUser(rec.createdBy)||'', footer: esc(DB.settings?.footer||'ধন্যবাদ।'),
     waPhone: waNumber(cust&&cust.phone),
     waText: `${DB.settings?.shopName||'ব্যবসা ম্যানেজার'}\nবিক্রয় ফেরত ${ref} (${fmtDate(rec.date)})\nমূল ইনভয়েস: ${rec.saleRef}\nফেরতের মূল্য: ${money(rec.amount)}\nনগদ ফেরত: ${money(rec.cashRefund)}`};
 }

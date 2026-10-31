@@ -3,17 +3,20 @@
    অ্যাকাউন্ট, ব্যাকআপ/রিস্টোর, অ্যাক্টিভিটি লগ, Help ও About। */
 
 /* ================= USER MANAGEMENT (Admin only) ================= */
+/* সুপার এডমিন সবাইকে; এডমিন (ইউজার-ম্যানেজমেন্টের অনুমতি থাকলে) সুপার এডমিন ছাড়া বাকি সবাইকে ম্যানেজ করতে পারেন */
+function canManageUser(u){ return !!currentUser && (currentUser.role==='admin' || (can('users') && u.role!=='admin')); }
+function assignableRoles(){ return currentUser.role==='admin' ? ['user','manager','director','admin'] : ['user','manager','director']; }
 function activeAdminCount(exceptId){ return DB.users.filter(u=>u.role==='admin' && !u.disabled && u.id!==exceptId).length; }
 function renderUsers(){
   pageHost().innerHTML = `
     <div class="topbar">
-      <div><h2>ইউজার ম্যানেজমেন্ট</h2><div class="sub">নতুন ইউজার, রোল পরিবর্তন, পাসওয়ার্ড রিসেট, লগইন বন্ধ ও মোছা — শুধু এডমিন</div></div>
+      <div><h2>ইউজার ম্যানেজমেন্ট</h2><div class="sub">নতুন ইউজার, রোল পরিবর্তন, পাসওয়ার্ড রিসেট, লগইন বন্ধ ও মোছা — ${currentUser.role==='admin'?'সুপার এডমিন':'সুপার এডমিন বাদে সবার জন্য'}</div></div>
       <button class="btn btn-gold" onclick="openUserModal()">+ নতুন ইউজার যোগ করুন</button>
     </div>
     <div class="card"><div class="tbl-wrap">
       <table>
         <tr><th>নাম</th><th>ইউজারনেম</th><th>রোল</th><th>অবস্থা</th><th>অ্যাকশন</th></tr>
-        ${DB.users.map(u=>{
+        ${DB.users.filter(u=>canManageUser(u) || (currentUser && u.id===currentUser.id)).map(u=>{
           const me = currentUser && u.id===currentUser.id;
           return `<tr><td>${esc(u.name)}${me?' <span class="pill ok">আপনি</span>':''}</td><td>${esc(u.username)}</td>
             <td><span class="role-badge">${ROLE_NAME_BN[u.role]}</span></td>
@@ -31,12 +34,13 @@ function renderUsers(){
 }
 function openEditUserModal(id){
   const u = DB.users.find(x=>x.id===id); if(!u) return;
+  if(!canManageUser(u)){ alert('এই ইউজার ম্যানেজ করার অনুমতি আপনার নেই।'); return; }
   openModal(`
     <h3>✏️ ইউজার এডিট — @${esc(u.username)}</h3>
     <div class="form-row full"><label>পূর্ণ নাম</label><input id="eu_name" value="${esc(u.name)}"></div>
     <div class="form-row full"><label>রোল / এক্সেস লেভেল</label>
       <select id="eu_role">
-        ${['user','manager','director','admin'].map(r=>`<option value="${r}" ${u.role===r?'selected':''}>${ROLE_NAME_BN[r]} (${r})</option>`).join('')}
+        ${assignableRoles().map(r=>`<option value="${r}" ${u.role===r?'selected':''}>${ROLE_NAME_BN[r]}</option>`).join('')}
       </select>
     </div>
     <div class="modal-actions">
@@ -46,6 +50,7 @@ function openEditUserModal(id){
 }
 function saveEditUser(id){
   const u = DB.users.find(x=>x.id===id); if(!u) return;
+  if(!canManageUser(u) || (document.getElementById('eu_role').value==='admin' && currentUser.role!=='admin')){ alert('এই পরিবর্তনের অনুমতি আপনার নেই।'); return; }
   const name = document.getElementById('eu_name').value.trim();
   const role = document.getElementById('eu_role').value;
   if(!name){ alert('নাম দিন'); return; }
@@ -61,6 +66,7 @@ function genPassword(){
 }
 function openResetPasswordModal(id){
   const u = DB.users.find(x=>x.id===id); if(!u) return;
+  if(!canManageUser(u)){ alert('এই ইউজার ম্যানেজ করার অনুমতি আপনার নেই।'); return; }
   openModal(`
     <h3>🔑 পাসওয়ার্ড রিসেট — ${esc(u.name)} (@${esc(u.username)})</h3>
     <div class="form-row full"><label>নতুন পাসওয়ার্ড (কমপক্ষে ৬ ক্যারেক্টার)</label>
@@ -91,6 +97,7 @@ async function saveResetPassword(id){
 }
 function toggleUserActive(id){
   const u = DB.users.find(x=>x.id===id); if(!u) return;
+  if(!canManageUser(u)){ alert('এই ইউজার ম্যানেজ করার অনুমতি আপনার নেই।'); return; }
   const turnOff = !u.disabled;
   if(turnOff && u.role==='admin' && activeAdminCount(id)===0){ alert('কমপক্ষে একজন সক্রিয় এডমিন রাখতে হবে।'); return; }
   if(!confirm(turnOff ? `"${u.name}" এর লগইন বন্ধ করবেন? (সে চালু থাকলে সাথে সাথে লগআউট হয়ে যাবে)` : `"${u.name}" এর লগইন আবার চালু করবেন?`)) return;
@@ -109,10 +116,10 @@ function openUserModal(){
     </div>
     <div class="form-row full"><label>রোল / এক্সেস লেভেল</label>
       <select id="uf_role">
-        <option value="user">User (ইউজার — সীমিত অ্যাক্সেস)</option>
-        <option value="manager">Manager (ম্যানেজার)</option>
-        <option value="director">Director (ডাইরেক্টর)</option>
-        <option value="admin">Admin (সম্পূর্ণ অ্যাক্সেস)</option>
+        <option value="user">ইউজার — সীমিত অ্যাক্সেস</option>
+        <option value="manager">ম্যানেজার</option>
+        <option value="director">এডমিন — সুপার এডমিনের ঠিক করা দায়িত্ব অনুযায়ী</option>
+        ${currentUser.role==='admin'?'<option value="admin">সুপার এডমিন — সম্পূর্ণ অ্যাক্সেস</option>':''}
       </select>
     </div>
     <div class="modal-actions">
@@ -123,6 +130,8 @@ function openUserModal(){
   setTimeout(()=>document.getElementById('uf_name')?.focus(), 0);
 }
 async function saveUser(){
+  if(document.getElementById('uf_role').value==='admin' && currentUser.role!=='admin'){ alert('সুপার এডমিন তৈরির অনুমতি আপনার নেই।'); return; }
+  if(!can('users')){ alert('ইউজার তৈরির অনুমতি নেই।'); return; }
   const name = document.getElementById('uf_name').value.trim();
   const username = document.getElementById('uf_username').value.trim();
   const password = document.getElementById('uf_password').value;
@@ -141,6 +150,7 @@ async function saveUser(){
 }
 function deleteUser(id){
   const u = DB.users.find(x=>x.id===id); if(!u) return;
+  if(!canManageUser(u)){ alert('এই ইউজার ম্যানেজ করার অনুমতি আপনার নেই।'); return; }
   if(currentUser && id===currentUser.id){ alert('নিজের অ্যাকাউন্ট নিজে মোছা যায় না।'); return; }
   if(u.id===1){ alert('প্রধান এডমিন মোছা যায় না।'); return; }
   if(u.role==='admin' && activeAdminCount(id)===0){ alert('কমপক্ষে একজন সক্রিয় এডমিন রাখতে হবে।'); return; }
@@ -189,11 +199,30 @@ function settingsTabList(){
     {k:'shop',    ic:'🏪', label:'দোকানের তথ্য',        min:'director'},
     {k:'print',   ic:'🖨️', label:'প্রিন্ট',              min:'user'},
     {k:'account', ic:'👤', label:'আমার অ্যাকাউন্ট',      min:'user'},
-    {k:'users',   ic:'🔐', label:'ইউজার ম্যানেজমেন্ট',   min:'admin'},
-    {k:'backup',  ic:'♻️', label:'ব্যাকআপ / রিস্টোর',    min:'director'},
-    {k:'audit',   ic:'📜', label:'অ্যাক্টিভিটি লগ',      min:'admin'},
-    {k:'license', ic:'🔑', label:'লাইসেন্স',             min:'admin'}
-  ].filter(t=>hasAccess(t.min));
+    {k:'users',   ic:'🔐', label:'ইউজার ম্যানেজমেন্ট',   min:'director', perm:'users'},
+    {k:'backup',  ic:'♻️', label:'ব্যাকআপ / রিস্টোর',    min:'director', perm:'backup'},
+    {k:'audit',   ic:'📜', label:'অ্যাক্টিভিটি লগ',      min:'director', perm:'log'},
+    {k:'license', ic:'🔑', label:'লাইসেন্স',             min:'director', perm:'license'},
+    {k:'duties',  ic:'✅', label:'এডমিনের দায়িত্ব',     min:'admin'}
+  ].filter(t=>hasAccess(t.min) && (!t.perm || can(t.perm)));
+}
+/* ===== এডমিনের দায়িত্ব (শুধু সুপার এডমিন) ===== */
+function settingsDutiesHtml(){
+  return `<div class="card set-card">
+    <h3>✅ এডমিনের দায়িত্ব ও কাজ</h3>
+    <div class="set-note" style="margin-bottom:10px;">"এডমিন" রোলের ইউজাররা কোন কোন কাজ করতে পারবেন — টিকমার্ক দিয়ে ঠিক করুন। টিক না থাকলে ওই সেটিংস-ট্যাব বা কাজ তাদের কাছে দেখাই যাবে না। সুপার এডমিনের সব ক্ষমতা সবসময় থাকে।</div>
+    ${ADMIN_PERM_DEFS.map(d=>{ const v = DB.settings&&DB.settings.adminPerms ? DB.settings.adminPerms[d.k] : undefined; const on = v===undefined ? d.def : !!v;
+      return `<label style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer;"><input type="checkbox" id="ap_${d.k}" ${on?'checked':''} style="margin-top:4px;"><span><b>${d.label}</b><br><span style="font-size:12px;color:var(--muted);">${d.hint}</span></span></label>`; }).join('')}
+    <div class="set-note" style="margin:10px 0;">সবসময় যা এডমিনের জন্য বন্ধ: দোকানের তথ্য বদলানো (শুধু দেখতে পারেন), ব্যাকআপ রিস্টোর, সম্পূর্ণ ডেটা মোছা, সুপার এডমিন অ্যাকাউন্ট দেখা/বদলানো।</div>
+    <button class="btn btn-gold" onclick="saveAdminPerms()">💾 সংরক্ষণ করুন</button>
+  </div>`;
+}
+function saveAdminPerms(){
+  if(currentUser.role!=='admin') return;
+  const perms = {}; ADMIN_PERM_DEFS.forEach(d=>{ perms[d.k] = !!document.getElementById('ap_'+d.k).checked; });
+  fireWrite(fsDB.collection('erp_settings').doc('business').set({adminPerms:perms}, {merge:true}), 'এডমিনের দায়িত্ব');
+  logAudit('এডমিনের দায়িত্ব পরিবর্তন', ADMIN_PERM_DEFS.filter(d=>perms[d.k]).map(d=>d.label).join(', ')||'কোনোটিই নয়');
+  toast('✅ সংরক্ষণ হয়েছে');
 }
 function renderSettings(){
   const tabs = settingsTabList();
@@ -213,20 +242,20 @@ function renderSettingsBody(){
     finally{ pageHostId = 'mainArea'; }
     return;
   }
-  host.innerHTML = settingsTab==='shop' ? settingsShopHtml() : (settingsTab==='print' ? settingsPrintHtml() : (settingsTab==='license' ? settingsLicenseHtml() : settingsAccountHtml()));
+  host.innerHTML = settingsTab==='shop' ? settingsShopHtml() : (settingsTab==='print' ? settingsPrintHtml() : (settingsTab==='license' ? settingsLicenseHtml() : (settingsTab==='duties' ? settingsDutiesHtml() : settingsAccountHtml())));
   if(settingsTab==='shop') updateShopPreview();
   if(settingsTab==='license') loadLicenseDevices();
 }
 function settingsShopHtml(){
-  const st = DB.settings || {};
+  const st = DB.settings || {}, ro = currentUser.role!=='admin';
   return `<div class="card set-card">
     <h3>🏪 দোকানের তথ্য</h3>
     <div class="recv-preview" id="shopPreview"></div>
-    <div class="form-row full"><label>দোকান/প্রতিষ্ঠানের নাম</label><input id="st_name" value="${esc(st.shopName||'')}" oninput="updateShopPreview()"></div>
-    <div class="form-row full"><label>ঠিকানা (ঐচ্ছিক)</label><input id="st_addr" value="${esc(st.address||'')}" oninput="updateShopPreview()"></div>
-    <div class="form-row full"><label>ফোন নম্বর (ঐচ্ছিক)</label><input id="st_phone" value="${esc(st.phone||'')}" oninput="updateShopPreview()"></div>
-    <div class="form-row full"><label>ভাউচারের নিচে ফুটার লাইন</label><input id="st_footer" value="${esc(st.footer||'')}" oninput="updateShopPreview()"></div>
-    <button class="btn btn-gold" onclick="saveShopInfo()">💾 সংরক্ষণ করুন</button>
+    <div class="form-row full"><label>দোকান/প্রতিষ্ঠানের নাম</label><input id="st_name" value="${esc(st.shopName||'')}" oninput="updateShopPreview()" ${ro?'disabled':''}></div>
+    <div class="form-row full"><label>ঠিকানা (ঐচ্ছিক)</label><input id="st_addr" value="${esc(st.address||'')}" oninput="updateShopPreview()" ${ro?'disabled':''}></div>
+    <div class="form-row full"><label>ফোন নম্বর (ঐচ্ছিক)</label><input id="st_phone" value="${esc(st.phone||'')}" oninput="updateShopPreview()" ${ro?'disabled':''}></div>
+    <div class="form-row full"><label>ভাউচারের নিচে ফুটার লাইন</label><input id="st_footer" value="${esc(st.footer||'')}" oninput="updateShopPreview()" ${ro?'disabled':''}></div>
+    ${ro?'<div class="set-note">🔒 দোকানের তথ্য শুধু দেখার জন্য — বদলাতে সুপার এডমিন লাগবে।</div>':'<button class="btn btn-gold" onclick="saveShopInfo()">💾 সংরক্ষণ করুন</button>'}
     <div class="set-note">উপরের বক্সটা ভাউচারের মাথায় ও নিচে যেভাবে ছাপা হবে তার নমুনা। এই তথ্য বিক্রয় ইনভয়েস, ক্রয় ভাউচার ও বাকি জমা/পরিশোধ রশিদে ব্যবহার হয়।</div>
   </div>`;
 }
@@ -236,6 +265,7 @@ function updateShopPreview(){
   el.innerHTML = `<h4>${esc(v('st_name')||'ব্যবসা ম্যানেজার')}</h4>${v('st_addr')?`<div>${esc(v('st_addr'))}</div>`:''}${v('st_phone')?`<div>ফোন: ${esc(v('st_phone'))}</div>`:''}<div style="font-size:11px;color:var(--muted);margin-top:6px;">${esc(v('st_footer'))}</div>`;
 }
 function saveShopInfo(){
+  if(currentUser.role!=='admin'){ alert('দোকানের তথ্য শুধু সুপার এডমিন বদলাতে পারেন।'); return; }
   const data = {
     shopName: document.getElementById('st_name').value.trim() || 'ব্যবসা ম্যানেজার',
     address: document.getElementById('st_addr').value.trim(),
@@ -276,7 +306,7 @@ function settingsPrintHtml(){
         </select>
       </div>
       <button class="btn btn-gold" onclick="savePrintDefault()">💾 সংরক্ষণ করুন</button>`
-      : `<div class="set-note">দোকানের ডিফল্ট: <b>${paperLabel(shopMode)}</b> (বদলাতে ডাইরেক্টর/এডমিন লাগবে)</div>`}
+      : `<div class="set-note">দোকানের ডিফল্ট: <b>${paperLabel(shopMode)}</b> (বদলাতে এডমিন/সুপার এডমিন লাগবে)</div>`}
     </div>
   </div>
   <div class="card" style="margin-top:16px;">
@@ -313,7 +343,7 @@ function settingsAccountHtml(){
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn btn-outline" onclick="openChangePasswordModal()">🔑 পাসওয়ার্ড পরিবর্তন</button>
-      <select onchange="applyTheme(this.value);renderPage(currentPage)" title="থিম" style="max-width:190px;"><option value="dark" ${themeNow==='dark'?'selected':''}>🌙 ডার্ক থিম</option><option value="light" ${themeNow==='light'?'selected':''}>☀️ লাইট থিম</option><option value="xp" ${themeNow==='xp'?'selected':''}>🪟 Windows XP থিম</option></select>
+      <select onchange="applyTheme(this.value);renderPage(currentPage)" title="থিম" style="max-width:190px;">${THEMES.map(t=>`<option value="${t}" ${themeNow===t?'selected':''}>${THEME_LABEL[t]}</option>`).join('')}</select>
       <button class="btn btn-outline" onclick="logoutWithBackupCheck()">🚪 লগআউট</button>
       ${SHOP_AUTH_REQUIRED?`<button class="btn btn-outline" onclick="disconnectShopDevice()">🔌 এই ডিভাইসের দোকান-সংযোগ বিচ্ছিন্ন করুন</button>`:''}
     </div>
@@ -371,8 +401,8 @@ function openHelp(){
     <table><tr><th>রোল</th><th>যা যা পারে</th></tr>
     <tr><td><b>User</b></td><td>ড্যাশবোর্ড, বিক্রয় এন্ট্রি, স্টক দেখা, নিজের এন্ট্রি এডিট, প্রিন্ট ও পাসওয়ার্ড বদল</td></tr>
     <tr><td><b>Manager</b></td><td>উপরেরগুলো + ক্রয়, বাকি/দেনা-পাওনা, খরচ, পণ্য যোগ/এডিট, যেকোনো এন্ট্রি এডিট/মোছা, ক্রয়মূল্য ও লাভ দেখা</td></tr>
-    <tr><td><b>Director</b></td><td>উপরেরগুলো + লাভ-ক্ষতির রিপোর্ট, দোকানের তথ্য ও ডিফল্ট প্রিন্ট সেটিং, ব্যাকআপ/রিস্টোর</td></tr>
-    <tr><td><b>Admin</b></td><td>সব কিছু + ইউজার ম্যানেজমেন্ট, অ্যাক্টিভিটি লগ, সম্পূর্ণ ডেটা মোছা</td></tr></table>
+    <tr><td><b>এডমিন</b></td><td>উপরেরগুলো + দোকানের তথ্য (শুধু দেখা), ডিফল্ট প্রিন্ট সেটিং; বাকি দায়িত্ব (ইউজার ম্যানেজমেন্ট, ব্যাকআপ, লগ, লাইসেন্স, রিপোর্ট) সুপার এডমিন টিকমার্ক দিয়ে ঠিক করেন — সুপার এডমিন ছাড়া সবাইকে ম্যানেজ করতে পারেন</td></tr>
+    <tr><td><b>সুপার এডমিন</b></td><td>সব কিছু + দোকানের তথ্য বদল, এডমিনের দায়িত্ব নির্ধারণ, রিস্টোর, সম্পূর্ণ ডেটা মোছা, লাইসেন্স কী বসানো</td></tr></table>
     <div class="help-tip">যার যতটুকু অনুমতি, সেটিংস ও মেনুতে শুধু ততটুকুই দেখা যায়।</div>`],
   ['🧾 নতুন বিক্রয় এন্ট্রি', `
     <ol>
@@ -433,7 +463,7 @@ function openHelp(){
     <ul>
       <li><b>খরচ</b> পেজে খাত, পরিমাণ, তারিখ ও নোট দিয়ে খরচ যোগ করুন (ম্যানেজার+)।</li>
       <li><b>ড্যাশবোর্ড:</b> সর্বমোট বিক্রয়/ক্রয়/খরচ/নীট লাভ, কাস্টমার বাকি ও সাপ্লায়ার দেনা, ৭ দিনের বিক্রয়-বনাম-ক্রয় ও লাভের ট্রেন্ড, আজকের খরচের বিভাজন, লো-স্টক তালিকা।</li>
-      <li><b>রিপোর্ট</b> (ডাইরেক্টর+): উপরে তারিখ বা "এই মাস/গত মাস/এই বছর" বাছুন। ট্যাব: <b>সারসংক্ষেপ</b> (বিক্রয়, COGS, গ্রস লাভ, খরচ, নীট লাভ), <b>দিনভিত্তিক/মাসভিত্তিক</b> (টেবিল ও চার্ট), <b>পণ্যভিত্তিক লাভ</b> (কোন পণ্যে কত বিক্রয় ও লাভ), <b>পার্টি/ইউজার</b> (কাস্টমার, সাপ্লায়ার ও ইউজারভিত্তিক)। লাভ = বিক্রয় − বিক্রিত পণ্যের (গড়) ক্রয়মূল্য − খরচ। পণ্যভিত্তিক ও পার্টি রিপোর্টে "রিপোর্ট তৈরি করুন" চাপতে হয় (ওই সময়ের এন্ট্রি পড়ে হিসাব করে)। যেকোনো রিপোর্ট <b>🖨️ প্রিন্ট</b> বা <b>⬇️ CSV</b> (Excel) করা যায়।</li>
+      <li><b>রিপোর্ট</b> (এডমিন+): উপরে তারিখ বা "এই মাস/গত মাস/এই বছর" বাছুন। ট্যাব: <b>সারসংক্ষেপ</b> (বিক্রয়, COGS, গ্রস লাভ, খরচ, নীট লাভ), <b>দিনভিত্তিক/মাসভিত্তিক</b> (টেবিল ও চার্ট), <b>পণ্যভিত্তিক লাভ</b> (কোন পণ্যে কত বিক্রয় ও লাভ), <b>পার্টি/ইউজার</b> (কাস্টমার, সাপ্লায়ার ও ইউজারভিত্তিক)। লাভ = বিক্রয় − বিক্রিত পণ্যের (গড়) ক্রয়মূল্য − খরচ। পণ্যভিত্তিক ও পার্টি রিপোর্টে "রিপোর্ট তৈরি করুন" চাপতে হয় (ওই সময়ের এন্ট্রি পড়ে হিসাব করে)। যেকোনো রিপোর্ট <b>🖨️ প্রিন্ট</b> বা <b>⬇️ CSV</b> (Excel) করা যায়।</li>
     </ul>`],
   ['🖨️ প্রিন্ট (A4 / থার্মাল)', `
     <ul>
@@ -477,7 +507,7 @@ function openHelp(){
       <li><b>"Missing or insufficient permissions"</b> → Firebase Console → Firestore → Rules এ firestore.rules.txt-এর রুলস বসিয়ে Publish করুন।</li>
       <li><b>"The query requires an index"</b> → কনসোলের এররে দেওয়া লিংকে ক্লিক করে ইনডেক্স তৈরি করুন; কয়েক মিনিট পর ঠিক হবে।</li>
       <li><b>প্রিন্ট ছোট/বড় আসছে</b> → <i>সেটিংস → প্রিন্ট</i>-এ কাগজের ধরন বদলান; ডায়ালগে Scale 100% রাখুন।</li>
-      <li><b>ড্যাশবোর্ড/রিপোর্টে ০ বা কম আসছে</b> → <i>সেটিংস → ব্যাকআপ / রিস্টোর → 🔄 হিসাব পুনঃগণনা</i> চাপুন (ডাইরেক্টর/এডমিন)। পুরনো এন্ট্রির সারসংক্ষেপ নতুন করে তৈরি হবে।</li>
+      <li><b>ড্যাশবোর্ড/রিপোর্টে ০ বা কম আসছে</b> → <i>সেটিংস → ব্যাকআপ / রিস্টোর → 🔄 হিসাব পুনঃগণনা</i> চাপুন (এডমিন/সুপার এডমিন)। পুরনো এন্ট্রির সারসংক্ষেপ নতুন করে তৈরি হবে।</li>
       <li><b>কাস্টমার/সাপ্লায়ার মুছতে</b> → বাকি/দেনা-পাওনা পেজে 🗑️ (বাকি ০ হলে এবং অন্তত একজন বাকি থাকলে)।</li>
       <li><b>লগইন বন্ধ</b> → ৫ বার ভুল পাসওয়ার্ডের পর ৫ মিনিট অপেক্ষা করুন।</li>
     </ul>`]
@@ -501,7 +531,9 @@ async function renderAuditLog(){
     <div class="topbar"><div><h2>অ্যাক্টিভিটি লগ</h2><div class="sub">সাম্প্রতিক ১০০টি স্পর্শকাতর কাজ (লগইন, ডিলিট, ডেটা মোছা/রিস্টোর ইত্যাদি)</div></div></div>
     <div class="card"><div class="tbl-wrap" id="auditWrap"><div style="text-align:center;color:var(--muted);padding:20px;">লোড হচ্ছে...</div></div></div>
   `;
-  const log = await loadAuditLog();
+  const logAll = await loadAuditLog();
+  const supers = new Set(DB.users.filter(u=>u.role==='admin').map(u=>u.username));
+  const log = currentUser.role==='admin' ? logAll : logAll.filter(l=>!supers.has(l.username));   // এডমিন সুপার এডমিনের কাজ দেখবে না
   if(!document.getElementById('auditWrap')) return;
   document.getElementById('auditWrap').innerHTML = `
     <table>
@@ -522,12 +554,14 @@ function renderBackup(){
         <p style="color:var(--muted);font-size:13px;margin-bottom:14px;">সমস্ত বিক্রয়, ক্রয়, স্টক, খরচ ও ইউজার তথ্য একটি JSON ফাইলে সংরক্ষণ হবে।</p>
         <button class="btn btn-gold" id="backupBtn" onclick="downloadBackup()">ব্যাকআপ ডাউনলোড করুন</button>
       </div>
+      ${currentUser.role==='admin' ? `
       <div class="card">
         <h3>⬆️ ব্যাকআপ রিস্টোর করুন</h3>
         <p style="color:var(--muted);font-size:13px;margin-bottom:14px;">⚠️ রিস্টোর করলে বর্তমান সব ডেটা প্রতিস্থাপিত হবে। সতর্কতার সাথে ব্যবহার করুন। (এই কাজটার জন্য ইন্টারনেট লাগবে)</p>
         <input type="file" id="restoreFile" accept=".json" style="margin-bottom:12px;color:var(--muted);">
         <br><button class="btn btn-danger" id="restoreBtn" onclick="restoreBackup()">রিস্টোর করুন</button>
       </div>
+      ` : `<div class="card"><h3>⬆️ ব্যাকআপ রিস্টোর</h3><p style="color:var(--muted);font-size:13px;">🔒 রিস্টোর শুধু সুপার এডমিন করতে পারেন (ব্যাকআপে ইউজার-অ্যাকাউন্টও থাকে, তাই এটা সুরক্ষিত রাখা হয়েছে)।</p></div>`}
     </div>
     <div class="card" style="margin-top:16px;">
       <h3>🔄 হিসাব পুনঃগণনা (ড্যাশবোর্ড/রিপোর্ট ঠিক করুন)</h3>
@@ -594,7 +628,7 @@ async function downloadBackup(){
     const exportObj = {
       purchaseReturns, duePayments, cashOpening,
       products: DB.products, customers: DB.customers, suppliers: DB.suppliers,
-      sales: allSales, purchases: allPurchases, returns: allReturns, expenses: DB.expenses, users: DB.users,
+      sales: allSales, purchases: allPurchases, returns: allReturns, expenses: DB.expenses, users: DB.users.filter(u=>currentUser.role==='admin' || u.role!=='admin'),   // এডমিনের ডাউনলোডে সুপার এডমিনের তথ্য/পাসওয়ার্ড-হ্যাশ যায় না
       settings: DB.settings,
       exportedAt: new Date().toISOString()
     };
@@ -708,6 +742,7 @@ function statsBannerHtml(){
     <button class="btn btn-gold small-btn" onclick="rebuildStatsFromData()">🔄 এখনই ঠিক করুন</button></div>`;
 }
 async function restoreBackup(){
+  if(currentUser.role!=='admin'){ alert('রিস্টোর শুধু সুপার এডমিন করতে পারেন।'); return; }
   if(!navigator.onLine){ alert('রিস্টোর করতে ইন্টারনেট সংযোগ লাগবে।'); return; }
   const file = document.getElementById('restoreFile').files[0];
   if(!file){ alert('একটি ব্যাকআপ ফাইল নির্বাচন করুন'); return; }

@@ -1,0 +1,251 @@
+/* =====================================================================
+   theme-xp.css — Windows XP (Luna) থিম: শুধু Luna নীল (xp)
+   ---------------------------------------------------------------------
+   আপনার দেওয়া theme-xp.css এর আদলে; শুধু html[data-theme^="xp"] থাকলেই প্রযোজ্য — ডার্ক/লাইট থিম অপরিবর্তিত।
+   টাইটেলবার/টাস্কবার/স্টার্ট-মেনু বাদ (আপনার নির্দেশ মতো); লগইন ও ডায়ালগের টাইটেল-স্ট্রিপ আছে।
+   স্ক্রিনে প্রযোজ্য — প্রিন্ট অপরিবর্তিত।
+   ===================================================================== */
+@media screen{
+
+
+/* ---------------- রঙের স্কিম ---------------- */
+html[data-theme^="xp"]{
+  /* Luna নীল (ডিফল্ট) */
+  --xp-title:linear-gradient(to bottom,#0997ff 0%,#0053ee 8%,#0050ee 40%,#0066ff 88%,#0066ff 93%,#005bff 95%,#003dd7 96%,#003dd7 100%);
+  --xp-title-text:#fff; --xp-title-shadow:#0f1089;
+  --xp-win-border:#0831d9;
+  --xp-side:linear-gradient(to bottom,#7ba2e7 0%,#6375d6 100%);
+  --xp-task:linear-gradient(to bottom,#3168d5 0%,#4993e6 3%,#2157d7 6%,#245edb 50%,#1c4fc4 90%,#1941a5 100%);
+  --xp-accent:#215dc6; --xp-select:#316ac5;
+  --xp-hdr:linear-gradient(to right,#ffffff 0%,#c6d3f7 100%);
+  --xp-navbody:#d6dff7;
+  --xp-welcome:#5a7edc;
+  --xp-bar:#00309c;
+  --xp-glow:#98b8ee;
+  --xp-face:#ece9d8; --xp-edge:#aca899; --xp-field:#7f9db9;
+
+  --bg:#ece9d8; --panel:#ffffff; --panel-2:#f4f2e8; --ink:#000000; --muted:#4f4f4f;
+  --gold:#3a8cf0; --gold-2:#215dc6;
+  --teal:#2a8a2a; --teal-2:#2f9a2f;
+  --danger:#d4301e; --line:#c9c3ad; --radius:3px;
+  --success:#1b7f1b; --danger-text:#b3200f; --warn-text:#8a5a00;
+  --pill-ok-bg:#d9f0d0; --pill-ok-text:#1b6b14;
+  --pill-warn-bg:#fff1c2; --pill-warn-text:#8a5a00;
+  --pill-bad-bg:#fbd5ce; --pill-bad-text:#a81a0a;
+  --blue:#245edb; --blue-2:#215dc6;
+  --purple:#6a4fc2; --purple-2:#6a3fc0;
+  --pink:#b24a85; --pink-2:#b0306f;
+  --amber:#b4791a; --amber-2:#a8650a;
+  --shadow-sm:inset 1px 1px 0 rgba(255,255,255,.9),0 1px 2px rgba(0,0,0,.18);
+  --shadow-md:0 4px 14px rgba(0,0,0,.4);
+}
+
+/* ---------------- সাধারণ ---------------- */
+html[data-theme^="xp"] body{
+  color:var(--ink);font-weight:400;
+  background:
+    radial-gradient(ellipse 130% 50% at 25% 112%,#6cc04a 0 58%,transparent 59%),
+    radial-gradient(ellipse 110% 42% at 88% 112%,#4fa534 0 58%,transparent 59%),
+    linear-gradient(to bottom,#2f6fd8 0%,#5b9cf0 40%,#a9d2f8 72%,#dcedfb 100%) fixed;
+}
+html[data-theme^="xp"] body.in-app{background:var(--xp-face);}
+html[data-theme^="xp"] label,html[data-theme^="xp"] th{font-weight:700;}
+html[data-theme^="xp"] b,html[data-theme^="xp"] strong{font-weight:700;}
+html[data-theme^="xp"] ::selection{background:#316ac5;color:#fff;}
+html[data-theme^="xp"] ::-webkit-scrollbar{width:16px;height:16px;}
+html[data-theme^="xp"] ::-webkit-scrollbar-track{background:#f3f0e8;border-left:1px solid #e0dccb;}
+html[data-theme^="xp"] ::-webkit-scrollbar-thumb{background:linear-gradient(to right,#c9dbfa 0%,#9bb8ef 45%,#c9dbfa 100%);border:1px solid #6b8ede;border-radius:3px;}
+html[data-theme^="xp"] ::-webkit-scrollbar-thumb:hover{background:linear-gradient(to right,#dbe7fc,#b0c8f5 45%,#dbe7fc);}
+html[data-theme^="xp"] ::-webkit-scrollbar-corner{background:#ece9d8;}
+
+/* ---------------- লগইন / বুট: Windows XP "Welcome" স্ক্রিন ---------------- */
+html[data-theme^="xp"] #loginScreen,html[data-theme^="xp"] #bootScreen{
+  background:
+    linear-gradient(to bottom,var(--xp-bar) 0,var(--xp-bar) 12%,transparent 12%),
+    linear-gradient(to top,var(--xp-bar) 0,var(--xp-bar) 12%,transparent 12%),
+    radial-gradient(circle at 18% 45%,rgba(255,255,255,.28) 0,transparent 45%),
+    var(--xp-welcome) !important;
+  position:relative;
+}
+html[data-theme^="xp"] #loginScreen::before,html[data-theme^="xp"] #loginScreen::after{content:"";position:absolute;left:0;right:0;height:3px;
+  background:linear-gradient(to right,transparent,#f0a030 30%,#f7d27a 50%,#f0a030 70%,transparent);}
+html[data-theme^="xp"] #loginScreen::before{top:12%;} html[data-theme^="xp"] #loginScreen::after{bottom:12%;}
+html[data-theme^="xp"] #loginScreen::before,html[data-theme^="xp"] #loginScreen::after{pointer-events:none;z-index:0;}
+html[data-theme^="xp"] #loginScreen .login-box{z-index:2;}
+html[data-theme^="xp"] .login-box{
+  position:relative;background:var(--xp-face);border:1px solid var(--xp-win-border);border-radius:8px 8px 3px 3px;
+  padding:46px 26px 24px;max-width:380px;box-shadow:3px 5px 14px rgba(0,0,0,.45);
+}
+html[data-theme^="xp"] .login-box::before{
+  content:"ব্যবসা ম্যানেজার";position:absolute;left:0;right:0;top:0;height:30px;line-height:30px;padding:0 10px;
+  background:var(--xp-title);color:var(--xp-title-text);font-weight:700;font-size:13px;
+  text-shadow:1px 1px 0 var(--xp-title-shadow);border-radius:7px 7px 0 0;
+}
+html[data-theme^="xp"] .brand-mark{
+  border-radius:3px;background:linear-gradient(to bottom,#7fb4ff,#245edb);color:#fff;
+  border:1px solid #0b3da8;box-shadow:inset 0 1px 0 rgba(255,255,255,.6);text-shadow:1px 1px 0 rgba(0,0,0,.35);
+}
+html[data-theme^="xp"] .brand h1{color:var(--xp-accent);}
+html[data-theme^="xp"] .brand p{color:var(--muted);}
+html[data-theme^="xp"] .login-box h2{color:var(--xp-accent);font-weight:700;}
+html[data-theme^="xp"] .login-hint{background:#ffffe1;border:1px solid #000;border-radius:3px;color:#000;}
+html[data-theme^="xp"] .login-err{color:var(--danger-text);}
+html[data-theme^="xp"] .field label,html[data-theme^="xp"] .form-row label{color:#000;font-weight:400;}
+html[data-theme^="xp"] .theme-toggle-btn{border-radius:3px;border:1px solid var(--xp-win-border);background:linear-gradient(#fff,#ecebe5);color:#000;box-shadow:1px 1px 3px rgba(0,0,0,.4);}
+
+/* ---------------- বাটন ---------------- */
+html[data-theme^="xp"] .btn,html[data-theme^="xp"] .small-btn{
+  border-radius:3px;border:1px solid #003c74;font-weight:400;color:#000;
+  background:linear-gradient(to bottom,#ffffff 0%,#f4f3ee 45%,#ecebe5 86%,#d6d0c5 100%);
+  box-shadow:none;transition:none;
+}
+html[data-theme^="xp"] .btn:hover,html[data-theme^="xp"] .small-btn:hover{
+  filter:none;transform:none;
+  box-shadow:inset 0 1px 0 #fff0cf,inset 0 -2px 0 #f8b330,inset 1px 0 0 #fbd27a,inset -1px 0 0 #fbd27a;
+}
+html[data-theme^="xp"] .btn:active,html[data-theme^="xp"] .small-btn:active{background:linear-gradient(to bottom,#d6d0c5,#e9e7e0);box-shadow:inset 1px 1px 2px rgba(0,0,0,.35);}
+html[data-theme^="xp"] .btn-primary,html[data-theme^="xp"] .btn-gold{box-shadow:inset 0 0 0 2px var(--xp-glow);color:#000;font-weight:700;}
+html[data-theme^="xp"] .btn-primary:hover,html[data-theme^="xp"] .btn-gold:hover{box-shadow:inset 0 0 0 2px #fbd27a,inset 0 -2px 0 #f8b330;}
+html[data-theme^="xp"] .btn-primary{background:linear-gradient(to bottom,#ffffff,#ecebe5 86%,#d6d0c5);}
+html[data-theme^="xp"] .btn-outline{background:linear-gradient(to bottom,#ffffff 0%,#f4f3ee 45%,#ecebe5 86%,#d6d0c5 100%);color:#000;}
+html[data-theme^="xp"] .btn-outline:hover{border-color:#003c74;color:#000;}
+html[data-theme^="xp"] .btn-danger{background:linear-gradient(to bottom,#ffb3a3,#e2492a 55%,#c4300f);border-color:#7a1a0c;color:#fff;text-shadow:1px 1px 0 rgba(0,0,0,.35);box-shadow:none;}
+html[data-theme^="xp"] .btn-danger:hover{box-shadow:inset 0 0 0 2px #ffd0c4;}
+html[data-theme^="xp"] .icon-btn{color:var(--xp-accent);}
+html[data-theme^="xp"] .icon-btn:hover{color:#428eff;}
+html[data-theme^="xp"] .link-btn{color:var(--xp-accent);}
+
+/* ---------------- ইনপুট ---------------- */
+html[data-theme^="xp"] input[type=text],html[data-theme^="xp"] input[type=number],html[data-theme^="xp"] input[type=password],html[data-theme^="xp"] input[type=date],html[data-theme^="xp"] input[type=search],html[data-theme^="xp"] input[type=email],html[data-theme^="xp"] input[type=tel],html[data-theme^="xp"] input:not([type]),html[data-theme^="xp"] select,html[data-theme^="xp"] textarea{
+  background:#fff !important;border:1px solid var(--xp-field) !important;border-radius:0 !important;color:#000 !important;
+  box-shadow:inset 1px 1px 1px rgba(0,0,0,.1);
+}
+html[data-theme^="xp"] input:focus,html[data-theme^="xp"] select:focus,html[data-theme^="xp"] textarea:focus{outline:1px dotted #000;outline-offset:-3px;border-color:#316ac5 !important;}
+html[data-theme^="xp"] input::placeholder,html[data-theme^="xp"] textarea::placeholder{color:#8a8a8a;}
+
+/* অ্যাপের নিজের টপবার (Help/About/ইউজার) আগে থেকেই আছে বলে আলাদা XP টাইটেল বার রাখা হয়নি —
+   দুটো বার থাকলে উপরটা জায়গা নষ্ট করত আর নকল "বন্ধ করুন" বোতাম বিভ্রান্তিকর হতো। */
+
+/* ---------------- সাইডবার: Explorer-এর বাম "টাস্ক প্যান" ---------------- */
+html[data-theme^="xp"] .sidebar{background:var(--xp-side);border-right:1px solid var(--xp-win-border);padding:12px 10px;gap:10px;}
+html[data-theme^="xp"] .sidebar .brand{border-bottom:none;padding:2px 4px 4px;margin-bottom:0;}
+html[data-theme^="xp"] .sidebar .brand h1{color:#fff;text-shadow:1px 1px 1px rgba(0,0,0,.45);}
+html[data-theme^="xp"] #navList{background:var(--xp-navbody);border:1px solid #fff;border-radius:4px;padding:4px;}
+html[data-theme^="xp"] #navList::before{content:"পেজসমূহ";display:block;background:var(--xp-hdr);color:var(--xp-accent);font-weight:700;font-size:12px;padding:5px 8px;margin:-4px -4px 4px;border-radius:3px 3px 0 0;}
+html[data-theme^="xp"] .sidebar-foot{border-top:1px solid rgba(255,255,255,.45);color:#fff;}
+html[data-theme^="xp"] .app-ver,html[data-theme^="xp"] #connBadge{color:#fff !important;text-shadow:1px 1px 1px rgba(0,0,0,.4);}
+html[data-theme^="xp"] .user-chip,html[data-theme^="xp"] .user-chip b{color:#fff;}
+html[data-theme^="xp"] .role-badge{background:#ffffe1;color:#000;border:1px solid #888;border-radius:2px;}
+
+/* ---------------- উপরের টুলবার ---------------- */
+html[data-theme^="xp"] .app-topbar{background:linear-gradient(to bottom,#fbfaf4,#ece9d8);border-bottom:1px solid var(--xp-edge);box-shadow:none;}
+html[data-theme^="xp"] .tb-title{color:var(--xp-accent);font-weight:700;}
+html[data-theme^="xp"] .tb-btn{border-radius:3px;border:1px solid transparent;background:transparent;color:#000;font-weight:400;transition:none;}
+html[data-theme^="xp"] .tb-btn:hover{transform:none;color:#000;border-color:#8a9fc9;background:linear-gradient(#fff,#e8e5d4);}
+html[data-theme^="xp"] .tb-btn.tb-logout{color:var(--danger-text);}
+html[data-theme^="xp"] .tb-user{border-radius:3px;border:1px solid var(--xp-edge);background:#fff;}
+html[data-theme^="xp"] .tb-chip{background:#ffffe1;border:1px solid #888;border-radius:2px;color:#000 !important;}
+html[data-theme^="xp"] .hamburger-btn{border-radius:3px;border:1px solid var(--xp-edge);background:linear-gradient(#fff,#ecebe5);color:#000;}
+html[data-theme^="xp"] .tb-menu{background:#fff;border:1px solid var(--xp-win-border);border-radius:3px;box-shadow:3px 4px 8px rgba(0,0,0,.4);}
+html[data-theme^="xp"] .tbm-item{border-radius:0;font-weight:400;color:#000;}
+html[data-theme^="xp"] .tbm-item:hover,html[data-theme^="xp"] .tbm-item:active{background:var(--xp-select);color:#fff;}
+html[data-theme^="xp"] .tbm-conn{color:#000 !important;}
+
+/* ---------------- কার্ড, গ্রুপ-বক্স, স্ট্যাট ---------------- */
+html[data-theme^="xp"] .main{background:var(--xp-face);}
+html[data-theme^="xp"] .topbar h2{color:var(--xp-accent);}
+html[data-theme^="xp"] .card{background:#fff;border:1px solid #919b9c;border-radius:3px;box-shadow:1px 1px 0 #fff;padding:14px;}
+html[data-theme^="xp"] .card h3{color:var(--xp-accent);}
+html[data-theme^="xp"] .card>h3:first-child{margin:-14px -14px 12px;padding:6px 12px;background:var(--xp-hdr);border-bottom:1px solid #aab8dc;border-radius:2px 2px 0 0;}
+html[data-theme^="xp"] .stat-card{background:#fff;border:1px solid #919b9c;border-top:3px solid var(--teal-2);border-radius:3px;box-shadow:1px 1px 0 #fff;transition:none;}
+html[data-theme^="xp"] .stat-card:hover{transform:none;box-shadow:1px 1px 0 #fff;}
+html[data-theme^="xp"] .stat-card .ic{border-radius:3px;}
+html[data-theme^="xp"] .stat-card .lbl{color:#333;font-weight:700;}
+html[data-theme^="xp"] .stat-card.gold{border-top-color:#e8a317;} html[data-theme^="xp"] .stat-card.gold .val{color:#a86b00;} html[data-theme^="xp"] .stat-card.gold .ic{background:#fff1c2;}
+html[data-theme^="xp"] .sum-box{background:#fff;border:1px solid var(--xp-edge);border-radius:3px;}
+html[data-theme^="xp"] .toolbar input,html[data-theme^="xp"] .toolbar select{border-radius:0;}
+html[data-theme^="xp"] .pill{border-radius:2px;border:1px solid rgba(0,0,0,.2);}
+html[data-theme^="xp"] .foot-total{color:var(--xp-accent);}
+html[data-theme^="xp"] .help-warn{background:#ffffe1;border:1px solid #000;border-radius:3px;color:#000;}
+html[data-theme^="xp"] .help-tip{background:#e8f0ff;border:1px solid #7f9db9;border-radius:3px;}
+html[data-theme^="xp"] .set-note{color:#333;}
+html[data-theme^="xp"] .badge-count{background:#d4301e;color:#fff;border-radius:3px;}
+
+/* ---------------- টেবিল (Explorer-এর "বিস্তারিত" ভিউ) ---------------- */
+html[data-theme^="xp"] .tbl-wrap{border-radius:0;border:1px solid #919b9c;background:#fff;}
+html[data-theme^="xp"] th{background:linear-gradient(to bottom,#ffffff 0%,#ebeadb 85%,#d6d2c2 100%);color:#000;border:1px solid #d6d2c2;border-right-color:#c4bfae;text-transform:none;letter-spacing:0;padding:7px 8px;}
+html[data-theme^="xp"] td{border-bottom:1px solid #eeeeee;padding:7px 8px;}
+html[data-theme^="xp"] tr:nth-child(even) td{background:#f7f9fe;}
+html[data-theme^="xp"] tr:hover td{background:#dde8fb;}
+
+/* ---------------- সেটিংস ট্যাব: XP প্রপার্টি-শিট ট্যাব ---------------- */
+html[data-theme^="xp"] .set-tabs{border-bottom:1px solid #919b9c !important;gap:2px !important;}
+html[data-theme^="xp"] .set-tab{background:linear-gradient(#fcfcfe,#ecebe5) !important;border:1px solid #919b9c !important;border-bottom:none !important;border-radius:3px 3px 0 0 !important;color:#000 !important;font-weight:400 !important;box-shadow:none !important;}
+html[data-theme^="xp"] .set-tab:hover{background:linear-gradient(#fff6dc,#fbe3a4) !important;}
+html[data-theme^="xp"] .set-tab.active{background:#fff !important;border-top:2px solid #f8b330 !important;font-weight:700 !important;margin-bottom:-1px;}
+html[data-theme^="xp"] .set-card{background:#fff;border:1px solid #919b9c;border-radius:3px;}
+html[data-theme^="xp"] .help-sec summary{color:var(--xp-accent);}
+
+/* ---------------- ডায়ালগ (মডাল) = XP উইন্ডো ---------------- */
+html[data-theme^="xp"] .modal-bg{background:rgba(0,0,0,.38);}
+html[data-theme^="xp"] .modal{
+  background:var(--xp-face);border:1px solid var(--xp-win-border);border-radius:8px 8px 3px 3px;padding:0 14px 14px;
+  box-shadow:3px 5px 16px rgba(0,0,0,.5);
+}
+html[data-theme^="xp"] .modal h3{color:#fff;}
+html[data-theme^="xp"] .modal h3:first-child{
+  margin:0 -14px 12px;padding:7px 12px;background:var(--xp-title);color:var(--xp-title-text);font-size:13.5px;font-weight:700;
+  text-shadow:1px 1px 0 var(--xp-title-shadow);border-radius:7px 7px 0 0;
+}
+html[data-theme^="xp"] .modal.entry-modal{padding:0;}
+html[data-theme^="xp"] .entry-head{background:var(--xp-title) !important;border-bottom:1px solid var(--xp-win-border);padding:7px 14px;border-radius:7px 7px 0 0;}
+html[data-theme^="xp"] .entry-head h3,html[data-theme^="xp"] .modal .entry-head h3:first-child{margin:0 !important;padding:0 !important;background:none !important;border-radius:0 !important;color:var(--xp-title-text);font-size:14px;text-shadow:1px 1px 0 var(--xp-title-shadow);}
+html[data-theme^="xp"] .entry-modal.sale-theme .entry-head,html[data-theme^="xp"] .entry-modal.purchase-theme .entry-head{background:var(--xp-title) !important;}
+html[data-theme^="xp"] .entry-body{background:var(--xp-face);}
+html[data-theme^="xp"] .entry-foot{background:#e3dfcb;border-top:1px solid var(--xp-edge);}
+html[data-theme^="xp"] .entry-bar,html[data-theme^="xp"] .items-box,html[data-theme^="xp"] .item-line-card,html[data-theme^="xp"] .cart-list,html[data-theme^="xp"] .np-box{border-radius:3px !important;}
+html[data-theme^="xp"] .item-line-card{background:#fff;border-color:#c9c3ad;}
+html[data-theme^="xp"] .np-box{background:#f7f5ea;border:1px dashed var(--xp-edge);}
+html[data-theme^="xp"] .np-title{color:var(--xp-accent);}
+html[data-theme^="xp"] .sugg-box{border-radius:0;border:1px solid var(--xp-field);background:#fff;box-shadow:2px 3px 6px rgba(0,0,0,.3);}
+html[data-theme^="xp"] .sugg-row:hover,html[data-theme^="xp"] .sugg-row.active{background:var(--xp-select);color:#fff;}
+html[data-theme^="xp"] .sugg-row:hover *,html[data-theme^="xp"] .sugg-row.active *{color:#fff !important;}
+html[data-theme^="xp"] .pf-hint{background:#ffffe1;border:1px solid #000;border-radius:3px;color:#000;}
+
+/* ---------------- টোস্ট = XP বেলুন টিপ ---------------- */
+html[data-theme^="xp"] .toast{background:#ffffe1;color:#000;border:1px solid #000;border-radius:7px;box-shadow:2px 3px 6px rgba(0,0,0,.4);font-weight:400;}
+
+/* ---------------- ভাসমান ক্রয়/বিক্রয় বাটন ---------------- */
+html[data-theme^="xp"] .fab-btn{border-radius:3px;border:1px solid #003c74;font-weight:700;box-shadow:inset 0 0 0 2px var(--xp-glow),2px 2px 5px rgba(0,0,0,.4);color:#000;
+  background:linear-gradient(to bottom,#ffffff,#ecebe5 86%,#d6d0c5);}
+html[data-theme^="xp"] .fab-btn.fab-sale{background:linear-gradient(to bottom,#9ee38a,#3fa83f 55%,#2c8a2c);color:#fff;text-shadow:1px 1px 0 rgba(0,0,0,.35);border-color:#1d6a1d;box-shadow:inset 0 0 0 1px rgba(255,255,255,.45),2px 2px 5px rgba(0,0,0,.4);}
+html[data-theme^="xp"] .fab-btn.fab-purchase{background:linear-gradient(to bottom,#8fc0ff,#3a7cf0 55%,#1d56c8);color:#fff;text-shadow:1px 1px 0 rgba(0,0,0,.35);border-color:#0b3da8;box-shadow:inset 0 0 0 1px rgba(255,255,255,.45),2px 2px 5px rgba(0,0,0,.4);}
+html[data-theme^="xp"] .fab-btn:hover{transform:none;filter:brightness(1.08);}
+
+/* স্কিম-ভিত্তিক সূক্ষ্ম সমন্বয় */
+
+/* আমাদের নিজস্ব অংশগুলো XP-তে */
+html[data-theme^="xp"] #shopGate{background:var(--xp-welcome) !important;}
+html[data-theme^="xp"] .hold-bar{border:1px solid var(--xp-edge);border-radius:3px;background:#ffffe1;color:#000;}
+html[data-theme^="xp"] .hold-chip{background:#fff;border:1px solid var(--xp-field);border-radius:2px;}
+html[data-theme^="xp"] .hold-chip a:hover{color:var(--xp-select);}
+
+}  /* /@media screen */
+
+/* বাম-পাশের তালিকা: Windows Explorer-এর মতো হাইলাইট (প্যাডিং মূল থিমেরই) */
+@media screen{
+html[data-theme^="xp"] .nav-item{border-radius:2px;color:var(--xp-accent);font-weight:400;transform:none !important;transition:none;}
+html[data-theme^="xp"] .nav-item:hover{background:#eef4ff;color:#0a3fa8;box-shadow:inset 0 0 0 1px #98b8ee;text-decoration:none;}
+html[data-theme^="xp"] .nav-item.active{background:var(--xp-select);color:#fff;font-weight:700;box-shadow:inset 0 0 0 1px #1f4ea0;outline:1px dotted #fff;outline-offset:-3px;text-decoration:none;}
+html[data-theme^="xp"] .nav-item.active:hover{background:var(--xp-select);color:#fff;}
+
+/* ড্যাশবোর্ডের প্লেট/কার্ড: প্রতিটির উপরের লাইন আলাদা রঙের */
+html[data-theme^="xp"] .stat-card.teal{border-top-color:#2e8b2e;}   html[data-theme^="xp"] .stat-card.teal .val{color:#1f6f1f;}   html[data-theme^="xp"] .stat-card.teal .ic{background:#dff0d8;}
+html[data-theme^="xp"] .stat-card.blue{border-top-color:#245edb;}   html[data-theme^="xp"] .stat-card.blue .val{color:#1648b0;}   html[data-theme^="xp"] .stat-card.blue .ic{background:#dbe7fb;}
+html[data-theme^="xp"] .stat-card.gold{border-top-color:#e8a317;}   html[data-theme^="xp"] .stat-card.gold .val{color:#a86b00;}   html[data-theme^="xp"] .stat-card.gold .ic{background:#fff1c2;}
+html[data-theme^="xp"] .stat-card.danger{border-top-color:#cc3b2b;} html[data-theme^="xp"] .stat-card.danger .val{color:#b01c0c;} html[data-theme^="xp"] .stat-card.danger .ic{background:#f8d9d4;}
+html[data-theme^="xp"] .stat-card.amber{border-top-color:#e07b12;}  html[data-theme^="xp"] .stat-card.amber .val{color:#a85a00;}  html[data-theme^="xp"] .stat-card.amber .ic{background:#fde4c6;}
+html[data-theme^="xp"] .stat-card.pink{border-top-color:#c2418f;}   html[data-theme^="xp"] .stat-card.pink .val{color:#9a2a6d;}   html[data-theme^="xp"] .stat-card.pink .ic{background:#f7d9ec;}
+html[data-theme^="xp"] .stat-card.purple{border-top-color:#6a4fc4;} html[data-theme^="xp"] .stat-card.purple .val{color:#4d36a0;} html[data-theme^="xp"] .stat-card.purple .ic{background:#e4dcf7;}
+html[data-theme^="xp"] .stat-card.indigo{border-top-color:#17a2b8;} html[data-theme^="xp"] .stat-card.indigo .val{color:#0e7a8c;} html[data-theme^="xp"] .stat-card.indigo .ic{background:#d3eef3;}
+}

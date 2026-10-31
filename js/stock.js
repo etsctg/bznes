@@ -108,7 +108,7 @@ async function openStockLedger(productId){
     const refLabel = m.refType==='purchase' ? refNo('PUR', m.refId) : (m.refType==='sale' ? refNo('INV', m.refId) : (m.refType==='return' ? refNo('RET', m.refId) : (m.refType==='preturn' ? refNo('PRT', m.refId) : '-')));
     return `<tr><td>${fmtDate(m.date||m.at)}</td><td>${typeLabel}</td><td>${refLabel}</td>
       <td class="num" style="color:${m.qty>=0?'var(--success)':'var(--danger-text)'}">${m.qty>=0?'+':''}${m.qty}</td>
-      <td class="num"><b>${bal}</b></td><td style="font-size:11px;color:var(--muted);">${esc(m.by||'-')}</td></tr>`;
+      <td class="num"><b>${bal}</b></td><td style="font-size:11px;color:var(--muted);">${esc(maskUser(m.by)||'-')}</td></tr>`;
   }).reverse().join('');
   body.innerHTML = `<div class="tbl-wrap"><table>
     <tr><th>তারিখ</th><th>ধরন</th><th>ভাউচার #</th><th class="num">পরিমাণ</th><th class="num">স্টক ব্যালেন্স</th><th>করেছেন</th></tr>

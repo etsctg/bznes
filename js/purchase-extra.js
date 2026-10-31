@@ -270,7 +270,7 @@ function buildPurchaseReturnModel(rec){
   const sup = DB.suppliers.find(c=>c.id===rec.supplierId), ref = refNo('PRT', rec.id);
   return {title:'ক্রয় ফেরত ভাউচার', file:ref,
     meta:[['ভাউচার #',ref],['তারিখ',fmtDate(rec.date)],['সাপ্লায়ার',esc(rec.supplierName)],['মূল ক্রয়',esc(rec.purRef)]],
-    items, totals, rateLabel:'দর', by:rec.createdBy||'', footer:esc(DB.settings?.footer||'ধন্যবাদ।'),
+    items, totals, rateLabel:'দর', by:maskUser(rec.createdBy)||'', footer:esc(DB.settings?.footer||'ধন্যবাদ।'),
     waPhone:waNumber(sup&&sup.phone),
     waText:`${DB.settings?.shopName||'ব্যবসা ম্যানেজার'}\nক্রয় ফেরত ${ref} (${fmtDate(rec.date)})\nমূল ক্রয়: ${rec.purRef}\nফেরতের মূল্য: ${money(rec.amount)}\nনগদ ফেরত: ${money(rec.cashRefund)}`};
 }

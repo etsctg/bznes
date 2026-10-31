@@ -281,7 +281,7 @@ function voucherFilter(rows, kind){
   const pre = kind==='sale' ? 'INV' : 'PUR', words = q.split(/\s+/).filter(Boolean);
   return rows.filter(r=>{
     const prods = (r.items||[]).map(it=>{ const p = DB.products.find(x=>x.id===it.productId); return p ? [p.name,p.code,p.color].filter(Boolean).join(' ') : ''; }).join(' ');
-    const hay = [refNo(pre,r.id), kind==='sale'?r.customerName:r.supplierName, r.createdBy, prods].join(' ').toLowerCase();
+    const hay = [refNo(pre,r.id), kind==='sale'?r.customerName:r.supplierName, maskUser(r.createdBy), prods].join(' ').toLowerCase();
     return words.every(w=>hay.includes(w));
   });
 }

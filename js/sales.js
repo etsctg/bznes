@@ -37,7 +37,7 @@ function renderUserBreakdownCard(rows, elId, label){
   if(!el) return;
   const byUser = {};
   rows.forEach(r=>{
-    const name = r.createdBy || 'অজানা';
+    const name = maskUser(r.createdBy) || 'অজানা';
     if(!byUser[name]) byUser[name] = {count:0, total:0};
     byUser[name].count++; byUser[name].total += r.total;
   });
@@ -117,7 +117,7 @@ function renderSalesItemReport(rows){
           <td>${fmtDate(l.sale.date)}</td><td>${esc(l.productName)} ${esc(l.unit)}</td>
           <td class="num">${esc(l.qtyCell)}</td><td class="num">${esc(l.rateCell)}</td><td class="num">${money(r2(l.price*l.qty))}</td>
           <td class="num" style="color:${l.profit==null?'var(--muted)':(l.profit>=0?'var(--success)':'var(--danger-text)')}">${l.profit==null?'-':(l.approx?'~':'')+money(l.profit)}</td>
-          <td>${esc(l.sale.customerName)}</td><td>${esc(l.sale.createdBy||'-')}</td>
+          <td>${esc(l.sale.customerName)}</td><td>${esc(maskUser(l.sale.createdBy)||'-')}</td>
           <td><button class="icon-btn" onclick="viewSaleDetail(${l.sale.id})" title="বিস্তারিত">👁️</button>
               <button class="icon-btn" onclick="printInvoice(${l.sale.id})" title="প্রিন্ট">🖨️</button>
               <button class="icon-btn" onclick="shareInvoice(${l.sale.id})" title="ছবি শেয়ার">📤</button>
@@ -138,7 +138,7 @@ function viewSaleDetail(id){
   }).join('');
   openModal(`
     <h3>বিক্রয় বিস্তারিত — ${refNo('INV', s.id)}</h3>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">তারিখ: ${fmtDate(s.date)} • কাস্টমার: ${esc(s.customerName)}${s.createdBy?' • এন্ট্রি করেছেন: '+esc(s.createdBy):''}${s.editedBy?' • সর্বশেষ এডিট: '+esc(s.editedBy):''}</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">তারিখ: ${fmtDate(s.date)} • কাস্টমার: ${esc(s.customerName)}${maskUser(s.createdBy)?' • এন্ট্রি করেছেন: '+esc(maskUser(s.createdBy)):''}${s.editedBy?' • সর্বশেষ এডিট: '+esc(s.editedBy):''}</div>
     <div class="tbl-wrap"><table>
       <tr><th>পণ্য</th><th class="num">পরিমাণ</th><th class="num">দর</th><th class="num">সাবটোটাল</th></tr>
       ${rows}

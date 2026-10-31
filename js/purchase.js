@@ -86,7 +86,7 @@ function renderPurchaseItemReport(rows){
         <tr>
           <td>${fmtDate(l.pur.date)}</td><td>${esc(l.productName)} ${esc(l.unit)}</td>
           <td class="num">${esc(l.qtyCell)}</td><td class="num">${esc(l.rateCell)}</td><td class="num">${money(r2(l.price*l.qty))}</td>
-          <td>${esc(l.pur.supplierName)}</td><td>${esc(l.pur.createdBy||'-')}</td>
+          <td>${esc(l.pur.supplierName)}</td><td>${esc(maskUser(l.pur.createdBy)||'-')}</td>
           <td><button class="icon-btn" onclick="viewPurchaseDetail(${l.pur.id})" title="বিস্তারিত">👁️</button>
               <button class="icon-btn" onclick="printPurchaseVoucher(${l.pur.id})" title="প্রিন্ট">🖨️</button>
               <button class="icon-btn" onclick="sharePurchaseVoucher(${l.pur.id})" title="ছবি শেয়ার">📤</button>
@@ -110,7 +110,7 @@ function viewPurchaseDetail(id){
   }).join('');
   openModal(`
     <h3>ক্রয় বিস্তারিত — ${refNo('PUR', pur.id)}</h3>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">তারিখ: ${fmtDate(pur.date)} • সাপ্লায়ার: ${esc(pur.supplierName)}${pur.createdBy?' • এন্ট্রি করেছেন: '+esc(pur.createdBy):''}${pur.editedBy?' • সর্বশেষ এডিট: '+esc(pur.editedBy):''}</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">তারিখ: ${fmtDate(pur.date)} • সাপ্লায়ার: ${esc(pur.supplierName)}${maskUser(pur.createdBy)?' • এন্ট্রি করেছেন: '+esc(maskUser(pur.createdBy)):''}${pur.editedBy?' • সর্বশেষ এডিট: '+esc(pur.editedBy):''}</div>
     <div class="tbl-wrap"><table>
       <tr><th>পণ্য</th><th class="num">পরিমাণ</th><th class="num">ক্রয়মূল্য</th><th class="num">সাবটোটাল</th><th></th></tr>
       ${rows}

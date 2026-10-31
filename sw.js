@@ -5,10 +5,11 @@
    ঠিকভাবে খোলে। মনে রাখবেন: ডেটা (Firebase Firestore) সিঙ্ক করতে এখনও
    ইন্টারনেট লাগে — শুধু নতুন এন্ট্রি অফলাইনে লোকালি জমা থাকে, পরে সিঙ্ক হয়। */
 
-const CACHE_NAME = 'business-erp-shell-v17';
+const CACHE_NAME = 'business-erp-shell-v20';
 const SHELL_FILES = [
   './index.html',
   './style.css',
+  './theme-xp.css',
   './config.js',
   './lib/JsBarcode.code128.min.js',
   './js/core-data.js',

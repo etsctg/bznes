@@ -96,7 +96,7 @@ async function renderDashboard(){
       <div class="stat-card amber"><div class="lbl">কাস্টমার বাকি (পাওনা)</div><div class="val" style="color:var(--amber-2)">${money(totalDueFromCustomers)}</div><div class="ic">💰</div></div>
       <div class="stat-card pink"><div class="lbl">সাপ্লায়ার বাকি (দেনা)</div><div class="val" style="color:var(--pink-2)">${money(totalDueToSuppliers)}</div><div class="ic">💰</div></div>
       <div class="stat-card purple"><div class="lbl">মোট পণ্য</div><div class="val">${DB.products.length}</div><div class="ic">📦</div></div>
-      <div class="stat-card ${lowStockItems.length?'danger':'teal'}"><div class="lbl">লো-স্টক এলার্ট</div><div class="val" style="color:${lowStockItems.length?'var(--danger-text)':'var(--success)'}">${lowStockItems.length}</div><div class="ic">⚠️</div></div>
+      <div class="stat-card indigo"><div class="lbl">লো-স্টক এলার্ট</div><div class="val" style="color:${lowStockItems.length?'var(--danger-text)':'var(--success)'}">${lowStockItems.length}</div><div class="ic">⚠️</div></div>
     </div>
     <div class="grid g3">
       <div class="card"><h3>📊 বিক্রয় বনাম ক্রয়</h3><div class="chart-wrap" id="chartWrapSP"><canvas id="chartSalesPurchase"></canvas></div></div>

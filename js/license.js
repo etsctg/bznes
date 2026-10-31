@@ -68,7 +68,29 @@ function licenseKeyBoxHtml(){
   </div>`;
 }
 
-/* লাইসেন্স যাচাই: ১) সাইন-করা কী (থাকলে) ২) পুরনো erp_license/current ডকুমেন্ট ৩) কিছুই না থাকলে ও LICENSE_REQUIRED না হলে — সীমাহীন */
+/* ===== অটো ১৫ দিনের ট্রায়াল =====
+   প্রথম চালুর সময় Firestore-এ erp_settings/trial তৈরি হয় (সার্ভারের সময় সহ; Rules-এ শুধু create — বদলানো/মোছা যায় না)।
+   ১৫ দিন পর বৈধ লাইসেন্স কী ছাড়া অ্যাপ কোনোভাবেই চলে না। (ডিভাইসের তারিখ পিছিয়ে দিয়ে ফাঁকি এড়াতে
+   সর্বশেষ দেখা সময় মনে রাখা হয়।) */
+const TRIAL_DAYS = 15;
+async function getTrialStartMs(){
+  const ref = fsDB.collection('erp_settings').doc('trial');
+  let snap = await ref.get();
+  if(!snap.exists){
+    await ref.set({startedAt: firebase.firestore.FieldValue.serverTimestamp(), days: TRIAL_DAYS});
+    snap = await ref.get();
+  }
+  const d = snap.data() || {};
+  return d.startedAt && d.startedAt.toDate ? d.startedAt.toDate().getTime() : Date.now();
+}
+function trustedNowMs(){
+  let last = 0; try{ last = Number(localStorage.getItem('erp_clock_hwm')||0); }catch(e){}
+  const now = Math.max(Date.now(), last);
+  try{ localStorage.setItem('erp_clock_hwm', String(now)); }catch(e){}
+  return now;
+}
+
+/* লাইসেন্স যাচাই (ক্রম): ১) সাইন-করা কী ২) বিক্রেতার বসানো পুরনো erp_license/current ডকুমেন্ট ৩) অটো ১৫ দিনের ট্রায়াল — এর পর কী ছাড়া বন্ধ */
 async function checkLicenseGate(){
   const hasPub = typeof LICENSE_PUBLIC_KEY!=='undefined' && LICENSE_PUBLIC_KEY;
   if(hasPub){
@@ -81,18 +103,35 @@ async function checkLicenseGate(){
       if(left!=null && left<0) return {ok:false, reason:'expired', lic};
       return {ok:true, lic:licenseInfo, daysLeft:left};
     }
-    if(typeof LICENSE_REQUIRED!=='undefined' && LICENSE_REQUIRED) return {ok:false, reason: key?'invalid':'missing'};
   }
-  let snap;
-  try{ snap = await fsDB.collection('erp_license').doc('current').get(); }
-  catch(err){ console.warn('লাইসেন্স পড়া যায়নি (রুলস/ইন্টারনেট সমস্যা হতে পারে):', err); licenseInfo = null; return {ok:true}; }
-  if(!snap.exists){ licenseInfo = null; return {ok:true}; }
-  const lic = snap.data();
-  licenseInfo = lic;
+  try{
+    const snap = await fsDB.collection('erp_license').doc('current').get();
+    if(snap.exists){
+      const lic = snap.data(); licenseInfo = lic;
+      const left = daysUntil(lic.expiryDateStr);
+      if(lic.status !== 'active') return {ok:false, reason:'suspended', lic};
+      if(left!=null && left < 0) return {ok:false, reason:'expired', lic};
+      return {ok:true, lic, daysLeft:left};
+    }
+  }catch(err){ console.warn('erp_license পড়া যায়নি:', err); }
+  // ট্রায়াল
+  const startMs = await getTrialStartMs();
+  const endMs = startMs + TRIAL_DAYS*864e5, now = trustedNowMs();
+  const left = Math.ceil((endMs-now)/864e5);
+  const endStr = localDateStr(new Date(endMs));
+  if(left<=0){ licenseInfo = null; return {ok:false, reason:'trial_expired', lic:{clientName:'ট্রায়াল সংস্করণ', expiryDateStr:endStr}}; }
+  licenseInfo = {trial:true, status:'active', clientName:'ট্রায়াল সংস্করণ', expiryDateStr:endStr, maxUsers:0, maxDevices:0};
+  return {ok:true, lic:licenseInfo, daysLeft:left};
+}
+function openLicenseTab(){ if(typeof can==='function' && can('license')){ settingsTab='license'; renderPage('settings'); } }
+function updateLicenseChip(){
+  const el = document.getElementById('licChip'); if(!el) return;
+  const lic = licenseInfo; if(!lic){ el.style.display='none'; return; }
   const left = daysUntil(lic.expiryDateStr);
-  if(lic.status !== 'active') return {ok:false, reason:'suspended', lic};
-  if(left!=null && left < 0) return {ok:false, reason:'expired', lic};
-  return {ok:true, lic, daysLeft:left};
+  if(lic.trial || (left!=null && left<=14)){
+    el.style.display=''; el.textContent = (lic.trial?'⏳ ট্রায়াল: ':'⏳ লাইসেন্স: ')+(left<=0?'আজ শেষ':left+' দিন বাকি');
+    el.style.color = left<=3 ? 'var(--danger-text)' : 'var(--warn-text)';
+  } else el.style.display='none';
 }
 
 /* মেয়াদ শেষ/বন্ধ/কী-নেই হলে বুট-স্ক্রিনেই আটকে দেওয়া হয় — এখানেই নতুন কী বসানো যায় */
@@ -100,7 +139,7 @@ function showLicenseBlockScreen(reason, lic){
   const statusEl = document.getElementById('bootStatus');
   const T = {
     expired:['⏳','লাইসেন্সের মেয়াদ শেষ হয়ে গেছে'], suspended:['⛔','লাইসেন্স বন্ধ আছে'],
-    missing:['🔑','লাইসেন্স কী দিন'], invalid:['⚠️','লাইসেন্স কী সঠিক নয়'], mismatch:['⚠️','এই লাইসেন্স কী অন্য ক্লায়েন্টের']
+    trial_expired:['⏳','১৫ দিনের ট্রায়াল শেষ হয়েছে'], missing:['🔑','লাইসেন্স কী দিন'], invalid:['⚠️','লাইসেন্স কী সঠিক নয়'], mismatch:['⚠️','এই লাইসেন্স কী অন্য ক্লায়েন্টের']
   }[reason] || ['⛔','লাইসেন্স সমস্যা'];
   const canKey = typeof LICENSE_PUBLIC_KEY!=='undefined' && LICENSE_PUBLIC_KEY && reason!=='suspended';
   statusEl.innerHTML = `
@@ -109,7 +148,8 @@ function showLicenseBlockScreen(reason, lic){
       <div style="font-weight:800;font-size:16px;margin-bottom:10px;">${T[1]}</div>
       <div style="font-size:13px;color:var(--muted);line-height:1.9;margin-bottom:12px;">
         ${lic?`প্রতিষ্ঠান: <b style="color:var(--ink);">${esc(lic.clientName||'-')}</b><br>মেয়াদ ছিল: <b style="color:var(--ink);">${lic.expiryDateStr?fmtDate(lic.expiryDateStr):'-'}</b><br>`:''}
-        ${canKey?'বিক্রেতার কাছ থেকে নতুন লাইসেন্স কী নিয়ে নিচে পেস্ট করুন।':'অ্যাপ আবার ব্যবহার করতে লাইসেন্স নবায়ন/সক্রিয় করা প্রয়োজন — নিচের ঠিকানায় যোগাযোগ করুন।'}
+        ${reason==='trial_expired'?'ট্রায়ালের ডেটা সুরক্ষিত আছে — লাইসেন্স সক্রিয় করলেই আবার সব পাবেন।<br>':''}
+        ${canKey?'বিক্রেতার কাছ থেকে লাইসেন্স কী নিয়ে নিচে পেস্ট করুন।':'অ্যাপ ব্যবহার করতে লাইসেন্স সক্রিয় করা প্রয়োজন — নিচের ঠিকানায় যোগাযোগ করুন।'}
       </div>
       ${canKey?licenseKeyBoxHtml():''}
       <div class="about-links" style="max-width:320px;margin:12px auto 0;">
@@ -202,7 +242,19 @@ function settingsLicenseHtml(){
   const lic = licenseInfo;
   if(!lic){
     return `<div class="card set-card"><h3>🔑 লাইসেন্স</h3>
-      <div class="set-note">এই ইনস্টলেশনে কোনো লাইসেন্স-সীমা সেট করা নেই — সীমাহীন ব্যবহার চলছে।</div></div>`;
+      <div class="set-note">লাইসেন্সের তথ্য পাওয়া যায়নি — পেজ রিলোড করুন।</div></div>`;
+  }
+  if(lic.trial){
+    const tl = daysUntil(lic.expiryDateStr);
+    return `<div class="card set-card"><h3>🔑 লাইসেন্স</h3>
+      <div class="sum-compact">
+        <div class="sum-line"><span>অবস্থা</span><span class="pill warn">ট্রায়াল (${TRIAL_DAYS} দিন)</span></div>
+        <div class="sum-line"><span>ট্রায়াল শেষ</span><b>${fmtDate(lic.expiryDateStr)}</b></div>
+        <div class="sum-line"><span>বাকি দিন</span><b style="color:${tl<=3?'var(--danger-text)':'var(--warn-text)'};">${tl<=0?'আজ শেষ':tl+' দিন'}</b></div>
+      </div>
+      <div class="set-note">ট্রায়াল শেষ হলে বৈধ লাইসেন্স কী ছাড়া অ্যাপ চলবে না। লাইসেন্স কিনতে যোগাযোগ করুন: <b>${esc(VENDOR.phone)}</b> / <b>${esc(VENDOR.email)}</b></div>
+      ${can('licenseManage')?`<details style="margin-top:10px;" open><summary style="cursor:pointer;font-weight:700;">🔑 লাইসেন্স কী বসান</summary>${licenseKeyBoxHtml()}</details>`:''}
+    </div>`;
   }
   const left = daysUntil(lic.expiryDateStr);
   const leftColor = left==null ? 'var(--muted)' : (left<0 ? 'var(--danger-text)' : (left<=14 ? 'var(--warn-text)' : 'var(--success)'));
@@ -221,7 +273,7 @@ function settingsLicenseHtml(){
     </div>
     <div class="set-note">মেয়াদ, সর্বোচ্চ ইউজার/ডিভাইস সংখ্যা শুধু বিক্রেতা বদলাতে পারেন। নবায়ন বা সীমা বাড়াতে যোগাযোগ করুন:
       <b>${esc(VENDOR.phone)}</b> / <b>${esc(VENDOR.email)}</b></div>
-    ${(lic.viaKey && hasAccess('admin'))?`<details style="margin-top:10px;"><summary style="cursor:pointer;font-weight:700;">🔄 নবায়ন — নতুন লাইসেন্স কী বসান</summary>${licenseKeyBoxHtml()}</details>`:''}
+    ${(lic.viaKey && can('licenseManage'))?`<details style="margin-top:10px;"><summary style="cursor:pointer;font-weight:700;">🔄 নবায়ন — নতুন লাইসেন্স কী বসান</summary>${licenseKeyBoxHtml()}</details>`:''}
   </div>
   <div class="card set-card" style="margin-top:16px;" id="licDevicesCard"><h3>💻 নিবন্ধিত ডিভাইস</h3><div style="color:var(--muted);padding:12px;text-align:center;">লোড হচ্ছে...</div></div>`;
 }
@@ -235,7 +287,7 @@ async function loadLicenseDevices(){
     <tr><th>ডিভাইস</th><th>প্রথম ব্যবহার</th><th>সর্বশেষ ব্যবহার</th><th></th></tr>
     ${rows.map(d=>`<tr><td>${esc(d.label||'অজানা')}${d.id===myId?' <span class="pill ok">এই ডিভাইস</span>':''}</td>
       <td>${fmtDate(d.firstSeenAt.slice(0,10))}</td><td>${fmtDate((d.lastSeenAt||d.firstSeenAt).slice(0,10))}</td>
-      <td>${hasAccess('admin')?`<button class="icon-btn" onclick="removeLicenseDevice('${d.id}')" title="এই ডিভাইস সরান">🗑️</button>`:''}</td></tr>`).join('')
+      <td>${can('licenseManage')?`<button class="icon-btn" onclick="removeLicenseDevice('${d.id}')" title="এই ডিভাইস সরান">🗑️</button>`:''}</td></tr>`).join('')
       || `<tr><td colspan="4" style="text-align:center;color:var(--muted);">কোনো ডিভাইস নিবন্ধিত নেই</td></tr>`}
   </table></div>`;
 }
@@ -259,7 +311,7 @@ function todaysBackupDone(){
   return !!(last && last.slice(0,10) === todayStr());
 }
 function logoutWithBackupCheck(){
-  if(currentUser && hasAccess('director') && !todaysBackupDone()){
+  if(currentUser && hasAccess('director') && can('backup') && !todaysBackupDone()){
     openModal(`
       <h3>⬇️ আজকের ব্যাকআপ এখনো নেওয়া হয়নি</h3>
       <div style="font-size:13px;color:var(--muted);line-height:1.8;margin-bottom:12px;">
@@ -267,7 +319,7 @@ function logoutWithBackupCheck(){
         ফাইলটা পেনড্রাইভ/ক্লাউডে (গুগল ড্রাইভ ইত্যাদি) সরিয়ে রাখুন।
       </div>
       <div class="modal-actions">
-        ${hasAccess('admin')?`<button class="btn btn-outline" onclick="closeModal();logout();">এড়িয়ে লগআউট (শুধু এডমিন)</button>`:''}
+        ${hasAccess('admin')?`<button class="btn btn-outline" onclick="closeModal();logout();">এড়িয়ে লগআউট (শুধু সুপার এডমিন)</button>`:''}
         <button class="btn btn-gold" onclick="backupThenLogout()">⬇️ ব্যাকআপ নিয়ে লগআউট করুন</button>
       </div>`);
   } else {

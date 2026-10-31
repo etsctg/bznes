@@ -18,7 +18,8 @@
 (function(){
   try{
     const saved = localStorage.getItem('erp_theme');
-    if(saved === 'light' || saved === 'xp') document.documentElement.setAttribute('data-theme', saved);
+    if(saved === 'light') document.documentElement.setAttribute('data-theme','light');
+    else if(String(saved).indexOf('xp') === 0) document.documentElement.setAttribute('data-theme','xp');
   }catch(e){}
 })();
 </script>
@@ -32,6 +33,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="theme-xp.css">
 </head>
 <body>
 
@@ -89,8 +91,7 @@
     <button class="btn btn-primary" onclick="doLogin()">প্রবেশ করুন</button>
     <div class="login-err" id="loginErr"></div>
     <div class="login-hint" id="loginHint">
-      ইউজারনেম ও পাসওয়ার্ড দোকানের এডমিনের কাছ থেকে নিন।<br>
-      ৪ স্তরের ইউজার: Admin, Director, Manager, User — লগইনের পর "সেটিংস → ইউজার ম্যানেজমেন্ট" থেকে নতুন ইউজার যোগ করুন।
+      ইউজারনেম ও পাসওয়ার্ড দোকানের এডমিনের কাছ থেকে নিন।
     </div>
     <button class="btn btn-outline hidden" id="installBtn" style="width:100%;margin-top:10px;" onclick="triggerInstall()">📲 অ্যাপ হিসেবে ইনস্টল করুন</button>
   </div>
@@ -116,6 +117,7 @@
       <button class="hamburger-btn" onclick="toggleSidebarMobile()">☰</button>
       <div class="tb-titles" id="tbTitles" onclick="toggleTbTitle()"><div class="tb-title" id="tbTitle">ব্যবসা ম্যানেজার</div><div class="tb-sub" id="tbSub"></div></div>
       <div class="top-actions">
+        <span class="tb-chip" id="licChip" style="display:none;cursor:pointer;" onclick="openLicenseTab()" title="লাইসেন্স"></span>
         <span class="tb-chip" id="connBadgeTop"></span>
         <button class="tb-btn tb-desk" onclick="openHelp()" title="ব্যবহার নির্দেশিকা">❓<span class="tb-lbl">Help</span></button>
         <button class="tb-btn tb-desk" onclick="openAbout()" title="অ্যাপ ও ডেভেলপার সম্পর্কে">ℹ️<span class="tb-lbl">About</span></button>
